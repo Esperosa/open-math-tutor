@@ -4,6 +4,7 @@ import {
   type CourseCatalog, type LearnerProfile, type Locale, type Skill,
 } from '@openmathtutor/shared';
 import type { MessageKey } from './i18n';
+import { useTween } from './useTween';
 import type { MasteryMap } from './curriculumStorage';
 
 interface Props {
@@ -27,6 +28,12 @@ function streak(profile: LearnerProfile): number {
   return n;
 }
 
+function TopicPercent({ value }: { value: number }) { return <small>{useTween(value)} %</small>; }
+/** The percentage text glides to its new value; the bar width already transitions in CSS. */
+function Percent({ value, ...rest }: { value: number } & React.HTMLAttributes<HTMLElement>) {
+  const shown = useTween(value);
+  return <strong {...rest}>{shown} %</strong>;
+}
 function Bar({ value, label }: { value: number; label: string }) {
   return <span className="plan-bar" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value}>
     <span style={{ width: `${value}%` }} /></span>;
@@ -49,14 +56,14 @@ export function PlanPanel({ catalog, trackId, mastery, profile, t, locale, curre
   };
   return <div className="plan-panel">
     <h2>{track.title[locale]}</h2>
-    <div className="plan-hero"><strong data-testid="plan-percent">{percent} %</strong><Bar value={percent} label={t.planTitle} /></div>
+    <div className="plan-hero"><Percent data-testid="plan-percent" value={percent} /><Bar value={percent} label={t.planTitle} /></div>
     <p className="muted">{t.planToday.replace('{n}', String(today))} · {t.planStreak.replace('{n}', String(days))}</p>
     <ol className="plan-topics">
       {topics.map(topic => {
         const skills = getTopicSkills(catalog, topic.id);
         const next = nextSkill(skills);
         return <li key={topic.id}>
-          <div className="plan-topic-head"><strong>{topic.title[locale]}</strong><small>{topicPercent(catalog, topic.id, mastery)} %</small></div>
+          <div className="plan-topic-head"><strong>{topic.title[locale]}</strong><TopicPercent value={topicPercent(catalog, topic.id, mastery)} /></div>
           <ul className="plan-skills">
             {skills.map(skill => {
               const done = masteredIds.has(skill.id);

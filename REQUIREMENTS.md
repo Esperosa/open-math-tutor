@@ -43,6 +43,33 @@ Pointa celé aplikace: student píše a kreslí na tabuli (pero, prst, myš) a a
 
 ---
 
+## 8. Odezva, rozhovor a živost (zpráva z 2026-11-06 večer)
+
+Zpětná vazba: „kontrola pořád nereaguje a když jo, tak mu to strašně trvá; chatování s tutorem mi dost chybí; chybí animace.“ Čísla: [`docs/latency-report.md`](docs/latency-report.md).
+
+| # | Požadavek | Stav |
+|---|---|---|
+| 8.1 | Lokální kontrola řádku je vidět do ~400 ms po dopsání (dřív 1,1 s) | ✅ `tests/latency.spec.ts`: psaný řádek Escape → značka ~18 ms, → komentář ~233 ms. Ručně psaný řádek: reakce maskota po zvednutí pera ~4 ms; komentář ~450 ms po pen-up (pauza) je pokrytá unit testem, celý řetězec pero → verdikt čeká na napojení čtení rukopisu do tabule (🟡) |
+| 8.2 | Nekomentovat rozepsaný řádek: pero dole ani druhý tah v pauze řádek neukončí | ✅ `activity.test.ts`, `App.live.test.tsx` (komentář až ~450 ms po zvednutí pera, ne dřív) |
+| 8.3 | Okamžitá vizuální odezva: maskot se „dívá“ už při psaní a po zvednutí pera kontroluje; značka ✓/✗ ihned po verdiktu | ✅ e2e `mentor-animation.spec.ts`, `latency.spec.ts` |
+| 8.4 | Žádné zbytečné blokování; kontrola ve Web Workeru, pokud je těžká | ✅ otevřený textový editor už neblokuje explicitní dotaz ani příjem odpovědi AI (`App.live.test.tsx`); Web Worker vědomě ne: kontrola 20 řádků trvá ~0,15 ms |
+| 8.5 | AI požadavek: stav hned, „zrušit“, rozumné limity | ✅ „přemýšlím“ ~5 ms, tlačítko Zrušit v bublině i v rozhovoru, „pořád přemýšlím“ po 12 s, limit 90 s |
+| 8.6 | AI požadavek: průběžný text, pokud poskytovatel streamuje | ❌ nejde: všichni poskytovatelé vrací jeden ověřený JSON, SSE endpoint z BRIDGE_API.md nemá serverovou stranu |
+| 8.7 | Měření (Playwright) do reportu, lokálně < 800 ms | ✅ `tests/latency.spec.ts` přepisuje měřenou tabulku v `docs/latency-report.md` |
+| 8.8 | Rozhovor s tutorem: vlákno s historií, ukládané per tabuli | ✅ `tests/chat.spec.ts` (přežije reload, nová tabule má prázdné vlákno) |
+| 8.9 | Odpovědi bez psaní: rychlé odpovědi podle kontextu („Vysvětli jinak“, „Ukaž další krok“, „Chápu“, „Nechápu“, „Příklad“, …) | ✅ `chat.test.ts`, `chat.spec.ts` |
+| 8.10 | Mikrofon push-to-talk, přepis → zpráva | 🟡 e2e s náhradní `SpeechRecognition`; skutečný mikrofon a rozpoznávání prohlížeče se netestovaly |
+| 8.11 | Volitelné pole „Napsat zprávu“, ne vždy viditelné; odpověď rukou do tabule není nutná | ✅ pole je sbalené, dokud ho student nerozbalí |
+| 8.12 | Dotazy jdou AI (`mode: 'ask'`) s krátkým kontextem konverzace, learnerContext a materiály; odpověď bublina + případný zápis na tabuli | ✅ kontrakt `conversation` (bridge validace a prompt testy, e2e s mock bridge); zápis na tabuli jde stávající vrstvou učitele, pro `ask` bez vlastního testu |
+| 8.13 | Lokální FAQ bez AI (✓/✗, režimy, mazání řádku, psaní, kalkulačka, hlas, posun, plán, export) | ✅ `chat.test.ts` |
+| 8.14 | Bez připojené AI to appka řekne a nabídne místní pomoc | ✅ `chat.spec.ts` |
+| 8.15 | Okno rozhovoru nepřekrývá víc než nutné: sbalitelné, dvě velikosti, ustupuje zásuvkám a nabídce, HUD kolizní pravidla zachována | ✅ e2e (desktop i telefon). Přetahování okna ❌: je ukotvené vpravo dole u maskota |
+| 8.16 | Maskot má stavy: čeká, sleduje psaní (oči a tužka za posledním tahem), přemýšlí (tečky), raduje se (skok, konfety), mračí se, ukazuje na řádek, mluví, mává | ✅ `live.test.tsx`, `mentor-animation.spec.ts` |
+| 8.17 | Plynulá chůze k řádku | 🟡 délka přechodu podle vzdálenosti (520–700 ms), kroky při chůzi, ukazování na místě; plynulost se měří jen jako „mnoho malých kroků“, ne očima |
+| 8.18 | Mikro-animace: značka se „namaluje“, procenta se plynule přepočítají, přechody panelů, bublina se „napíše“ | ✅ značky a bublina e2e; procenta `live.test.tsx` (hook), panely jen CSS |
+| 8.19 | Respektuje `prefers-reduced-motion` | ✅ e2e: žádná animace u maskota, značek ani rozhovoru |
+| 8.20 | Známý nedostatek | 🟡 bublina učitele, který dojde k řádku, může zakrýt značku ✓/✗ sousedního řádku (značky nejsou mezi překážkami trasy) |
+
 ## 1. Základní architektura (z původního zadání)
 
 | # | Požadavek | Stav |
@@ -56,13 +83,13 @@ Pointa celé aplikace: student píše a kreslí na tabuli (pero, prst, myš) a a
 | 1.7 | Lokální bridge orchestrující CLI providery | ✅ |
 | 1.8 | Bezpečné ověřování SymPy (žádný eval/exec/sympify/parse_expr) | ✅ + CI brána |
 | 1.9 | TutorProvider rozhraní (detect/auth/models/analyze/continue/cancel/stream) | 🟡 `stream` nevyužíváno (vědomě, progresivní vylepšení) |
-| 1.10 | Debounce ~1,5–2 s, manuální tlačítka (Zkontrolovat/Poradit/…) | ✅ |
+| 1.10 | Konec řádku se pozná podle pauzy (dřív pevný debounce 1,1–2,2 s): psaný řádek ~220 ms po Escape, ručně psaný ~450 ms po zvednutí pera; manuální tlačítka (Zkontrolovat/Poradit/…) | ✅ viz sekce 8 |
 | 1.11 | AI píše/kreslí přímo na tabuli (ne jen chat bublina) | ✅ |
 | 1.12 | Najde **první** příčinnou chybu, ne každý další řádek | ✅ |
 | 1.13 | Odstupňované nápovědy, ne rovnou celé řešení | ✅ prompt přepsán: u Zkontrolovat/Poradit jen nápověda a naváděcí otázka, celé řešení až na "Ukaž další krok" nebo výslovnou žádost |
 | 1.14 | Hlas (speechSynthesis, cs-CZ) | ✅ |
 | 1.15 | MVP matematický rozsah (aritmetika, zlomky, procenta, závorky, lineární rovnice) | ✅ |
-| 1.16 | Testy (unit/integration/e2e) | ✅ audit 6: shared 92, frontend 75, e2e 30, lint a typecheck; dříve ověřeno: content 34, bridge 161, verifier 161 |
+| 1.16 | Testy (unit/integration/e2e) | ✅ po sekci 8: shared 121, content 34, frontend 163, bridge 181 (+7 přeskočených živých CLI testů), e2e 48, lint a typecheck; verifier 161 naposledy ověřen dříve |
 | 1.17 | Bezpečnost (žádný shell z LLM, CSP, origin kontrola) | ✅ |
 | 1.18 | Dokumentace, licence, README cz/en | ✅ |
 
@@ -138,6 +165,7 @@ Pointa celé aplikace: student píše a kreslí na tabuli (pero, prst, myš) a a
 
 - Android/Capacitor obálka, iOS build
 - "Sign in with ChatGPT" režim
+- Streamování textu odpovědi AI po slovech a přetahování okna rozhovoru (viz 8.6 a 8.15)
 - Skutečná animace psaní perem tah po tahu (místo postupného odhalení KaTeX)
 - Geometrie, kvadratické rovnice, odmocniny (verifikátor zatím nepodporuje)
 - Codex tutoring (fail-closed, dokud OpenAI nezveřejní způsob, jak mu bezpečně zakázat shell nástroje)

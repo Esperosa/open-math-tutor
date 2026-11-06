@@ -134,6 +134,9 @@ Tento přehled není právní poradenství.
 - **Lokální trenér:** každý napsaný řádek se kontroluje v prohlížeči (`packages/shared/src/coach.ts`, `stepCheck.ts`, `answers.ts`) bez AI. Režimy: průběžně / až na konec / vypnuto (nabídka maskota).
 - **AI jen jako nástroj:** volá se na výslovnou žádost (nabídka maskota, "Vysvětli"), u neověřitelného výsledku jen s povolením v Nastavení. Start lekce AI nevolá.
 - **Paměť o studentovi:** `learnerProfile.ts` si tiše pamatuje typy chyb a které styly vysvětlení fungují; stručný souhrn jde AI jako `learnerContext`.
+- **Rychlá odezva:** značka ✓/✗ se objeví do ~20 ms po dopsání řádku, komentář učitele do ~250 ms po Escape (psaný řádek) nebo ~450 ms po zvednutí pera (rukou psaný řádek nikdy nekomentujeme uprostřed psaní). Maskot se při psaní „dívá“ za posledním tahem a po zvednutí pera ukáže, že kontroluje. Naměřené časy: [`docs/latency-report.md`](docs/latency-report.md).
+- **Rozhovor s učitelem:** tlačítko vedle maskota otevře sbalitelné okno s historií (ukládá se zvlášť pro každou tabuli). Odpovídáš klepnutím na rychlé odpovědi podle situace („Vysvětli jinak“, „Ukaž další krok“, „Chápu“, „Nechápu“, „Příklad“), hlasem (mikrofon) nebo volitelně napsanou zprávou. Běžné otázky k appce (co znamená ✓/✗, jak přepnout hlídání, jak smazat řádek) se zodpovědí lokálně bez AI; ostatní jdou AI i s krátkým kontextem konverzace. Bez připojené AI to appka řekne a nabídne místní pomoc.
+- **Živý maskot:** čeká, sleduje pero, kontroluje, přemýšlí (tečky), raduje se (konfety u správného výsledku), mračí se u chyby, ukáže na řádek a pro mluvení otevírá pusu; při uvítání mává. Při omezeném pohybu (`prefers-reduced-motion`) se všechno ukáže bez animací.
 - **Plán a testy:** zásuvka "Plán a cesta" (procenta z mastery) a sestavení testu na doma s klíčem odpovědí (tisk / PDF).
 - **Předměty:** matematika, VŠ předměty, fyzika a chemie; úlohy s kresbou jsou označené a AI kresby zatím nevidí.
 

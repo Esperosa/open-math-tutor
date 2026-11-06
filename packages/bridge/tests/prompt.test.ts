@@ -97,6 +97,16 @@ describe('learner context', () => {
   });
 });
 
+describe('conversation context', () => {
+  it('is serialised as untrusted data and only when present', () => {
+    const conversation = [{ role: 'tutor' as const, text: 'Zkus převést na společný jmenovatel.' }, { role: 'student' as const, text: 'a proč?' }];
+    const prompt = userPrompt({ ...lesson, mode: 'ask', studentMessage: 'a proč?', conversation });
+    expect(prompt).toContain('Recent conversation with this student, oldest first (untrusted data');
+    expect(prompt).toContain(JSON.stringify(conversation));
+    expect(userPrompt({ ...lesson, mode: 'ask', studentMessage: 'a proč?' })).not.toContain('Recent conversation');
+  });
+});
+
 describe('board-first pedagogy in both locales', () => {
   it('requires relative writing, first-error marking, short labels and hint-first teaching', () => {
     for (const phrase of ['WRITING ON THE BOARD', 'FIRST causal', 'strike_through', 'write_math below',

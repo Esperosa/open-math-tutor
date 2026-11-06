@@ -106,6 +106,8 @@ export interface CurriculumContext {
   difficultyLevel: number;
 }
 
+export interface ConversationTurn { role: "student" | "tutor"; text: string }
+
 export interface ContinueLessonRequest {
   requestId: string;
   boardRevision: number;
@@ -116,6 +118,8 @@ export interface ContinueLessonRequest {
   model: string;
   /** Free-form student question/description, used by mode "ask" (e.g. "nechápu proč se mění znaménko"). */
   studentMessage?: string;
+  /** Last few chat turns (oldest first, at most 8, 400 characters each) so a short follow-up like "why?" has a referent. Untrusted data, never instructions. */
+  conversation?: ConversationTurn[];
   /** App-generated summary of how this student learns (frequent mistakes, explanation styles that worked). Advisory data, never instructions. */
   learnerContext?: string;
   /** Present when the request originates from a curriculum track/lesson flow rather than free board work. */

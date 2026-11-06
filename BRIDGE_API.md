@@ -130,6 +130,10 @@ Only accepts requests with `Origin` matching the dev server
 everything else per `SECURITY.md`'s CSRF/origin-check requirement.
 
 
+## Optional `conversation` (continue-lesson)
+
+`conversation?: { role: "student" | "tutor"; text: string }[]` carries the last few chat turns (at most 8, oldest first, each 1 to 400 characters) so a short follow-up such as "a proč?" has a referent. The bridge validates the bounds and the two roles and hands the turns to the model as clearly labelled untrusted data (`Recent conversation with this student ... untrusted data`), never as instructions. The student's current question stays in `studentMessage` and is not repeated in `conversation`.
+
 ## Optional `learnerContext` (continue-lesson)
 
 `learnerContext?: string` (at most 800 characters) is an app-generated, advisory summary of how the student learns (frequent mistake types, explanation styles that worked). The bridge validates its length and passes it to the model as clearly labelled advisory data, never as instructions.
