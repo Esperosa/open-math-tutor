@@ -54,3 +54,12 @@ it('uses expected unit aliases for a suspicious suffix, never for arbitrary arit
   expect(parseLine([numeric, ...symbols], undefined, ['m/s'])).toMatchObject({ text: '6 m/s', uncertain: true });
   expect(recognizeBoardLines(rowElements('72/12=6', 13), { unitAliases: ['m/s'] })[0].text).toBe('72/12=6');
 });
+
+it('flags a late short cross-out as ambiguous instead of judging its silhouette', () => {
+  const ink = rowElements('4+1=5', 13);
+  const box = recognizeBoardLines(ink)[0].symbols[0].bbox;
+  const cross: BoardElement = { id: 'short-cross', type: 'freedraw', x: box.x - 3, y: box.y + box.height * .55,
+    points: [[0, 0], [box.width * 1.4, -3]], strokeWidth: 2 };
+  const lines = recognizeBoardLines([...ink, cross]);
+  expect(lines[0].uncertain || lines[0].ignoredStrokeIds.includes('short-cross')).toBe(true);
+});

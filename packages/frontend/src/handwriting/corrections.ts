@@ -1,7 +1,7 @@
 import { bottom, centerX, centerY, groupSymbols, isBar, isRadicalStroke, right } from './strokes';
 import type { Stroke } from './types';
 
-export interface CorrectedStrokes { active: Stroke[]; ignored: Stroke[] }
+export interface CorrectedStrokes { active: Stroke[]; ignored: Stroke[]; ambiguous: Stroke[] }
 
 /**
  * Conservative chronological heuristic, NOT semantic intent detection. A later
@@ -12,6 +12,7 @@ export interface CorrectedStrokes { active: Stroke[]; ignored: Stroke[] }
 export function applyCorrections(strokes: readonly Stroke[]): CorrectedStrokes {
   let active: Stroke[] = [];
   const ignored: Stroke[] = [];
+  const ambiguous: Stroke[] = [];
   let comparisons = 0;
   for (const stroke of strokes) {
     const b = stroke.bbox;
@@ -78,8 +79,16 @@ export function applyCorrections(strokes: readonly Stroke[]): CorrectedStrokes {
         continue;
       }
       if (underlined) { ignored.push(stroke); continue; }
+      // A short, late slash may be a cross-out but is not safe to delete.
+      // Never guess its mathematical meaning: ask for an eraser instead.
+      if (straight && symbols.some(s => {
+        const old = s.bbox, last = s.strokes.at(-1)!;
+        return stroke.order - last.order >= 2 && old.height > stroke.width * 5 && b.width > old.width * 1.05
+          && centerX(old) > b.x && centerX(old) < right(b)
+          && centerY(b) > old.y + old.height * .2 && centerY(b) < bottom(old) - old.height * .2;
+      })) ambiguous.push(stroke);
     }
     active.push(stroke);
   }
-  return { active, ignored };
+  return { active, ignored, ambiguous };
 }

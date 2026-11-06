@@ -131,7 +131,7 @@ export function createHandwritingRecognizer(): {
         }
         return { id: stableId(strokeIds), strokeIds, text: parsed.text, confidence: parsed.confidence,
           alternatives: alternatives.sort((a, b) => b.confidence - a.confidence).slice(0, 3), bbox: { ...line.bbox }, symbols, parserCompatible,
-          ignoredStrokeIds: ignored.map(s => s.id), ...(parsed.uncertain ? { uncertain: true } : {}) };
+          ignoredStrokeIds: ignored.map(s => s.id), ...(parsed.uncertain || corrected.ambiguous.some(s => strokeIds.includes(s.id)) ? { uncertain: true } : {}) };
       });
       for (const key of symbolCache.keys()) if (!usedKeys.has(key)) symbolCache.delete(key);
       return recognized;
