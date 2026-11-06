@@ -72,8 +72,12 @@ export function App() {
   const leaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const lines = useMemo(() => writtenLines(board.steps), [board.steps]);
   const statement = useMemo(() => effectiveStatement(board.statement, lines), [board.statement, lines]);
-  const verdicts = useMemo(() => settings.coachMode === 'off' ? {} : markPerStep(computeLineVerdicts(statement, lines, board.expected ?? expectedAnswerFor(statement)), lines),
-    [statement, lines, board.expected, settings.coachMode]);
+  const verdicts = useMemo(() => {
+    if (settings.coachMode === 'off') return {};
+    const symbols = statementHasSymbols(statement);
+    if (settings.coachMode === 'final' && !lines.some(l => looksLikeFinalLine(l.latexGuess, symbols))) return {};
+    return markPerStep(computeLineVerdicts(statement, lines, board.expected ?? expectedAnswerFor(statement)), lines);
+  }, [statement, lines, board.expected, settings.coachMode]);
   useEffect(() => {
     const away = (e: PointerEvent) => {
       if ((e.target as Element | null)?.closest('.rail, .drawer, .settings-pop, .icon-btn, .tutor-hud, .calculator')) return;
@@ -260,7 +264,11 @@ export function App() {
     if (lesson.curriculumContext.trackId && lesson.curriculumContext.trackId !== live.current.settings.activeTrackId) configure({ activeTrackId: lesson.curriculumContext.trackId, onboardingDismissed: true });
     setLessonSkillId(lesson.skillId);
     setStatus('idle');
-    void request('next_problem', { curriculumContext: lesson.curriculumContext });
+    const skill = catalog.skills.find(sk => sk.id === lesson.skillId);
+    const intro = lesson.expected ? t.lessonStart : skill?.drawing ? t.lessonDrawing : t.lessonUnchecked;
+    const greeting = intro.replace('{skill}', skill?.title[settings.locale] ?? lesson.topic);
+    setMessage({ id: `lesson-${next.id}`, kind: 'info', text: greeting });
+    voice.speak(greeting);
   }
   function startNext(trackId: string, level: number) {
     const masteredIds = new Set(Object.values(mastery).filter(isMastered).map(s => s.skillId));
@@ -343,7 +351,9 @@ export function App() {
     const locale = live.current.settings.locale;
     return profileSummary(profileRef.current, locale, style, Object.fromEntries(catalog.skills.map(s => [s.id, s.title[locale]])));
   }
-  function flashHappy() { setHappy(true); setTimeout(() => setHappy(false), 2500); }
+  const happyTimer = useRef<ReturnType<typeof setTimeout>>();
+  function flashHappy() { setHappy(true); clearTimeout(happyTimer.current); happyTimer.current = setTimeout(() => setHappy(false), 2500); }
+  useEffect(() => () => clearTimeout(happyTimer.current), []);
   /** One pass of the local coach: judge the newest unhandled line and react (speak, mark, offer, record). */
   function runCoach() {
     const cur = live.current;
@@ -394,6 +404,14 @@ export function App() {
         break;
       }
     }
+  }
+  function selfAssess(done: boolean) {
+    const cur = live.current.boards.find(b => b.id === live.current.activeId);
+    if (!cur?.skillId) return;
+    if (!cur.outcome) recordMastery(cur.skillId, done);
+    updateProfile(p => done ? recordSolved(p, Date.now()) : recordError(p, cur.skillId ?? null, 'self_reported', Date.now()));
+    updateBoard({ ...cur, outcome: cur.outcome ?? (done ? 'solved' : 'failed') });
+    setMessage({ id: `self-${cur.id}`, kind: 'solved', text: t.selfNoted });
   }
   async function tutorChoice(choice: TutorChoice) {
     const key = message?.id ?? '';
@@ -489,7 +507,7 @@ export function App() {
           {!verifierOK && <span role="alert">{t.healthVerifier}</span>}
         </>}
         <label className="check-label"><input type="checkbox" checked={settings.showAI} onChange={e => configure({ showAI: e.target.checked })} />{t.aiLayer}</label>
-        {model?.supportsImageInput && <label className="check-label"><input type="checkbox" checked={settings.auto} onChange={e => configure({ auto: e.target.checked })} />{t.consent}</label>}
+        <label className="check-label"><input type="checkbox" checked={settings.auto} onChange={e => configure({ auto: e.target.checked })} />{t.consent}</label>
         <button onClick={() => { configure({ activeTrackId: '', onboardingDismissed: false }); setSettingsOpen(false); }}>{t.pickCourseAgain}</button>
         <label>{t.voiceChoice}<select value={voice.voices.some(v => v.voiceURI === settings.voiceURI) ? settings.voiceURI : ''} onChange={e => configure({ voiceURI: e.target.value })}>
           <option value="">{t.choose}</option>{voice.voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</select></label>
@@ -544,11 +562,11 @@ export function App() {
             <span>{t.aiBadge} {i + 1}</span><button onClick={() => { stop(false); updateBoard(removeAnnotation(board, a.id)); }}>{t.undoAnnotation} {i + 1}</button></li>)}</ul></section>
       </aside>
       <TutorHud t={t} quiet={settingsOpen || calcOpen || !!openPanel} mood={mood} speaking={voice.speaking} message={shownMessage} menuOpen={tutorMenu} running={running} canRequest={canRequest}
-        lessonActive={!!lessonSkillId || !!board.skillId} mode={settings.coachMode} voiceOn={settings.tutorVoice} micAvailable={mic.available} listening={mic.listening}
+        lessonActive={!!lessonSkillId || !!board.skillId} selfAssess={!!board.skillId && !board.expected && !board.outcome} mode={settings.coachMode} voiceOn={settings.tutorVoice} micAvailable={mic.available} listening={mic.listening}
         onToggleMenu={() => openOnly('tutor')}
         onMode={mode => configure({ coachMode: mode })} onVoice={on => { if (!on) voice.cancel(); configure({ tutorVoice: on }); }}
         onMic={() => mic.toggle(text => ask(text))}
-        onAction={action => { setTutorMenu(false); if (action === 'stop') stop(); else if (action === 'next_problem') nextProblem(); else if (action === 'free') createExercise(); else void request(action, { learnerContext: learnerContext() }); }}
+        onAction={action => { setTutorMenu(false); if (action === 'stop') stop(); else if (action === 'next_problem') nextProblem(); else if (action === 'free') createExercise(); else if (action === 'self_done' || action === 'self_fail') selfAssess(action === 'self_done'); else void request(action, { learnerContext: learnerContext() }); }}
         onChoice={choice => void tutorChoice(choice)} />
     </div>
   </div>;

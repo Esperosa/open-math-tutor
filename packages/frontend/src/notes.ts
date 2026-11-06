@@ -60,7 +60,7 @@ export function buildNotesMarkdown(boards: readonly BoardState[], t: T, strength
     const s = boardSection(board, i + 1, t);
     out.push(`## ${s.index}. ${s.title}`, '');
     if (s.topic) out.push(`*${s.topic}*`, '');
-    if (s.steps.length) { out.push(`**${t.steps}**`, ''); s.steps.forEach(st => out.push(`${st.n}. \`${st.text}\` ${st.mark}`.trimEnd())); out.push(''); }
+    if (s.steps.length) { out.push(`**${t.steps}**`, ''); s.steps.forEach(st => out.push(`${st.n}. \`${st.text.replace(/`/g, "'")}\` ${st.mark}`.trimEnd())); out.push(''); }
     if (s.notes.length) { out.push(`**${t.history}**`, ''); s.notes.forEach(n => out.push(`- **${n.status}:** ${n.text.replace(/\n+/g, ' ')}`)); out.push(''); }
   });
   if (strengths && (strengths.strong.length || strengths.weak.length)) {

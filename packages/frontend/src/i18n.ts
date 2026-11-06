@@ -10,7 +10,7 @@ export const cs = {
   retry: 'Zkusit připojení', ready: 'Připraveno', thinking: 'Kontroluji zápis…', thinkingAnswer: 'Přemýšlím o odpovědi…', waiting: 'Čekám na dokončení zápisu',
   cancelled: 'Kontrola zastavena.', idle: 'Napiš postup a zvol „Přečíst zápis z tabule“, nebo přidej řádek klávesnicí.',
   privacy: 'Zápis se ukládá jen v tomto zařízení. Při kontrole odešleme výřez aktivního řádku a historii pouze vybranému poskytovateli přes lokální bridge.',
-  consent: 'Číst ruční zápis automaticky po ustálení (jen modely, které umí obrázky)',
+  consent: 'AI smí sama zkontrolovat zápis, který nejde ověřit lokálně (ruční písmo jen u modelů s obrázky)',
   aiLayer: 'Zobrazit poznámky AI', aiBadge: 'AI', undoAnnotation: 'Odstranit poznámku',
   annotations: 'Poznámky na tabuli', history: 'Historie vysvětlení', emptyHistory: 'Zatím bez vysvětlení.',
   firstError: 'První chyba', correct: 'Postup je správný', incorrect: 'Zkontroluj první chybu',
@@ -74,6 +74,9 @@ export const cs = {
   pickCourseAgain: 'Vybrat jiný kurz nebo předmět',
   eraseAll: 'Smazat všechna uložená data', eraseAllConfirm: 'Opravdu smazat všechny tabule, pokrok a profil z tohoto prohlížeče?',
   testReady: 'Test je připravený, klíč správných odpovědí je na poslední stránce.',
+  lessonStart: 'Pojďme na: {skill}. Piš řešení rovnou na tabuli, já ti ho pohlídám.', lessonDrawing: 'Tohle je kresba: {skill}. Nakresli ji na tabuli. Kresbu zatím neumím posoudit sám, na konci mi řekni, jak to dopadlo.',
+  lessonUnchecked: 'Pojďme na: {skill}. Tuhle úlohu neumím kontrolovat automaticky. Piš postup na tabuli a na konci mi řekni, jak to dopadlo.',
+  selfDone: 'Zvládl(a) jsem to', selfFail: 'Nešlo mi to', selfNoted: 'Zapsáno. Pokračujeme?',
   onboardingSkip: 'Přeskočit, chci jen volnou tabuli', trackComplete: 'vše zvládnuto', changeTrack: 'Změnit kurz',
 } as const;
 export type MessageKey = keyof typeof cs;
@@ -87,7 +90,7 @@ export const en: Record<MessageKey, string> = {
   retry: 'Retry connection', ready: 'Ready', thinking: 'Checking your work…', thinkingAnswer: 'Thinking about your answer…', waiting: 'Waiting for you to finish writing',
   cancelled: 'Check stopped.', idle: 'Write your solution and choose “Read writing from board”, or add a line with the keyboard.',
   privacy: 'Your work is stored on this device only. Checks send a crop of the active line and history only to your selected provider through the local bridge.',
-  consent: 'Read handwriting automatically once it settles (image-capable models only)',
+  consent: 'The AI may check writing that cannot be verified locally (handwriting only with image-capable models)',
   aiLayer: 'Show AI annotations', aiBadge: 'AI', undoAnnotation: 'Remove annotation',
   annotations: 'Board annotations', history: 'Explanation history', emptyHistory: 'No explanations yet.',
   firstError: 'First error', correct: 'The solution is correct', incorrect: 'Check the first error',
@@ -151,6 +154,9 @@ export const en: Record<MessageKey, string> = {
   pickCourseAgain: 'Pick another course or subject',
   eraseAll: 'Delete all saved data', eraseAllConfirm: 'Really delete all boards, progress and the learner profile from this browser?',
   testReady: 'The test is ready; the answer key is on the last page.',
+  lessonStart: 'Let us do: {skill}. Write your working right on the board and I will keep an eye on it.', lessonDrawing: 'This one is a drawing: {skill}. Draw it on the board. I cannot judge drawings myself yet, so tell me how it went at the end.',
+  lessonUnchecked: 'Let us do: {skill}. I cannot check this one automatically. Write your working on the board and tell me how it went at the end.',
+  selfDone: 'I managed it', selfFail: 'I struggled', selfNoted: 'Noted. Shall we continue?',
   onboardingSkip: 'Skip, I just want the free board', trackComplete: 'all done', changeTrack: 'Change track',
 };
 export const messages: Record<Locale, Record<MessageKey, string>> = { cs, en };

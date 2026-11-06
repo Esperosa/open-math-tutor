@@ -55,6 +55,8 @@ const OVERRIDES: Record<string, { ranges: Ranges; derived: Record<string, string
   "ch-concentration-3": { ranges: { a: [10, 40] }, derived: { b: "100-{a}" } },
   "proportion-1": { ranges: { a: [2, 5], c: [6, 10], p: [10, 30] }, derived: { b: "{p}*{a}" } },
   "proportion-2": { ranges: { a: [2, 6], c: [3, 12], k: [2, 6] }, derived: { b: "{c}*{k}" } },
+  "arith-seq-2": { ranges: { f: [1, 9], d: [2, 7] }, derived: { a: "{f}+2*{d}", b: "{f}+6*{d}" } },
+  "geom-seq-2": { ranges: { f: [1, 3], q: [2, 4] }, derived: { a: "{f}*{q}", b: "{f}*{q}^3" } },
 };
 
 export const extraTopics: Topic[] = [];
@@ -105,7 +107,7 @@ topic("zavislosti-a-data", "Závislosti a data", "Relations and data", [
     kw: [["průměr", "medián", "statistika", "četnost"], ["average", "mean", "median", "statistics"]], levels: [1, 2, 3],
     templates: [["Vypočítej aritmetický průměr čísel {a}, {b}, {c}, {d}.", { a: [1, 9], b: [1, 9], c: [1, 9], d: [1, 9] }],
       ["Urči medián čísel {a}, {b}, {c}, {d}, {e}.", { a: [1, 20], b: [1, 20], c: [1, 20], d: [1, 20], e: [1, 20] }],
-      ["Průměr tří čísel je {a}. Dvě z nich jsou {b} a {c}. Jaké je třetí číslo?", { a: [5, 12], b: [1, 9], c: [1, 9] }]] },
+      ["Průměr tří čísel je {a}. Dvě z nich jsou {b} a {c}. Jaké je třetí číslo?", { a: [7, 12], b: [1, 9], c: [1, 9] }]] },
 ]);
 topic("geometrie", "Geometrie", "Geometry", [
   { id: "pythagoras", cs: "Pythagorova věta", en: "Pythagorean theorem", prereq: ["powers-basic"], topic: "geometrie", ...NOAUTO,
@@ -273,7 +275,7 @@ topic("st-statistika", "Statistika", "Statistics", [
     templates: [["Výběr n={a} má průměr 50 a směrodatnou odchylku 8. Sestav 95% interval spolehlivosti pro střední hodnotu.", { a: [25, 100] }], ["Jak se změní šířka intervalu spolehlivosti, když zvětšíš výběr {a}krát?", { a: [2, 9] }], ["V průzkumu z {a} lidí odpovědělo 60 % ano. Najdi 95% interval pro podíl.", { a: [100, 500] }]] },
   { id: "hypothesis-testing", cs: "Testování hypotéz", en: "Hypothesis testing", prereq: ["estimation"], topic: "st-statistika", ...NOAUTO,
     kw: [["hypotéza", "p-hodnota", "t-test", "hladina významnosti"], ["hypothesis", "p-value", "t-test", "significance"]],
-    templates: [["Formuluj H0 a H1 pro tvrzení, že mince je spravedlivá, a vysvětli chybu 1. druhu.", undefined], ["Z {a} měření vyšel průměr 102 a s=6. Otestuj H0: μ=100 na hladině 5 %.", { a: [16, 40] }], ["Co znamená p-hodnota {a}? Zamítneš H0 na hladině 5 %?", { a: [1, 9] }]] },
+    templates: [["Formuluj H0 a H1 pro tvrzení, že mince je spravedlivá, a vysvětli chybu 1. druhu.", undefined], ["Z {a} měření vyšel průměr 102 a s=6. Otestuj H0: μ=100 na hladině 5 %.", { a: [16, 40] }], ["Co znamená p-hodnota 0,0{a}? Zamítneš H0 na hladině 5 %?", { a: [1, 9] }]] },
 ]);
 
 // ---------------------------------------------------------------- fyzika a chemie (číselné úlohy s programově spočtenou odpovědí)

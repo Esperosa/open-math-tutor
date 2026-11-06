@@ -8,7 +8,7 @@ export interface TutorMessage {
   kind: 'wrong' | 'solved' | 'unclear' | 'info' | 'thinking' | 'error';
   text: string;
 }
-export type TutorAction = 'check' | 'hint' | 'next_step' | 'explain_differently' | 'next_problem' | 'free' | 'stop';
+export type TutorAction = 'check' | 'hint' | 'next_step' | 'explain_differently' | 'next_problem' | 'free' | 'self_done' | 'self_fail' | 'stop';
 export type TutorChoice = 'explain' | 'hint' | 'dismiss' | 'next' | 'ask_ai';
 
 interface Props {
@@ -19,6 +19,8 @@ interface Props {
   menuOpen: boolean;
   /** A settings panel or drawer is open: only the mascot stays, bubble and menu wait. */
   quiet?: boolean;
+  /** The lesson's task cannot be checked automatically: offer the student to report how it went. */
+  selfAssess?: boolean;
   running: boolean;
   canRequest: boolean;
   lessonActive: boolean;
@@ -66,6 +68,8 @@ export function TutorHud(p: Props) {
         {(['check', 'hint', 'next_step', 'explain_differently'] as const).map(action =>
           <button key={action} role="menuitem" disabled={!p.canRequest || p.running} onClick={() => p.onAction(action)}>{t[action]}</button>)}
         {p.lessonActive && <button role="menuitem" onClick={() => p.onAction('next_problem')}>{t.nextProblem}</button>}
+        {p.selfAssess && <button role="menuitem" className="primary" onClick={() => p.onAction('self_done')}>{t.selfDone}</button>}
+        {p.selfAssess && <button role="menuitem" onClick={() => p.onAction('self_fail')}>{t.selfFail}</button>}
         <button role="menuitem" onClick={() => p.onAction('free')}>{t.freeProblem}</button>
         <button role="menuitem" className="stop" disabled={!p.running} onClick={() => p.onAction('stop')}>{t.stop}</button>
       </div>

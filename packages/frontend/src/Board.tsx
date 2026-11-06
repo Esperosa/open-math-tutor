@@ -91,7 +91,7 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
     const student = api.getSceneElementsIncludingDeleted().filter(isStudent);
     api.updateScene({ elements: [...student, ...shapes], captureUpdate: CaptureUpdateAction.NEVER });
   }, [api, shapes]);
-  useEffect(() => () => cancelAnimationFrame(releaseFrame.current), []);
+  useEffect(() => () => { cancelAnimationFrame(releaseFrame.current); if (hold.current) clearTimeout(hold.current.timer); }, []);
   // The board is the only input: writing text is the default tool, so a click puts the cursor right where the student writes.
   useEffect(() => { if (api) api.setActiveTool({ type: 'text', locked: true }); }, [api]);
   useImperativeHandle(ref, () => ({

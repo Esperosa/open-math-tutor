@@ -85,7 +85,8 @@ it('onboarding: picking a track immediately starts a lesson and shows a "where a
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Na co se připravuješ?' })).toBeInTheDocument());
   fireEvent.click(screen.getByRole('button', { name: /Chystám se na střední školu/ }));
   fireEvent.click(screen.getByRole('button', { name: /^Přijímačky na střední školu/ }));
-  await waitFor(() => expect(manuals.at(-1)?.mode).toBe('next_problem'));
+  await waitFor(() => expect(screen.getByTestId('track-breadcrumb')).toBeInTheDocument());
+  expect(manuals).toHaveLength(0);
   expect(screen.getByTestId('track-breadcrumb')).toHaveTextContent('Přijímačky na střední školu');
   expect(screen.getByTestId('task-text')).not.toHaveTextContent(/^$/);
   expect(screen.getByTestId('task-text')).not.toHaveTextContent('Klikni na tabuli');
@@ -118,15 +119,15 @@ it('switching to a new track starts a fresh board, not the previous lesson\'s ca
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Na co se připravuješ?' })).toBeInTheDocument());
   fireEvent.click(screen.getByRole('button', { name: /Chystám se na střední školu/ }));
   fireEvent.click(screen.getByRole('button', { name: /^Přijímačky na střední školu/ }));
-  await waitFor(() => expect(manuals).toHaveLength(1));
+  await waitFor(() => expect(screen.getByTestId('track-breadcrumb')).toBeInTheDocument());
   fireEvent.click(screen.getByRole('button', { name: 'Změnit kurz' }));
   fireEvent.click(screen.getByRole('button', { name: /Studuju vysokou školu/ }));
   fireEvent.click(screen.getByRole('button', { name: /^Vysoká škola — základy algebry/ }));
-  await waitFor(() => expect(manuals).toHaveLength(2));
+  await waitFor(() => expect(screen.getByTestId('track-breadcrumb')).toHaveTextContent('Vysoká škola'));
+  expect(manuals).toHaveLength(0);
 
-  // Exactly one explanation (not two): proof the second lesson got a fresh
-  // board instead of appending its response onto the first board's history.
-  expect(screen.getAllByTestId('explanation')).toHaveLength(1);
+  // Starting a lesson is local (no AI call) and always gets a fresh, empty board.
+  expect(screen.queryAllByTestId('explanation')).toHaveLength(0);
   expect(screen.getByTestId('task-text')).not.toHaveTextContent(/^$/);
   expect(screen.getByTestId('task-text')).not.toHaveTextContent('Klikni na tabuli');
 });

@@ -44,6 +44,7 @@ export function useMic(locale: Settings['locale']) {
   const Ctor = w?.SpeechRecognition ?? w?.webkitSpeechRecognition;
   const [listening, setListening] = useState(false);
   const active = useRef<Recognition | null>(null);
+  useEffect(() => () => { active.current?.stop(); }, []);
   function toggle(onText: (text: string) => void) {
     if (!Ctor) return;
     if (active.current) { active.current.stop(); return; }

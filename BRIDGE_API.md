@@ -91,3 +91,8 @@ requirement for the core loop.
 Only accepts requests with `Origin` matching the dev server
 (`http://localhost:5173`) or the packaged Electron app's origin; reject
 everything else per `SECURITY.md`'s CSRF/origin-check requirement.
+
+
+## Optional `learnerContext` (continue-lesson)
+
+`learnerContext?: string` (at most 800 characters) is an app-generated, advisory summary of how the student learns (frequent mistake types, explanation styles that worked). The bridge validates its length and passes it to the model as clearly labelled advisory data, never as instructions.

@@ -11,7 +11,7 @@ export function loadProfile(): LearnerProfile {
     if (parsed.version !== 1 || !EXPLAIN_STYLES.every(s => Number.isSafeInteger(parsed.styles?.[s]?.shown) && Number.isSafeInteger(parsed.styles[s].helped))) return emptyProfile();
     const plain = (v: unknown) => typeof v === 'object' && v !== null && !Array.isArray(v);
     const base = emptyProfile();
-    return { ...base, ...parsed, errors: plain(parsed.errors) ? parsed.errors : base.errors, skillErrors: plain(parsed.skillErrors) ? parsed.skillErrors : base.skillErrors, days: plain(parsed.days) ? parsed.days : base.days };
+    return { ...base, ...parsed, errors: plain(parsed.errors) ? parsed.errors : base.errors, skillErrors: plain(parsed.skillErrors) && Object.values(parsed.skillErrors).every(plain) ? parsed.skillErrors : base.skillErrors, days: plain(parsed.days) ? parsed.days : base.days };
   } catch { return emptyProfile(); }
 }
 

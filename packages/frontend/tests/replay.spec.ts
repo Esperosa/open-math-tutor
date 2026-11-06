@@ -76,7 +76,7 @@ test('deterministic replay: stroke → settled crop → first error annotations 
   await page.goto('/');
   await skipOnboarding(page);
   await selectProvider(page);
-  await page.getByLabel(/Číst ruční zápis automaticky/).check();
+  await page.getByLabel(/AI smí sama zkontrolovat/).check();
   await writeOnBoard(page, '2x + 3 = 7', 0);
   // A real pointer stroke on the real Excalidraw canvas, not an application test hook.
   const canvas = page.locator('.excalidraw__canvas.interactive');
@@ -177,8 +177,9 @@ test('curriculum mode: picking a skill starts a lesson and a correct check advan
   const skillItem = page.getByTestId('skill-item').filter({ hasText: 'Počítání se zápornými čísly' });
   await expect(skillItem.getByText('Nezačato')).toBeVisible();
   await skillItem.getByRole('button').click();
-  await expect.poll(() => manuals.at(-1)?.mode).toBe('next_problem');
-  expect(manuals.at(-1)?.curriculumContext?.skillId).toBe('arithmetic-integers');
+  await page.keyboard.press('Escape');
+  await expect(bubble(page)).toContainText('Pojďme na');
+  expect(manuals).toHaveLength(0);
   await expect(page.getByTestId('task-text')).not.toHaveText('');
   await openTutorMenu(page);
   await page.getByRole('menuitem', { name: 'Zkontrolovat', exact: true }).click();
@@ -445,4 +446,19 @@ test('settings: "delete all saved data" really starts from scratch', async ({ pa
   await page.getByRole('button', { name: 'Smazat všechna uložená data' }).click();
   await expect(page.getByRole('heading', { name: 'Na co se připravuješ?' })).toBeVisible();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('openmathtutor.frontend.v1') ?? '{"boards":[{"statement":""}]}').boards[0].statement)).toBe('');
+});
+
+test('a drawing task says plainly that it cannot be checked and offers a self-report that moves progress', async ({ page }) => {
+  await page.goto('/');
+  await skipOnboarding(page);
+  await page.keyboard.press('Control+k');
+  await page.getByRole('searchbox', { name: 'Hledat v kurzech' }).fill('schéma obvodu');
+  await page.getByTestId('search-results').getByRole('button').first().click();
+  await page.keyboard.press('Escape');
+  await expect(bubble(page)).toContainText('kresba');
+  await openTutorMenu(page);
+  await page.getByRole('menuitem', { name: 'Zvládl(a) jsem to' }).click();
+  await expect(bubble(page)).toContainText('Zapsáno');
+  await openPanel(page, 'Plán a cesta');
+  await expect(page.getByTestId('plan-percent')).not.toHaveText('0 %');
 });

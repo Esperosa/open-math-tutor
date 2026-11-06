@@ -25,7 +25,7 @@ describe("answer lines", () => {
     expect(looksLikeFinalLine("x = 3", true)).toBe(true);
     expect(looksLikeFinalLine("2x = 4", true)).toBe(false);
     expect(looksLikeFinalLine("-6+-8 = -14", false)).toBe(true);
-    expect(looksLikeFinalLine("v = 120/8", true)).toBe(false);
+    expect(looksLikeFinalLine("v = 120/8", true)).toBe(true); // a plain fraction is a result
     expect(looksLikeFinalLine("15 m/s", true)).toBe(true);
     expect(looksLikeFinalLine("3+4", false)).toBe(false);
   });
@@ -94,5 +94,30 @@ describe("audit regressions", () => {
   });
   it("formats very large answers as a power of ten", () => {
     expect(formatExpected({ value: 1.204e24, tolerance: 0.01 }, "cs")).toBe("1,204·10^24");
+  });
+});
+
+describe("audit round 2", () => {
+  it("fractions are results, a lone pi is not a different unit, scientific notation variants are read", () => {
+    expect(looksLikeFinalLine("P = 5/8", true)).toBe(true);
+    expect(looksLikeFinalLine("2x = 10/2", true)).toBe(false);
+    expect(checkAnswerLine({ value: 0.625, tolerance: 0.01 }, "P = 5/8")).toBe("correct");
+    expect(checkAnswerLine({ value: 36, unit: "π cm²", tolerance: 1e-9 }, "36π")).toBe("correct");
+    expect(checkAnswerLine({ value: 36, unit: "π cm²", tolerance: 1e-9 }, "36π cm²")).toBe("correct");
+    expect(answerFromLine("5 x 10^3")).toBe(5000);
+    expect(answerFromLine("1,806 x 10^24")).toBeCloseTo(1.806e24, -10);
+    expect(answerFromLine("2,5e-3")).toBeCloseTo(0.0025, 12);
+  });
+  it("answers built from floating point arithmetic stay exact when they are whole numbers", () => {
+    const t: ProblemTemplate = { id: "f", skillId: "s", difficultyLevel: 1, topic: "t", freeText: true, statementTemplate: "x", answerTemplate: "0.1*600" };
+    const e = instantiateProblem(t).expected!;
+    expect(e.tolerance).toBe(1e-9);
+    expect(checkAnswerLine(e, "60,3")).toBe("wrong");
+  });
+  it("prints coefficients and zeros the way people write them", () => {
+    expect(prettySigns("1x+3=7")).toBe("x+3=7");
+    expect(prettySigns("y=1x+2")).toBe("y=x+2");
+    expect(prettySigns("2(x-0)=8")).toBe("2x=8");
+    expect(prettySigns("21x+1")).toBe("21x+1");
   });
 });

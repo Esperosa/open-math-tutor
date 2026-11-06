@@ -29,7 +29,8 @@ function sanitizeBoard(board: BoardState): BoardState {
     steps: board.steps.filter(s => isObj(s) && typeof s.stepId === 'string' && typeof s.latexGuess === 'string' && isBox(s.box) && Array.isArray(s.elementIds)),
     history: board.history.filter(h => isObj(h) && typeof h.id === 'string' && typeof h.text === 'string' && typeof h.ttsText === 'string'),
     elements: board.elements.filter(e => isObj(e)),
-    ...(board.handled && !Array.isArray(board.handled) ? { handled: [] } : {}) };
+    ...(board.handled && !Array.isArray(board.handled) ? { handled: [] } : {}),
+    ...(board.expected && !(Number.isFinite(board.expected.value) && Number.isFinite(board.expected.tolerance)) ? { expected: undefined } : {}) };
 }
 export function load(): Saved {
   try {

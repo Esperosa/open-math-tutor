@@ -27,7 +27,7 @@ Značky: ✅ hotovo a ověřeno · 🟡 částečně / probíhá · ❌ zatím n
 | 1.13 | Odstupňované nápovědy, ne rovnou celé řešení | ✅ prompt přepsán: u Zkontrolovat/Poradit jen nápověda a naváděcí otázka, celé řešení až na "Ukaž další krok" nebo výslovnou žádost |
 | 1.14 | Hlas (speechSynthesis, cs-CZ) | ✅ |
 | 1.15 | MVP matematický rozsah (aritmetika, zlomky, procenta, závorky, lineární rovnice) | ✅ |
-| 1.16 | Testy (unit/integration/e2e) | ✅ shared 71, content 34, bridge 161, frontend 61, verifier 161, e2e 17 |
+| 1.16 | Testy (unit/integration/e2e) | ✅ shared 71, content 34, bridge 161, frontend 61, verifier 161, e2e 19 |
 | 1.17 | Bezpečnost (žádný shell z LLM, CSP, origin kontrola) | ✅ |
 | 1.18 | Dokumentace, licence, README cz/en | ✅ |
 
@@ -88,7 +88,7 @@ Značky: ✅ hotovo a ověřeno · 🟡 částečně / probíhá · ❌ zatím n
 | # | Požadavek | Stav |
 |---|---|---|
 | 5.1 | Student píše jen na tabuli, žádná povinná pole | ✅ text se píše přímo na plátno (výchozí nástroj), zadání je karta jen ke čtení (✎ jen pro úpravu), akce jsou v nabídce maskota |
-| 5.2 | Appka sama sleduje psaní, kontroluje, vede a komentuje; jde vypnout, "po řádcích", "až na konec" | ✅ lokální trenér `coach.ts`; tři režimy v nabídce maskota; vypnutý trenér nemá značky ani bubliny; AI se bez souhlasu (Nastavení) nevolá automaticky |
+| 5.2 | Appka sama sleduje psaní, kontroluje, vede a komentuje; jde vypnout, "po řádcích", "až na konec" | ✅ lokální trenér `coach.ts`; tři režimy v nabídce maskota; vypnutý trenér nemá značky ani bubliny; AI se nikdy nevolá automaticky při startu lekce; u řádku, který nejde ověřit lokálně, jen s povolením v Nastavení, jinak nabídka v bublině |
 | 5.3 | Správný výsledek poznat bez AI, i s jednotkou | ✅ `answers.ts`: očekávaná odpověď z výrazu / lineární rovnice / `answerTemplate`, celá čísla přesně, zaokrouhlená s 1 %, jednotky se kontrolují |
 | 5.4 | Maskot-učitel mluví, má bublinu a mikrofon | ✅ SVG maskot (nálada, pusa při řeči), řeč přes speechSynthesis, bublina stručná s "Více", push-to-talk přes Web Speech API (jen kde ho prohlížeč má; lokální Whisper vědomě ne) |
 | 5.5 | Paměť o studentovi a styl vysvětlování | ✅ `learnerProfile.ts` (chyby podle typu a dovednosti, úspěšnost stylů, dny); souhrn jde AI jako `learnerContext`; student se na nic neptá |

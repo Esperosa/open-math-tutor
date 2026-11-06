@@ -76,7 +76,7 @@ export const styleDescription = (style: ExplainStyle, locale: "cs" | "en") => ST
 
 /** Short, plain-text summary handed to the AI so it explains the way this student learns best. */
 export function profileSummary(profile: LearnerProfile, locale: "cs" | "en", preferred?: ExplainStyle, skillTitles: Record<string, string> = {}): string {
-  const weakSkills = Object.entries(profile.skillErrors).map(([id, errs]) => [id, Object.values(errs).reduce((a, b) => a + b, 0)] as const)
+  const weakSkills = Object.entries(profile.skillErrors ?? {}).map(([id, errs]) => [id, Object.values(errs ?? {}).reduce((a, b) => a + (Number(b) || 0), 0)] as const)
     .sort((a, b) => b[1] - a[1]).slice(0, 2).filter(([id]) => skillTitles[id]).map(([id]) => skillTitles[id]);
   const topErrors = Object.entries(profile.errors).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, v]) => `${k} (${v}x)`);
   const tried = EXPLAIN_STYLES.filter(s => profile.styles[s].shown >= 2)
