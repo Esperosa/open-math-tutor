@@ -120,6 +120,7 @@ export function App() {
   const chat = useChat(saved.activeId, saved.boards.map(b => b.id));
   const [profile, setProfileState] = useState<LearnerProfile>(loadProfile);
   const profileRef = useRef(profile); profileRef.current = profile;
+  const stepErrors = useRef<Map<string, number>>(new Map());
   const resetting = useRef(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => () => { clearTimeout(hoverTimer.current); clearTimeout(leaveTimer.current); }, []);
@@ -556,8 +557,11 @@ export function App() {
       case 'wrong_step': case 'wrong_final': {
         const reason = event.kind === 'wrong_step' ? event.reason : 'wrong_final';
         if (event.kind === 'wrong_step' || !marked.outcome) updateProfile(p => resolveStyleOutcome(recordError(p, marked.skillId ?? null, reason, Date.now()), false));
+        const wrongLine = ls[event.n - 1];
+        const attempts = (stepErrors.current.get(wrongLine?.stepId ?? '') ?? 0) + 1;
+        if (wrongLine?.stepId) stepErrors.current.set(wrongLine.stepId, attempts);
         let next = event.kind === 'wrong_step' ? { ...marked, annotations: [...marked.annotations,
-          ...localTeacherActions(ls[event.n - 1], marked.revision, locale)].slice(-64) } : marked;
+          ...localTeacherActions(wrongLine, marked.revision, locale, { attemptCount: attempts })].slice(-64) } : marked;
         if (event.kind === 'wrong_final' && !next.outcome) { if (next.skillId) recordMastery(next.skillId, false); next = { ...next, outcome: 'failed' }; }
         updateBoard(next); say('wrong'); break;
       }
@@ -618,7 +622,8 @@ export function App() {
       const hint = messages[cur.settings.locale][message.reason === 'arithmetic' ? 'hintArithmetic' : 'hintStep'];
       const action: BoardAction = { id: `hint-${stepId}`, type: 'show_hint', boardRevision: current.revision, text: hint,
         placement: { relativeToStepId: stepId, side: 'below', offsetEm: 0.4 } };
-      updateBoard({ ...current, annotations: [...current.annotations.filter(n => n.id !== action.id), action].slice(-64) });
+      const teacherSol = localTeacherActions(lines.find(l => l.stepId === stepId), current.revision, cur.settings.locale, { revealSolution: true });
+      updateBoard({ ...current, annotations: [...current.annotations.filter(n => n.id !== action.id && !teacherSol.some(ts => ts.id === n.id)), action, ...teacherSol].slice(-64) });
       setMessage({ ...message, text: hint });
       return;
     }
