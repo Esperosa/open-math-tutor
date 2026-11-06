@@ -159,6 +159,7 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
       viewRef.current = { x: state.scrollX, y: state.scrollY, zoom: state.zoom.value };
       setView(viewRef.current);
     }
+    if (surface.current && surface.current.dataset.tool !== state.activeTool.type) surface.current.dataset.tool = state.activeTool.type;
     // Writing is the default: when a line is finished, go back to the text tool so the next click starts the next line.
     // A finished text stays selected, and the text tool would re-open that one instead of starting a new line: deselect it.
     if (wasEditing.current && !state.editingTextElement) {
