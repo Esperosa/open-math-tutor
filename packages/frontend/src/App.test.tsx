@@ -16,3 +16,20 @@ it('keeps the board usable without a bridge and switches the complete shell to E
   expect(screen.getByText(/The local bridge is unavailable/)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Show next step' })).toBeDisabled();
 });
+
+it('auto-selects the first installed, authenticated provider and its first model so nothing needs manual setup', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (String(url).endsWith('/health')) return new Response(JSON.stringify({ status: 'ok', verifier: 'ok' }), { status: 200 });
+    if (String(url).endsWith('/providers')) {
+      return new Response(JSON.stringify({ providers: [
+        { id: 'codex', detect: { installed: false }, authStatus: { providerId: 'codex', authenticated: false }, models: [] },
+        { id: 'claude', detect: { installed: true }, authStatus: { providerId: 'claude', authenticated: true },
+          models: [{ id: 'sonnet', label: 'sonnet', supportsImageInput: false }, { id: 'opus', label: 'opus', supportsImageInput: false }] },
+      ] }), { status: 200 });
+    }
+    throw new Error(`unexpected request: ${url}`);
+  }));
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Poskytovatel' })).toHaveValue('claude'));
+  expect(screen.getByRole('combobox', { name: 'Model' })).toHaveValue('sonnet');
+});

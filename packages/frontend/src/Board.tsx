@@ -47,7 +47,7 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
       const elements = api.getSceneElementsIncludingDeleted().filter(e => isStudent(e) && !oldIds.has(e.id));
       const line = convertToExcalidrawElements([{ type: 'text', id: step?.elementIds[0] ?? crypto.randomUUID(),
         x: step?.box.x ?? 240, y: step?.box.y ?? Math.max(120, ...board.steps.map(s => s.box.y + s.box.height + 72)),
-        text, fontSize: 26, fontFamily: 2, strokeColor: '#202a2a' }], { regenerateIds: false });
+        text, fontSize: 26, fontFamily: 1 /* Virgil — hand-drawn, matches writing on an actual board */, strokeColor: '#202a2a' }], { regenerateIds: false });
       const next = [...elements, ...line];
       api.updateScene({ elements: structuredClone(next), captureUpdate: CaptureUpdateAction.IMMEDIATELY });
       onCommit(next, api.getFiles());

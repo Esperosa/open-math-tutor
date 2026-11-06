@@ -12,7 +12,9 @@ export function annotationElements(actions: BoardAction[], steps: Step[]) {
     // Anchors are absolute board-space coordinates. relativeToStepId is a target hint, not an offset.
     switch (a.type) {
       case 'write_text': case 'show_hint':
-        skeletons.push({ ...base, type: 'text', text: a.text, x: a.anchor.x, y: a.anchor.y, fontSize: 20, fontFamily: 2 }); break;
+        // Virgil (fontFamily 1) is Excalidraw's hand-drawn font — the AI's writing should look
+        // painted onto the board, like the student's own, not like a typed UI label.
+        skeletons.push({ ...base, type: 'text', text: a.text, x: a.anchor.x, y: a.anchor.y, fontSize: 20, fontFamily: 1 }); break;
       case 'draw_arrow':
         skeletons.push({ ...base, type: 'arrow', x: a.from.x, y: a.from.y,
           points: [[0, 0], [a.to.x - a.from.x, a.to.y - a.from.y]], endArrowhead: 'arrow' }); break;

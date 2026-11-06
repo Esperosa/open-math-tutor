@@ -77,6 +77,16 @@ export function App() {
     void Promise.all([bridge.providers(controller.signal), bridge.health(controller.signal)]).then(([entries, health]) => {
       setProviders(entries); setConnected(true); setVerifierOK(health.verifier === 'ok');
       setStatus('ready');
+      // Zero-config default: if nothing was chosen yet, pick the first provider
+      // that's actually installed, logged in, and has models — never override
+      // a provider the person already picked themselves.
+      if (!live.current.settings.provider) {
+        const ready = entries.find(p => p.detect.installed && p.authStatus.authenticated && p.models.length > 0);
+        if (ready) {
+          const value = { ...live.current, settings: { ...live.current.settings, provider: ready.id, model: ready.models[0]!.id } };
+          live.current = value; setSaved(value);
+        }
+      }
     }).catch(() => { if (!controller.signal.aborted) setStatus('bridgeUnavailable'); })
       .finally(() => clearTimeout(timeout));
     return () => controller.abort();
