@@ -11,7 +11,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p ../../electron/tsconfig.json --noEmit",
     "lint": "eslint src tests --max-warnings 0 && cd ../../electron && eslint . --max-warnings 0",
-    "test": "vitest run --maxWorkers=2"
+    "test": "vitest run"
   },
   "dependencies": {
     "@openmathtutor/shared": "*",
@@ -24,7 +24,7 @@
     "tsx": "^4.20.0",
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.72.1",
-    "vitest": "^4.1.12"
+    "vitest": "^2.1.0"
   },
   "engines": { "node": ">=22.14.0" }
 }
