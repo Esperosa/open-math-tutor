@@ -12,8 +12,8 @@ export function port(value: string | undefined, fallback: number): number {
 if (process.env.OMT_BRIDGE_ALLOW_LAN && process.env.OMT_BRIDGE_ALLOW_LAN !== 'false') {
   throw new Error('LAN pairing is not implemented. OMT_BRIDGE_ALLOW_LAN must be false.');
 }
-if (process.env.OMT_DEFAULT_PROVIDER && !['codex', 'claude'].includes(process.env.OMT_DEFAULT_PROVIDER)) {
-  throw new Error('OMT_DEFAULT_PROVIDER must be codex or claude.');
+if (process.env.OMT_DEFAULT_PROVIDER && !['codex', 'claude', 'google'].includes(process.env.OMT_DEFAULT_PROVIDER)) {
+  throw new Error('OMT_DEFAULT_PROVIDER must be codex, claude or google.');
 }
 const app = createServer({ verifier: new VerifierClient(`http://127.0.0.1:${port(process.env.OMT_VERIFIER_PORT, 4179)}`) });
 try {

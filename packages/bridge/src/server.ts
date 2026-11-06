@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import { ProviderError, type TutorProvider, type ProviderId, type ProviderModelInfo } from '@openmathtutor/shared';
 import { CodexProvider } from './providers/codexProvider.js';
+import { GeminiProvider } from './providers/geminiProvider.js';
 import { ClaudeProvider } from './providers/claudeProvider.js';
 import { classifyFailure } from './providers/errors.js';
 import { record, text, validRequest, validateResponse } from './validation.js';
@@ -15,7 +16,7 @@ export interface BridgeOptions {
 export function createServer(options: BridgeOptions = {}) {
   const app = Fastify({ logger: false, bodyLimit: 6_100_000, requestTimeout: 120_000,
     connectionTimeout: 0, onProtoPoisoning: 'error', onConstructorPoisoning: 'error' });
-  const providers = options.providers ?? { codex: new CodexProvider(), claude: new ClaudeProvider() };
+  const providers = options.providers ?? { codex: new CodexProvider(), claude: new ClaudeProvider(), google: new GeminiProvider() };
   const verifier = options.verifier ?? new VerifierClient();
   let active = 0;
   app.addHook('onRequest', async (req, reply) => {

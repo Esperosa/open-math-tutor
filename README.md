@@ -53,6 +53,8 @@ codex login
 claude auth login
 ```
 
+Google (Gemini): vlastni API klic z Google AI Studio (volne casti) nebo Vertexu - nastav `GEMINI_API_KEY` / `GOOGLE_API_KEY`.
+
 Aplikace nikdy neukládá výstup těchto příkazů ani tokeny, které vytvoří.
 
 ## Testy

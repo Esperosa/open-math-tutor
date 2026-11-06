@@ -9,17 +9,7 @@ export abstract class BaseProvider implements TutorProvider {
   abstract readonly id: ProviderId;
   protected readonly active = new Map<string, AbortController>();
   constructor(protected readonly options: CliOptions = {}) {}
-  async detect(signal?: AbortSignal): Promise<ProviderDetectResult> {
-    try {
-      const result = await runCli(this.id, ['--version'], this.options, signal);
-      if (result.code !== 0) throw classifyFailure(result.stderr + result.stdout);
-      const version = result.stdout.trim().match(/\d+\.\d+\.\d+(?:[-+][\w.-]+)?/)?.[0];
-      return { installed: true, ...(version ? { version } : {}), binaryPath: result.binaryPath };
-    } catch (error) {
-      if (classifyFailure(error).code === 'cli_missing') return { installed: false };
-      throw classifyFailure(error);
-    }
-  }
+  abstract detect(signal?: AbortSignal): Promise<ProviderDetectResult>;
   abstract authStatus(signal?: AbortSignal): Promise<ProviderAuthStatus>;
   abstract availableModels(): Promise<ProviderModelInfo[]>;
   protected abstract infer(req: AnalyzeBoardRequest | ContinueLessonRequest, signal: AbortSignal): Promise<unknown>;
@@ -47,6 +37,22 @@ export abstract class BaseProvider implements TutorProvider {
     } catch (error) {
       const e = classifyFailure(error);
       onEvent({ type: 'error', error: e.code, detail: e.message }); throw e;
+    }
+  }
+}
+
+/** CLI transport detection stays separate from built-in REST providers. */
+export abstract class CliProvider extends BaseProvider {
+  abstract readonly id: 'codex' | 'claude';
+  async detect(signal?: AbortSignal): Promise<ProviderDetectResult> {
+    try {
+      const result = await runCli(this.id, ['--version'], this.options, signal);
+      if (result.code !== 0) throw classifyFailure(result.stderr + result.stdout);
+      const version = result.stdout.trim().match(/\d+\.\d+\.\d+(?:[-+][\w.-]+)?/)?.[0];
+      return { installed: true, ...(version ? { version } : {}), binaryPath: result.binaryPath };
+    } catch (error) {
+      if (classifyFailure(error).code === 'cli_missing') return { installed: false };
+      throw classifyFailure(error);
     }
   }
 }

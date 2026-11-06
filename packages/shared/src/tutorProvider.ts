@@ -1,6 +1,6 @@
 import type { BoardAction } from "./boardActions.js";
 
-export type ProviderId = "codex" | "claude";
+export type ProviderId = "codex" | "claude" | "google";
 
 export type ProviderErrorCode =
   | "cli_missing"
@@ -43,6 +43,8 @@ export interface ProviderAuthStatus {
    * for other reasons, e.g. rate limits — that's unrelated to this flag).
    */
   tutoringAvailable: boolean;
+  /** Google only: presence, never the key itself. Authentication is checked separately. */
+  keyPresent?: boolean;
   /** Non-sensitive label only (e.g. plan name) — never a token or email scraped from credential storage. */
   accountLabel?: string;
   error?: ProviderErrorCode;

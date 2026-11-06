@@ -1,4 +1,4 @@
-import type { Locale, ProviderErrorCode } from '@openmathtutor/shared';
+﻿import type { Locale, ProviderErrorCode } from '@openmathtutor/shared';
 
 export const cs = {
   title: 'OpenMathTutor', board: 'Pracovní tabule', task: 'Zadání', topic: 'Téma',
@@ -31,6 +31,8 @@ export const cs = {
   providerLimited: 'omezená podpora', tutoringLimited: 'Tento poskytovatel je přihlášený, ale kontrolu postupu teď neumí provést — zkus v nastavení přepnout na jiného poskytovatele.',
   imageUnsupported: 'Vybraný model nepodporuje obrázky. Zvol jiný model pro automatickou kontrolu.',
   healthVerifier: 'Matematický ověřovač není dostupný.', annotationReveal: 'Matematika se zobrazuje postupným odhalením, nikoli animací tahů pera.',
+  googleProvider: 'Google Gemini',
+  googleKeyMissing: 'Google Gemini neni nastavena - doplnte svuj API klic v Nastaveni (Google AI Studio) a aktivace bude fungovat.',
   selectProvider: 'Vyber poskytovatele a model. K jinému poskytovateli nepřepínáme automaticky.',
   offline: 'Bez připojení', saved: 'Ukládáno v zařízení', close: 'Zavřít',
   cli_missing: 'Poskytovatel: CLI není nainstalované.', not_authenticated: 'Poskytovatel: přihlas se v oficiálním CLI.',
@@ -114,6 +116,8 @@ export const en: Record<MessageKey, string> = {
   providerLimited: 'limited support', tutoringLimited: 'This provider is signed in, but cannot check your work right now — try switching providers in settings.',
   imageUnsupported: 'The selected model does not support images. Choose another model for automatic checks.',
   healthVerifier: 'The math verifier is unavailable.', annotationReveal: 'Math uses incremental reveal, not pen-stroke animation.',
+  googleProvider: 'Google Gemini',
+  googleKeyMissing: 'Google Gemini is not configured yet - add your API key in Settings (Google AI Studio) to enable tutoring.',
   selectProvider: 'Select a provider and model. We never switch providers automatically.',
   offline: 'Offline', saved: 'Stored on this device', close: 'Close',
   cli_missing: 'Provider CLI is not installed.', not_authenticated: 'Sign in through the official provider CLI.',

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CodexProvider, CODEX_TOOL_RESTRICTION } from '../src/providers/codexProvider.js';
 import { ClaudeProvider } from '../src/providers/claudeProvider.js';
+import { GeminiProvider } from '../src/providers/geminiProvider.js';
 import { analysis, lesson } from './fixtures.js';
 
 describe.skipIf(!process.env.RUN_CLI_SMOKE_TESTS)('real installed CLI smoke checks (no model response fabricated)', () => {
@@ -29,7 +30,6 @@ describe.skipIf(!process.env.RUN_CLI_SMOKE_TESTS)('real installed CLI smoke chec
 
 describe.skipIf(!process.env.RUN_PROVIDER_INTEGRATION_TESTS)('requires credentials: real Claude non-bare text invocation', () => {
   it('continues a text lesson using the official CLI login with tools disabled', async () => {
-    // Opt-in: makes a real model request. No API key is passed and no response is mocked.
     const provider = new ClaudeProvider();
     expect(await provider.authStatus()).toMatchObject({ authenticated: true });
     const result = await provider.continueLesson(lesson, new AbortController().signal);
@@ -39,4 +39,18 @@ describe.skipIf(!process.env.RUN_PROVIDER_INTEGRATION_TESTS)('requires credentia
     });
     console.info('Claude continueLesson succeeded: real CLI login and validated structured_output; no image input.');
   }, 100_000);
+});
+
+describe.skipIf(!process.env.GEMINI_API_KEY)('real Google Gemini API smoke checks (opt-in via GEMINI_API_KEY)', () => {
+  it('verifies the bring-your-own key with a light models.list call and exposes the flash model', async () => {
+    const provider = new GeminiProvider({ env: { GEMINI_API_KEY: process.env.GEMINI_API_KEY } });
+    const auth = await provider.authStatus();
+    expect(auth.providerId).toBe('google');
+    expect(auth.authenticated).toBe(true);
+    expect(auth.tutoringAvailable).toBe(true);
+    const models = await provider.availableModels();
+    expect(models.length).toBeGreaterThan(0);
+    expect(models[0]?.supportsImageInput).toBe(true);
+    console.info(`Gemini models.list succeeded with the user API key; tutoring model: ${models[0]?.id}`);
+  }, 60_000);
 });
