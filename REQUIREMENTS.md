@@ -8,6 +8,22 @@ Značky: ✅ hotovo a ověřeno · 🟡 částečně / probíhá · ❌ zatím n
 
 ---
 
+## 0. NEJVYŠŠÍ POŽADAVEK: je to TABULE a musí číst to, co na ni člověk napíše rukou
+
+Pointa celé aplikace: student píše a kreslí na tabuli (pero, prst, myš) a appka **sama pozná, co napsal**, kontroluje to, vede ho a komentuje. Tohle je důležitější než cokoli jiného v tomto souboru; nic nesmí být označeno jako hotové, dokud to neprojde testem s ručně psaným vstupem.
+
+| # | Požadavek | Stav |
+|---|---|---|
+| 0.1 | Ručně psané číslice, operátory a proměnné (tahy tužkou/prstem/myší) se čtou **lokálně v prohlížeči** malým modelem, bez AI a bez sítě | 🟡 rozpracováno |
+| 0.2 | Rozpoznaný text je u řádku vidět („Přečetl jsem: 5+2=15“) a jde ho jedním klepnutím opravit z kandidátů, bez klávesnice | 🟡 |
+| 0.3 | Rozpoznaný rukopis jde stejnou lokální kontrolou jako psaný text (✓/✗, trenér, procenta, mastery) | 🟡 |
+| 0.4 | Když AI není připojená, appka to **řekne na rovinu** a ukáže, jak ji připojit (co spustit/přihlásit); lokální čtení a kontrola fungují i bez ní | 🟡 |
+| 0.5 | AI s obrazem je volitelný doplněk pro těžký rukopis a kresby, nikdy jediná cesta | 🟡 |
+| 0.6 | Testovací matice: rukopis (syntetické tahy z Hershey fontu s šumem + held-out MNIST), různé adresy (localhost/127.0.0.1), bridge nedostupný/dostupný, zoom 50–200 %, posunutá tabule, světlý/tmavý, telefon a dotyk/pero/myš, pomalé/rychlé psaní | 🟡 |
+| 0.7 | Úspěšnost čtení se měří a zapisuje do dokumentace (číslice, operátory, celé řádky); pod stanovenou hranicí se nic netvrdí | 🟡 |
+
+---
+
 ## 1. Základní architektura (z původního zadání)
 
 | # | Požadavek | Stav |

@@ -4,6 +4,11 @@ Cíl: student jen píše na tabuli. Appka sama sleduje, kontroluje, vede a komen
 reálný doučující, pamatuje si studenta a ukazuje cestu s procenty. Fáze se dělají v pořadí
 a každá končí testy, živým ověřením a commitem. Konec: smyčka nezávislých agentů.
 
+## 0. NEJVYŠŠÍ PRIORITA: čtení rukopisu z tabule (viz REQUIREMENTS.md sekce 0)
+- Lokální model nad tahy Excalidraw (freedraw): seskupení do řádků, rozdělení na symboly, malá síť (MNIST + syntetické operátory), skladba do výrazu (zlomky, mocniny), kandidáti a oprava klepnutím.
+- Řádek z rukopisu se stane krokem jako psaný text; stav „AI nepřipojena“ a návod k připojení; AI s obrazem jen doplněk.
+- Měřená testovací matice místo domněnek; úspěšnost se publikuje v README.
+
 ## A. Tabule jako jediné vstupní místo, HUD bez překryvů
 - Žádná textová pole: zmizí dolní lišta s řádkem klávesnicí a akčními tlačítky; zadání je
   karta jen ke čtení (úprava přes tužku). U volné tabule je zadáním první napsaný řádek.
