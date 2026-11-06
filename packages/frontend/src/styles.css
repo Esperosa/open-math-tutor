@@ -328,3 +328,12 @@ body { overflow: hidden; }
   .settings-pop { top: auto; bottom: 130px; left: 12px; right: auto; width: min(300px, calc(100vw - 24px)); max-height: calc(100vh - 200px); }
   .calculator { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; max-height: 78vh; z-index: 30; }
 }
+
+/* round 6 geometry: on phones the rail starts under the task card and the mascot spans the width without covering cards */
+@media (max-width: 700px) {
+  .rail { top: 170px; transform: none; }
+  .rail-btn { width: 38px; min-height: 38px; }
+  .tutor-hud { left: 12px; right: 12px; width: auto; bottom: 64px; }
+  .tutor-bubble { max-height: 24vh; }
+  .tutor-menu { max-height: 42vh; overflow: auto; }
+}

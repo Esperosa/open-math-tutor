@@ -304,9 +304,26 @@ export function App() {
     const skill = catalog.skills.find(sk => sk.id === skillId);
     if (!topic || !skill) return;
     const trackId = settings.activeTrackId || catalog.tracks.find(tr => tr.topicIds.includes(topicId))?.id || '';
-    const template = pickTemplateForDifficulty(catalog, skillId, mastery[skillId]?.difficultyLevel ?? settings.startLevel);
+    let template = pickTemplateForDifficulty(catalog, skillId, mastery[skillId]?.difficultyLevel ?? settings.startLevel);
     if (!template) return;
-    const problem = instantiateProblem(template);
+    let problem = instantiateProblem(template);
+    const previous = live.current.boards.find(b => b.id === live.current.activeId)?.statement;
+    if (problem.statement === previous) {
+      // Resample, then try the skill's other templates, so "next problem" is never the same task again.
+      const others = catalog.problemTemplates.filter(tp => tp.skillId === skillId);
+      for (let i = 0; i < 6 && problem.statement === previous; i++) problem = instantiateProblem(template);
+      for (const other of others) {
+        if (problem.statement !== previous) break;
+        const candidate = instantiateProblem(other);
+        if (candidate.statement !== previous) { template = other; problem = candidate; }
+      }
+      if (problem.statement === previous) {
+        // The skill has no more variety: move on to a sibling skill of the topic instead of repeating.
+        const sibling = topic.skillIds.map(id => catalog.skills.find(sk => sk.id === id))
+          .find(sk => sk && sk.id !== skillId && sk.problemTemplateIds.length && instantiateProblem(catalog.problemTemplates.find(tp => tp.id === sk.problemTemplateIds[0])!).statement !== previous);
+        if (sibling) { startSkill(topicId, sibling.id); return; }
+      }
+    }
     setPanel(null); setPinned(false);
     startLesson({
       skillId, statementText: problem.statement, topic: topic.title[settings.locale], ...(problem.expected ? { expected: problem.expected } : {}),
@@ -472,7 +489,7 @@ export function App() {
     const value = { ...live.current, boards, activeId: boards[0].id }; live.current = value; setSaved(value);
   }
   if (!settings.activeTrackId && !settings.onboardingDismissed) {
-    return <Onboarding catalog={catalog} t={t} locale={settings.locale} onSelectTrack={startTrack} onSkip={() => configure({ onboardingDismissed: true })} />;
+    return <Onboarding catalog={catalog} t={t} locale={settings.locale} onSelectTrack={startTrack} onSkip={() => { configure({ onboardingDismissed: true }); if (board.statement || board.skillId) createExercise(); }} />;
   }
   const openPanel = panel;
   async function exportImage(kind: 'png' | 'svg') {

@@ -56,10 +56,28 @@ function linearForm(statement: MathStatement): { symbol: string; a: number; b: n
   return { symbol, a, b: f0 };
 }
 
+/** A chain "224/8 = 28 m/s" or "a = 2·3 = 7": every pure-number neighbour pair must be equal; a trailing unit is ignored. */
+function checkChain(text: string): StepVerdict | null {
+  const parts = text.split(/(?<![<>!])=(?!=)/).map(p => p.trim());
+  if (parts.length < 3 || parts.some(p => !p)) return null;
+  const values: (number | null)[] = parts.map((part, i) => {
+    let expr = part.replace(/(\d),(\d)/g, "$1.$2");
+    if (i === parts.length - 1) expr = expr.replace(/^([\d.\s+\-*/()·×÷]+?)\s*[A-Za-zµΩ°%][\w/²³·^.\-]*$/, "$1");
+    const parsed = tryParse(expr.replace(/·|×/g, "*").replace(/÷/g, "/"));
+    if (!parsed || parsed.form !== "expression" || symbolsOf(parsed.value, new Set()).size) return null;
+    return numeric(parsed.value);
+  });
+  for (let i = 0; i + 1 < values.length; i++) {
+    const a = values[i], b = values[i + 1];
+    if (a !== null && b !== null && !close(a, b)) return { status: "wrong", reason: "arithmetic" };
+  }
+  return null;
+}
+
 /** Does this single line hold on its own (numeric equation) or contradict the task value? */
 export function checkStep(stepText: string, previousText: string | null): StepVerdict {
   const step = tryParse(stepText);
-  if (!step) return { status: "unknown" };
+  if (!step) return checkChain(stepText) ?? { status: "unknown" };
 
   if (step.form === "relation" && step.value.op === "eq"
       && symbolsOf(step.value.rhs, symbolsOf(step.value.lhs, new Set())).size === 0) {

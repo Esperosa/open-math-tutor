@@ -189,3 +189,12 @@ describe("audit round 5", () => {
     expect(checkAnswerLine({ value: 31200, unit: "Kč", tolerance: 1e-9 }, "3.12e4 Kč")).toBe("correct");
   });
 });
+
+import { checkStep as chainCheckStep } from "./stepCheck.js";
+describe("arithmetic chains", () => {
+  it("flags a wrong link in a chain, with or without a trailing unit", () => {
+    expect(chainCheckStep("v = 224/8 = 29 m/s", null).status).toBe("wrong");
+    expect(chainCheckStep("224/8 = 28", null).status).toBe("ok");
+    expect(chainCheckStep("2*3 = 6 = 7", null).status).toBe("wrong");
+  });
+});

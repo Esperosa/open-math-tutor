@@ -90,7 +90,12 @@ export function buildNotesHtml(boards: readonly BoardState[], t: T, strengths?: 
     + `<body><h1>${escapeHtml(t.notesTitle)}</h1>${body}${progress}<p><small>${escapeHtml(t.unverified)}</small></p></body></html>`;
 }
 
+let lastDownload = { name: '', at: 0 };
 export function downloadBlob(blob: Blob, name: string) {
+  // One click is one file: ignore a repeat of the same download within a second.
+  const now = Date.now();
+  if (lastDownload.name === name && now - lastDownload.at < 1000) return;
+  lastDownload = { name, at: now };
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url; link.download = name; link.click();
