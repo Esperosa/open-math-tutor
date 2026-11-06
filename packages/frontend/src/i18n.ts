@@ -36,6 +36,10 @@ export const cs = {
   rate_limited: 'Poskytovatel dosáhl limitu. Zkus kontrolu později.', provider_unavailable: 'Poskytovatel je nedostupný.',
   multimodal_unsupported: 'Poskytovatel neumí v této konfiguraci přečíst obrázek.', tos_restricted: 'Tento způsob použití poskytovatel nepovoluje.',
   timeout: 'Kontrola překročila časový limit.', invalid_response: 'Bridge vrátil neplatnou odpověď.', unknown: 'Kontrola se nezdařila. Zkus ji znovu.',
+  courses: 'Kurzy', track: 'Kurz', startNextSkill: 'Začít', practiceSkill: 'Cvičit znovu',
+  skillMastered: 'Zvládnuto', skillLocked: 'Zatím uzamčeno', skillInProgress: 'Rozpracováno', skillNotStarted: 'Nezačato',
+  askLabel: 'Zeptej se na cokoli', askPlaceholder: 'Např. Proč se mění znaménko?', askSend: 'Zeptat se',
+  uploadScan: 'Nahrát sken/foto úlohy',
 } as const;
 export type MessageKey = keyof typeof cs;
 export const en: Record<MessageKey, string> = {
@@ -74,6 +78,10 @@ export const en: Record<MessageKey, string> = {
   rate_limited: 'Provider limit reached. Try again later.', provider_unavailable: 'The provider is unavailable.',
   multimodal_unsupported: 'This provider configuration cannot read images.', tos_restricted: 'The provider does not permit this usage.',
   timeout: 'The check timed out.', invalid_response: 'The bridge returned an invalid response.', unknown: 'The check failed. Please try again.',
+  courses: 'Courses', track: 'Track', startNextSkill: 'Start', practiceSkill: 'Practice again',
+  skillMastered: 'Mastered', skillLocked: 'Locked for now', skillInProgress: 'In progress', skillNotStarted: 'Not started',
+  askLabel: 'Ask anything', askPlaceholder: 'E.g. Why does the sign change?', askSend: 'Ask',
+  uploadScan: 'Upload a scan/photo of a problem',
 };
 export const messages: Record<Locale, Record<MessageKey, string>> = { cs, en };
 export const errorKeys: Record<ProviderErrorCode, MessageKey> = {

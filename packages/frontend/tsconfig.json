@@ -12,7 +12,7 @@
     "noEmit": true,
     "types": ["vite/client", "vitest/globals", "node"],
     "baseUrl": ".",
-    "paths": { "@openmathtutor/shared": ["../shared/src/index.ts"] }
+    "paths": { "@openmathtutor/shared": ["../shared/src/index.ts"], "@openmathtutor/content": ["../content/src/index.ts"] }
   },
   "include": ["src", "tests", "vite.config.ts", "playwright*.config.ts"]
 }

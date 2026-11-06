@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ContinueLessonRequest, ProviderId } from '@openmathtutor/shared';
+import type { ContinueLessonRequest, CurriculumContext, ProviderId } from '@openmathtutor/shared';
+import { recordAttempt } from '@openmathtutor/shared';
+import { catalog } from '@openmathtutor/content';
 import type { BinaryFiles } from '@excalidraw/excalidraw/types';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { Board, type BoardHandle } from './Board';
@@ -9,6 +11,10 @@ import { messages, errorKeys, type MessageKey } from './i18n';
 import { load, save, type Saved, type Settings } from './storage';
 import { StrokeSettler } from './settle';
 import { useVoice } from './useVoice';
+import { loadMastery, saveMastery, getOrCreateMastery } from './curriculumStorage';
+import { CoursesPanel, type LessonStart } from './curriculum/CoursesPanel';
+import { AskPanel } from './AskPanel';
+import { UploadBoard, type UploadedImage } from './UploadBoard';
 
 type Mode = ContinueLessonRequest['mode'];
 interface Pending { id: string; controller: AbortController; provider: ProviderId; boardId: string; revision: number }
@@ -34,6 +40,8 @@ export function App() {
   const voice = useVoice(settings);
   const [settler] = useState(() => new StrokeSettler(() => void analyze.current()));
   const analyze = useRef<() => Promise<void>>(async () => {});
+  const [mastery, setMastery] = useState(loadMastery);
+  const [lessonSkillId, setLessonSkillId] = useState<string | null>(null);
   const provider = providers.find(p => p.id === settings.provider);
   const model = provider?.models.find(m => m.id === settings.model);
   const canRequest = connected && !!provider?.detect.installed && !!provider.authStatus.authenticated && !!model;
@@ -81,8 +89,12 @@ export function App() {
   useEffect(() => { document.documentElement.lang = settings.locale; document.documentElement.dataset.theme = settings.theme; }, [settings.locale, settings.theme]);
   useEffect(() => () => { settler.cancel(); pending.current?.controller.abort(); }, [settler]);
 
-  async function request(mode?: Mode) {
-    if (!canRequest || busy.current || (!mode && !model?.supportsImageInput)) return;
+  async function request(
+    mode?: Mode,
+    extra?: { studentMessage?: string; curriculumContext?: CurriculumContext },
+    imageOverride?: UploadedImage,
+  ) {
+    if (!canRequest || busy.current || (!mode && !imageOverride && !model?.supportsImageInput)) return;
     stop(false);
     const snapshot = live.current.boards.find(b => b.id === live.current.activeId)!;
     const controller = new AbortController();
@@ -95,9 +107,9 @@ export function App() {
       stepHistory: snapshot.steps.map(({ stepId, latexGuess, boardRevision }) => ({ stepId, latexGuess, boardRevision })),
       locale: settings.locale, model: settings.model };
     try {
-      const imageCrop = !mode ? await editor.current?.crop(snapshot) : undefined;
+      const imageCrop = imageOverride ?? (!mode ? await editor.current?.crop(snapshot) : undefined);
       if (pending.current !== request || controller.signal.aborted) return;
-      const response = mode ? await bridge.continue(request.provider, { ...base, mode }, controller.signal)
+      const response = mode ? await bridge.continue(request.provider, { ...base, mode, ...extra }, controller.signal)
         : await bridge.analyze(request.provider, { ...base, imageCrop: imageCrop! }, controller.signal);
       if (pending.current !== request) return;
       const current = live.current.boards.find(b => b.id === request.boardId);
@@ -105,6 +117,15 @@ export function App() {
       const applied = applyResponse(current, response, id);
       if (applied.state !== current) updateBoard(applied.state);
       setStatus(applied.stale ? 'waiting' : 'ready'); setRejected(applied.rejected);
+      if (!applied.stale && mode === 'check' && lessonSkillId) {
+        const wasCorrect = response.verifierStatus === 'correct';
+        setMastery(prev => {
+          const next = recordAttempt(getOrCreateMastery(prev, lessonSkillId, Date.now()), wasCorrect, Date.now());
+          const updated = { ...prev, [next.skillId]: next };
+          saveMastery(updated);
+          return updated;
+        });
+      }
       if (!applied.stale && live.current.settings.voiceEnabled) voice.speak(response.ttsText);
     } catch (error) {
       if (pending.current !== request) return;
@@ -141,6 +162,20 @@ export function App() {
     stop(false); const next = newBoard();
     const value = { ...live.current, boards: [...live.current.boards, next], activeId: next.id };
     live.current = value; setSaved(value); setLine(''); setSelectedStep(''); setStatus('idle');
+  }
+  function startLesson(lesson: LessonStart) {
+    stop(false); setLine(''); setSelectedStep('');
+    const current = live.current.boards.find(b => b.id === live.current.activeId)!;
+    updateBoard(editTask(editTask(current, 'topic', lesson.topic), 'statement', lesson.statementText));
+    setLessonSkillId(lesson.skillId);
+    setStatus('idle');
+    void request('next_problem', { curriculumContext: lesson.curriculumContext });
+  }
+  function ask(message: string) {
+    void request('ask', { studentMessage: message });
+  }
+  function uploadScan(image: UploadedImage) {
+    void request(undefined, undefined, image);
   }
   function deleteExercise() {
     if (!window.confirm(t.eraseConfirm)) return;
@@ -188,6 +223,11 @@ export function App() {
         {rejected && <p role="alert" className="warning">{t.rejectedActions}</p>}
       </section>
       <aside className="sidebar">
+        <details open><summary>{t.courses}</summary>
+          <CoursesPanel catalog={catalog} mastery={mastery} t={t} onStartLesson={startLesson} activeSkillId={lessonSkillId} />
+        </details>
+        <AskPanel t={t} disabled={!canRequest || running} onAsk={ask} />
+        <UploadBoard t={t} disabled={!canRequest || !model?.supportsImageInput || running} onUpload={uploadScan} />
         <section><h2>{t.exercise}</h2><label>{t.exercise}<select value={saved.activeId} onChange={e => switchExercise(e.target.value)}>
           {saved.boards.map((b, i) => <option key={b.id} value={b.id}>{i + 1}. {b.statement.slice(0, 40) || '…'}</option>)}</select></label>
           <div className="row"><button onClick={createExercise}>{t.newExercise}</button><button onClick={deleteExercise}>{t.deleteExercise}</button></div></section>

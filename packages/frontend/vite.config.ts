@@ -11,7 +11,10 @@ async function filesIn(dir: string, prefix = ''): Promise<string[]> {
     : [`/${prefix}${e.name}`]))).flat();
 }
 export default defineConfig({
-  resolve: { dedupe: ['react', 'react-dom'], alias: { '@openmathtutor/shared': fileURLToPath(new URL('../shared/src/index.ts', import.meta.url)) } },
+  resolve: { dedupe: ['react', 'react-dom'], alias: {
+    '@openmathtutor/shared': fileURLToPath(new URL('../shared/src/index.ts', import.meta.url)),
+    '@openmathtutor/content': fileURLToPath(new URL('../content/src/index.ts', import.meta.url)),
+  } },
   // Plain Vite/esbuild deliberately avoids the inline React-refresh preamble under strict script-src.
   esbuild: { jsx: 'automatic' },
   server: { port: 5173, strictPort: true },
