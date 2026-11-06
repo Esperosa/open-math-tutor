@@ -81,7 +81,8 @@ it('onboarding: picking a track immediately starts a lesson and shows a "where a
   }));
   render(<App />);
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Na co se připravuješ?' })).toBeInTheDocument());
-  fireEvent.click(screen.getByRole('button', { name: /Přijímačky na střední školu/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Chystám se na střední školu/ }));
+  fireEvent.click(screen.getByRole('button', { name: /^Přijímačky na střední školu/ }));
   await waitFor(() => expect(manuals.at(-1)?.mode).toBe('next_problem'));
   expect(screen.getByTestId('track-breadcrumb')).toHaveTextContent('Přijímačky na střední školu');
   expect(screen.getByLabelText('Zadání')).not.toHaveValue('');
@@ -112,10 +113,12 @@ it('switching to a new track starts a fresh board, not the previous lesson\'s ca
   }));
   render(<App />);
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Na co se připravuješ?' })).toBeInTheDocument());
-  fireEvent.click(screen.getByRole('button', { name: /Přijímačky na střední školu/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Chystám se na střední školu/ }));
+  fireEvent.click(screen.getByRole('button', { name: /^Přijímačky na střední školu/ }));
   await waitFor(() => expect(manuals).toHaveLength(1));
   fireEvent.click(screen.getByRole('button', { name: 'Změnit kurz' }));
-  fireEvent.click(screen.getByRole('button', { name: /Vysoká škola/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Studuju vysokou školu/ }));
+  fireEvent.click(screen.getByRole('button', { name: /^Vysoká škola — základy algebry/ }));
   await waitFor(() => expect(manuals).toHaveLength(2));
 
   // Exactly one explanation (not two): proof the second lesson got a fresh

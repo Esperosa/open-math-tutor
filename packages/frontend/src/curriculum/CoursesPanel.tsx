@@ -16,6 +16,7 @@ interface Props {
   onStartLesson: (lesson: LessonStart) => void;
   activeSkillId: string | null;
   onAsk?: (question: string) => void;
+  defaultDifficulty?: number;
 }
 
 function masteryLabel(t: Record<MessageKey, string>, skill: Skill, mastery: MasteryMap, unlocked: boolean): string {
@@ -26,7 +27,7 @@ function masteryLabel(t: Record<MessageKey, string>, skill: Skill, mastery: Mast
   return t.skillNotStarted;
 }
 
-export function CoursesPanel({ catalog, mastery, t, locale, onStartLesson, activeSkillId, onAsk }: Props) {
+export function CoursesPanel({ catalog, mastery, t, locale, onStartLesson, activeSkillId, onAsk, defaultDifficulty = 1 }: Props) {
   const [trackId, setTrackId] = useState('');
   const [topicId, setTopicId] = useState('');
   const [query, setQuery] = useState('');
@@ -40,7 +41,7 @@ export function CoursesPanel({ catalog, mastery, t, locale, onStartLesson, activ
   function start(skill: Skill, tr = track, tp = topic) {
     if (!tr || !tp) return;
     const state = mastery[skill.id];
-    const difficultyLevel = state?.difficultyLevel ?? 1;
+    const difficultyLevel = state?.difficultyLevel ?? defaultDifficulty;
     const template = pickTemplateForDifficulty(catalog, skill.id, difficultyLevel);
     if (!template) return;
     const statementText = instantiateTemplate(template);

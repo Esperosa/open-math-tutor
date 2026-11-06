@@ -16,7 +16,7 @@ import { StrokeSettler } from './settle';
 import { useVoice } from './useVoice';
 import { loadMastery, saveMastery, getOrCreateMastery } from './curriculumStorage';
 import { CoursesPanel, type LessonStart } from './curriculum/CoursesPanel';
-import { Onboarding } from './curriculum/Onboarding';
+import { Onboarding, type StartLevel } from './curriculum/Onboarding';
 import { TrackBreadcrumb } from './curriculum/TrackBreadcrumb';
 import { Rail, Icon, type PanelId } from './Hud';
 import { Calculator } from './Calculator';
@@ -244,13 +244,13 @@ export function App() {
     setStatus('idle');
     void request('next_problem', { curriculumContext: lesson.curriculumContext });
   }
-  function startTrack(trackId: string) {
-    configure({ activeTrackId: trackId, onboardingDismissed: true });
+  function startTrack(trackId: string, level: StartLevel = 1) {
+    configure({ activeTrackId: trackId, onboardingDismissed: true, startLevel: level });
     const masteredIds = new Set(Object.values(mastery).filter(isMastered).map(s => s.skillId));
     const topic = nextUnlockedTopic(catalog, trackId, masteredIds);
     const skill = topic ? nextUnlockedSkill(getTopicSkills(catalog, topic.id), masteredIds) : null;
     if (!topic || !skill) { createExercise(); return; }
-    const difficultyLevel = mastery[skill.id]?.difficultyLevel ?? 1;
+    const difficultyLevel = mastery[skill.id]?.difficultyLevel ?? level;
     const template = pickTemplateForDifficulty(catalog, skill.id, difficultyLevel);
     if (!template) return;
     startLesson({
@@ -351,7 +351,7 @@ export function App() {
       <aside className={`drawer${openPanel ? ' open' : ''}`}
         onMouseEnter={() => clearTimeout(leaveTimer.current)} onMouseLeave={leavePanel}>
         <section hidden={openPanel !== 'courses'}>
-          <CoursesPanel catalog={catalog} mastery={mastery} t={t} locale={settings.locale} onStartLesson={startLesson} activeSkillId={lessonSkillId} onAsk={q => { setPanel('ask'); setPinned(true); ask(q); }} />
+          <CoursesPanel catalog={catalog} mastery={mastery} t={t} locale={settings.locale} onStartLesson={startLesson} activeSkillId={lessonSkillId} defaultDifficulty={settings.startLevel} onAsk={q => { setPanel('ask'); setPinned(true); ask(q); }} />
         </section>
         <section hidden={openPanel !== 'ask'}>
           <AskPanel t={t} disabled={!canRequest || running} onAsk={ask} />

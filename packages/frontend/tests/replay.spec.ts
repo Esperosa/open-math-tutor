@@ -253,10 +253,12 @@ test('course search: Ctrl+K finds a specific skill by what the student calls it 
 
 test('calculator: evaluates safely, feeds the line, and is hidden where the exam forbids it', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /Přijímačky na střední školu/ }).click();
+  await page.getByRole('button', { name: /Chystám se na střední školu/ }).click();
+  await page.getByRole('button', { name: /^Přijímačky na střední školu/ }).click();
   await expect(page.getByRole('button', { name: 'Kalkulačka', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Změnit kurz' }).click();
-  await page.getByRole('button', { name: /Maturita/ }).click();
+  await page.getByRole('button', { name: /středoškolák nebo maturant/ }).click();
+  await page.getByRole('button', { name: /^Maturita z matematiky/ }).click();
   await page.getByRole('button', { name: 'Kalkulačka', exact: true }).click();
   const display = page.getByRole('textbox', { name: 'Kalkulačka' });
   await display.fill('2+3*4');

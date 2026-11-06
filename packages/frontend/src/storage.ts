@@ -7,12 +7,14 @@ export interface Settings {
   activeTrackId: string;
   /** Shown once until the student picks a track or explicitly skips. */
   onboardingDismissed: boolean;
+  /** Starting difficulty (1-3) chosen in onboarding, used for skills without mastery data yet. */
+  startLevel: number;
 }
 export interface Saved { version: 1; boards: BoardState[]; activeId: string; settings: Settings }
 const KEY = 'openmathtutor.frontend.v1';
 export const defaultSettings: Settings = {
   locale: 'cs', theme: 'light', auto: false, voiceEnabled: false, voiceURI: '', rate: 1, provider: '', model: '', showAI: true,
-  activeTrackId: '', onboardingDismissed: false,
+  activeTrackId: '', onboardingDismissed: false, startLevel: 1,
 };
 export function load(): Saved {
   try {

@@ -53,6 +53,10 @@ export const cs = {
   calcTitle: 'Kalkulačka', calcClose: 'Zavřít kalkulačku', calcUse: 'Do řádku', calcError: 'Chyba ve výrazu', calcExam: 'Funkce odpovídají tomu, co je u zkoušky povoleno.', calcFree: 'Studijní kalkulačka.', calcDegrees: 'Úhly ve stupních.', calcNone: 'U této zkoušky se kalkulačka nepoužívá.', calcOpen: 'Kalkulačka',
   notesTitle: 'Zápisky', progressTitle: 'Můj pokrok', progressEmpty: 'Zatím není z čeho hodnotit. Vyřeš pár úloh a ukážu ti, co ti jde a co ne.', strong: 'Zvládám', weak: 'Potřebuju zapracovat', practising: 'Procvičuju',
   studyTextButton: 'Studijní text pro mě', studyTextHelp: 'AI napíše krátký text podle toho, co ti nejde. Je to neověřený text, ber ho jako podklad.', exportMarkdown: 'Stáhnout zápisky (.md)', exportPdf: 'Tisk / PDF', exportPng: 'Tabule jako PNG', exportSvg: 'Tabule jako SVG', notesRail: 'Zápisky a pokrok',
+  whoPrimary: 'Chystám se na střední školu', whoPrimaryHint: 'Jednotná přijímací zkouška z matematiky v 9. třídě.',
+  whoSecondary: 'Jsem středoškolák nebo maturant', whoSecondaryHint: 'Maturita z matematiky nebo přijímačky na vysokou školu.',
+  whoUniversity: 'Studuju vysokou školu', whoUniversityHint: 'Algebra, analýza, lineární algebra, diskrétní matematika, statistika.',
+  onboardingBack: 'Zpět', levelQuestion: 'Jak ti to teď jde?', levelFresh: 'Začínám od začátku', levelRefresh: 'Chci to oprášit', levelAdvanced: 'Umím to, chci náročnější',
   onboardingSkip: 'Přeskočit, chci jen volnou tabuli', trackComplete: 'vše zvládnuto', changeTrack: 'Změnit kurz',
 } as const;
 export type MessageKey = keyof typeof cs;
@@ -109,6 +113,10 @@ export const en: Record<MessageKey, string> = {
   calcTitle: 'Calculator', calcClose: 'Close calculator', calcUse: 'Use in line', calcError: 'Error in expression', calcExam: 'Functions match what the exam allows.', calcFree: 'Study calculator.', calcDegrees: 'Angles in degrees.', calcNone: 'No calculator is used in this exam.', calcOpen: 'Calculator',
   notesTitle: 'Notes', progressTitle: 'My progress', progressEmpty: 'Nothing to judge yet. Solve a few problems and I will show what is going well and what is not.', strong: 'I manage', weak: 'Needs work', practising: 'Practising',
   studyTextButton: 'Study text for me', studyTextHelp: 'The AI writes a short text based on what you find hard. It is unverified text, treat it as a starting point.', exportMarkdown: 'Download notes (.md)', exportPdf: 'Print / PDF', exportPng: 'Board as PNG', exportSvg: 'Board as SVG', notesRail: 'Notes and progress',
+  whoPrimary: 'I am preparing for secondary school', whoPrimaryHint: 'The unified entrance exam in mathematics in year 9.',
+  whoSecondary: 'I am a secondary-school student or taking the maturita', whoSecondaryHint: 'Maturita in mathematics or university entrance exams.',
+  whoUniversity: 'I study at university', whoUniversityHint: 'Algebra, calculus, linear algebra, discrete mathematics, statistics.',
+  onboardingBack: 'Back', levelQuestion: 'How is it going for you right now?', levelFresh: 'I am starting from scratch', levelRefresh: 'I want to refresh it', levelAdvanced: 'I know it, give me harder ones',
   onboardingSkip: 'Skip, I just want the free board', trackComplete: 'all done', changeTrack: 'Change track',
 };
 export const messages: Record<Locale, Record<MessageKey, string>> = { cs, en };
