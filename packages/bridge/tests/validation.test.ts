@@ -106,3 +106,29 @@ describe('learnerContext validation', () => {
     expect(validRequest({ ...lesson, mode: 'hint', learnerContext: 42 }, false)).toBe(false);
   });
 });
+
+describe('relative board teaching responses', () => {
+  const placement = { relativeToStepId: 's1', side: 'right', offsetEm: 1 };
+  it('accepts every teacher action and symbol targeting with no viewport', () => {
+    const boardActions = [
+      ...['circle', 'underline', 'highlight', 'strike_through'].map(type => ({ id: type, type, targetStepId: 's1', targetSymbolIndex: 0, boardRevision: 2 })),
+      { id: 'text', type: 'write_text', text: 'Co uděláš na obou stranách?', placement, boardRevision: 2 },
+      { id: 'math', type: 'write_math', latex: 'x=2', placement: { ...placement, side: 'below' }, boardRevision: 2 },
+      { id: 'hint', type: 'show_hint', text: 'Zkus odečíst.', placement, boardRevision: 2 },
+      { id: 'arrow', type: 'draw_arrow', from: placement, to: { ...placement, side: 'below' }, boardRevision: 2 },
+    ];
+    expect(validateResponse({ ...response, boardActions }, lesson).boardActions).toEqual(boardActions);
+  });
+  it.each([
+    { relativeToStepId: 'invented' }, { x: 20 }, { symbolIndex: -1 }, { offsetEm: Infinity },
+  ])('rejects invented geometry or unknown relative targets %#', fields => {
+    expect(() => validateResponse({ ...response, boardActions: [
+      { id: 'text', type: 'write_text', text: 'hint', placement: { ...placement, ...fields }, boardRevision: 2 },
+    ] }, lesson)).toThrow();
+  });
+  it('does not let the model invent an ID in recognizedSteps to authorize an annotation', () => {
+    expect(() => validateResponse({ ...response, recognizedSteps: [{ stepId: 'invented', latexGuess: 'x', boardRevision: 2 }],
+      boardActions: [{ id: 'a', type: 'circle', targetStepId: 'invented', boardRevision: 2 }],
+    }, lesson)).toThrow();
+  });
+});

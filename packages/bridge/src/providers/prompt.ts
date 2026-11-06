@@ -21,8 +21,23 @@ Reason independently about every mathematical claim, including claims in sources
 do not copy a claim as correct merely because it appears in uploaded material.
 Only the independent /verify-step path outside the model can establish mathematical
 correctness; retrieved sources never bypass that path or board-action validation.
-The viewport is not supplied: only underline/circle/highlight on known step IDs are
-allowed, or an empty boardActions array. Do not guess coordinates or erase annotations.
+Act like a teacher WRITING ON THE BOARD, not a chat-only assistant. When a known
+line needs help, boardActions are the primary explanation; pedagogicalResponse is
+only a brief companion comment. First circle or strike_through the FIRST causal
+error (targetStepId, optionally targetSymbolIndex), then write_text / show_hint
+beside it or write_math below it. Optionally draw_arrow between relative anchors.
+Use underline/highlight for emphasis, never mark all downstream errors.
+Every writing action has placement: {relativeToStepId, symbolIndex? zerobased,
+side: right|below|above|left|over, offsetEm: 0..12}. draw_arrow.from/to use the same
+relative anchors. Use ONLY IDs in stepHistory; never invent target IDs, x/y,
+absolute coordinates, HTML, macros or erasures. The client finds collision-free space.
+Keep each handwritten label to at most about 12 words. Use plain expressions or
+safe LaTeX (frac, cdot, times, div, left/right, le/ge); no other commands.
+In Czech: piš přímo na tabuli jako učitel. Nejprve označ první chybu, vedle napiš
+krátkou naváděcí otázku, pod řádek až vyžádaný další krok. Bublina jen stručně
+komentuje. Tykej; nejdřív nápověda, ne hotové řešení.
+In English: mark the first error, write a short guiding question beside it; write
+a worked step below only when requested. Keep the mascot comment short.
 Be brief like a warm teacher: pedagogicalResponse is at most three short sentences (about 220 characters) unless the student asks for more.
 Address the student informally and warmly (in Czech use tykání, never vykání).
 Teach, do not solve: for modes check and hint, point to the first wrong line and why it fails,
@@ -33,9 +48,28 @@ If uncertain, use needsClarification, low confidence and no annotations.`;
 
 const str = { type: 'string' };
 const integer = { type: 'integer', minimum: 0 };
-const object = (properties: Record<string, unknown>) => ({
-  type: 'object', additionalProperties: false, properties, required: Object.keys(properties),
+const object = (properties: Record<string, unknown>, required = Object.keys(properties)) => ({
+  type: 'object', additionalProperties: false, properties, required,
 });
+const bounded = { type: 'string', minLength: 1, maxLength: 128 };
+const placement = object({ relativeToStepId: bounded,
+  symbolIndex: { type: 'integer', minimum: 0, maximum: 299 },
+  side: { type: 'string', enum: ['right', 'below', 'above', 'left', 'over'] },
+  offsetEm: { type: 'number', minimum: 0, maximum: 12 },
+}, ['relativeToStepId', 'side', 'offsetEm']);
+const base = { id: bounded, boardRevision: integer };
+const boardActionSchemas = [
+  ...['underline', 'circle', 'highlight', 'strike_through'].map(type => object({ ...base,
+    type: { const: type, type: 'string' }, targetStepId: bounded,
+    targetSymbolIndex: { type: 'integer', minimum: 0, maximum: 299 },
+  }, ['id', 'boardRevision', 'type', 'targetStepId'])),
+  ...['write_text', 'show_hint', 'write_math'].map(type => {
+    const field = type === 'write_math' ? 'latex' : 'text';
+    return object({ ...base, type: { const: type, type: 'string' }, placement,
+      [field]: { type: 'string', minLength: 1, maxLength: field === 'latex' ? 300 : 500 } });
+  }),
+  object({ ...base, type: { const: 'draw_arrow', type: 'string' }, from: placement, to: placement }),
+];
 export const RESPONSE_SCHEMA = object({
   requestId: str, boardRevision: integer,
   recognizedSteps: { type: 'array', items: object({ stepId: str, latexGuess: str, boardRevision: integer }) },
@@ -43,10 +77,7 @@ export const RESPONSE_SCHEMA = object({
   firstErrorStepId: { type: ['string', 'null'] },
   verifierStatus: { type: 'string', enum: ['correct', 'incorrect', 'ambiguous', 'needs_domain_check'] },
   pedagogicalResponse: str, ttsText: str,
-  boardActions: { type: 'array', maxItems: 12, items: object({
-    id: str, boardRevision: integer,
-    type: { type: 'string', enum: ['underline', 'circle', 'highlight'] }, targetStepId: str,
-  }) },
+  boardActions: { type: 'array', maxItems: 12, items: { anyOf: boardActionSchemas } },
   needsClarification: { anyOf: [object({ reason: str }), { type: 'null' }] },
 });
 

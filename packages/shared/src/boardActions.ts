@@ -24,19 +24,31 @@ export interface Anchor {
   relativeToStepId?: string;
 }
 
+/** Scene geometry belongs to the client, never to the model. offsetEm is a
+ * nonnegative gap measured in the target row's writing size. */
+export interface Placement {
+  relativeToStepId: string;
+  symbolIndex?: number;
+  side: "right" | "below" | "above" | "left" | "over";
+  offsetEm: number;
+}
+type WritingPosition = { placement: Placement; anchor?: never } | { anchor: Anchor; placement?: never };
+type Target = { targetStepId: string; targetSymbolIndex?: number; style?: AnnotationStyle };
+
 interface BoardActionBase {
   id: string;
   boardRevision: number;
 }
 
 export type BoardAction =
-  | (BoardActionBase & { type: "write_math"; latex: string; anchor: Anchor; style?: AnnotationStyle })
-  | (BoardActionBase & { type: "write_text"; text: string; anchor: Anchor; style?: AnnotationStyle })
-  | (BoardActionBase & { type: "underline"; targetStepId: string; style?: AnnotationStyle })
-  | (BoardActionBase & { type: "circle"; targetStepId: string; style?: AnnotationStyle })
-  | (BoardActionBase & { type: "highlight"; targetStepId: string; style?: AnnotationStyle })
-  | (BoardActionBase & { type: "draw_arrow"; from: Anchor; to: Anchor; style?: AnnotationStyle })
-  | (BoardActionBase & { type: "show_hint"; text: string; anchor: Anchor })
+  | (BoardActionBase & WritingPosition & { type: "write_math"; latex: string; style?: AnnotationStyle })
+  | (BoardActionBase & WritingPosition & { type: "write_text"; text: string; style?: AnnotationStyle })
+  | (BoardActionBase & { type: "underline" } & Target)
+  | (BoardActionBase & { type: "circle" } & Target)
+  | (BoardActionBase & { type: "highlight" } & Target)
+  | (BoardActionBase & { type: "strike_through" } & Target)
+  | (BoardActionBase & { type: "draw_arrow"; from: Anchor | Placement; to: Anchor | Placement; style?: AnnotationStyle })
+  | (BoardActionBase & WritingPosition & { type: "show_hint"; text: string })
   | (BoardActionBase & { type: "erase_own_annotation"; targetAnnotationId: string })
   | (BoardActionBase & {
       type: "plot_function";
@@ -56,6 +68,7 @@ export const BOARD_ACTION_TYPES = [
   "underline",
   "circle",
   "highlight",
+  "strike_through",
   "draw_arrow",
   "show_hint",
   "erase_own_annotation",
@@ -68,6 +81,53 @@ export const MAX_PLOT_SIZE = 2000;
 export const MAX_BOARD_ACTIONS_PER_RESPONSE = 12;
 export const MAX_LATEX_LENGTH = 300;
 export const MAX_TEXT_LENGTH = 500;
+
+const record = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+const id = (v: unknown): v is string => typeof v === "string" && v.length > 0 && v.length <= 128 && !/[\u0000-\u001f<>]/.test(v);
+const symbolIndex = (v: unknown) => v === undefined || (Number.isSafeInteger(v) && (v as number) >= 0 && (v as number) < 300);
+const keys = (v: Record<string, unknown>, allowed: string[]) => Object.keys(v).every(k => allowed.includes(k));
+export function isPlacement(v: unknown): v is Placement {
+  return record(v) && keys(v, ["relativeToStepId", "symbolIndex", "side", "offsetEm"]) && id(v.relativeToStepId)
+    && symbolIndex(v.symbolIndex) && ["right", "below", "above", "left", "over"].includes(v.side as string)
+    && typeof v.offsetEm === "number" && Number.isFinite(v.offsetEm) && v.offsetEm >= 0 && v.offsetEm <= 12;
+}
+export function isSafeBoardText(v: unknown): v is string {
+  return typeof v === "string" && !!v.trim() && v.length <= MAX_TEXT_LENGTH
+    && !/<[^>]*>|&(?:#\w+|lt|gt);|[\u0000-\u0008\u000b-\u001f\u202a-\u202e\u2066-\u2069]/i.test(v);
+}
+
+/** Small, nonexpanding LaTeX subset, then the existing bounded expression
+ * parser. No macros, URLs, HTML, environments or executable expressions.
+ * The plain result is also suitable for handwriting (fractions use /). */
+export function boardMathToPlain(latex: string): string {
+  if (!latex.trim() || latex.length > MAX_LATEX_LENGTH) throw new Error("invalid latex");
+  let source = latex.replace(/\$(.*?)\$/g, "$1").replace(/\\(?:left|right)\b/g, "")
+    .replace(/\\(?:cdot|times)\b/g, "*").replace(/\\div\b/g, "/")
+    .replace(/\\leq?\b/g, "<=").replace(/\\geq?\b/g, ">=")
+    .replace(/[−–]/g, "-").replace(/[×·]/g, "*").replace(/÷/g, "/").replace(/(\d),(?=\d)/g, "$1.");
+  let cursor = 0;
+  function group(): string {
+    if (source[cursor++] !== "{") throw new Error("expected group");
+    const value = read(true);
+    if (source[cursor++] !== "}") throw new Error("unclosed group");
+    return value;
+  }
+  function read(nested = false): string {
+    let out = "";
+    while (cursor < source.length && !(nested && source[cursor] === "}")) {
+      if (source.startsWith("\\frac", cursor)) {
+        cursor += 5;
+        const numerator = group(), denominator = group();
+        out += `((${numerator})/(${denominator}))`;
+      } else if (source[cursor] === "{") out += `(${group()})`;
+      else out += source[cursor++];
+    }
+    return out;
+  }
+  source = read();
+  parseMathStatement(source);
+  return source;
+}
 
 export interface BoardActionValidationError {
   index: number;
@@ -117,8 +177,8 @@ function validateOne(
   if (typeof raw !== "object" || raw === null) return { index, reason: "not an object" };
   const a = raw as Record<string, unknown>;
 
-  if (typeof a.id !== "string" || a.id.length === 0) return { index, reason: "missing id" };
-  if (typeof a.boardRevision !== "number") return { index, reason: "missing boardRevision" };
+  if (!id(a.id)) return { index, reason: "missing id" };
+  if (!Number.isSafeInteger(a.boardRevision) || (a.boardRevision as number) < 0) return { index, reason: "missing boardRevision" };
   if (a.boardRevision !== expectedBoardRevision) {
     return { index, reason: `stale boardRevision (${a.boardRevision} != ${expectedBoardRevision})` };
   }
@@ -128,42 +188,57 @@ function validateOne(
 
   const inBounds = (p: { x: number; y: number }) =>
     p.x >= bounds.minX && p.x <= bounds.maxX && p.y >= bounds.minY && p.y <= bounds.maxY;
-  const isAnchor = (v: unknown): v is Anchor =>
-    typeof v === "object" && v !== null && typeof (v as Anchor).x === "number" && typeof (v as Anchor).y === "number";
+  const isAnchor = (v: unknown): v is Anchor => record(v) && keys(v, ["x", "y", "relativeToStepId"])
+    && typeof v.x === "number" && Number.isFinite(v.x) && typeof v.y === "number" && Number.isFinite(v.y)
+    && (v.relativeToStepId === undefined || id(v.relativeToStepId)) && inBounds(v as unknown as Anchor);
+  const position = () => a.placement !== undefined ? a.anchor === undefined && isPlacement(a.placement) : isAnchor(a.anchor);
+  const fields: Record<string, string[]> = {
+    write_math: ["latex", "placement", "anchor"], write_text: ["text", "placement", "anchor"], show_hint: ["text", "placement", "anchor"],
+    underline: ["targetStepId", "targetSymbolIndex"], circle: ["targetStepId", "targetSymbolIndex"],
+    highlight: ["targetStepId", "targetSymbolIndex"], strike_through: ["targetStepId", "targetSymbolIndex"],
+    draw_arrow: ["from", "to"], erase_own_annotation: ["targetAnnotationId"],
+    plot_function: ["expression", "variable", "domain", "anchor", "width", "height"],
+  };
+  if (!keys(a, ["id", "boardRevision", "type", "style", ...(fields[a.type as string] ?? [])])) return { index, reason: "unknown action field" };
+  if (a.style !== undefined && (!record(a.style) || !keys(a.style, ["color", "emphasis"])
+    || (a.style.color !== undefined && (typeof a.style.color !== "string" || !/^#[0-9a-f]{6}$/i.test(a.style.color)))
+    || (a.style.emphasis !== undefined && !["low", "medium", "high"].includes(a.style.emphasis as string)))) return { index, reason: "invalid style" };
 
   switch (a.type) {
     case "write_math": {
       if (typeof a.latex !== "string" || a.latex.length === 0 || a.latex.length > MAX_LATEX_LENGTH) {
         return { index, reason: "invalid latex" };
       }
-      if (!isAnchor(a.anchor) || !inBounds(a.anchor)) return { index, reason: "invalid or out-of-bounds anchor" };
+      try { boardMathToPlain(a.latex); } catch { return { index, reason: "unsafe math grammar" }; }
+      if (!position()) return { index, reason: "invalid placement or anchor" };
       return null;
     }
     case "write_text":
     case "show_hint": {
       const text = a.text;
-      if (typeof text !== "string" || text.length === 0 || text.length > MAX_TEXT_LENGTH) {
+      if (!isSafeBoardText(text)) {
         return { index, reason: "invalid text" };
       }
-      if (!isAnchor(a.anchor) || !inBounds(a.anchor)) return { index, reason: "invalid or out-of-bounds anchor" };
+      if (!position()) return { index, reason: "invalid placement or anchor" };
       return null;
     }
     case "underline":
     case "circle":
-    case "highlight": {
-      if (typeof a.targetStepId !== "string" || a.targetStepId.length === 0) {
+    case "highlight":
+    case "strike_through": {
+      if (!id(a.targetStepId) || !symbolIndex(a.targetSymbolIndex)) {
         return { index, reason: "missing targetStepId" };
       }
       return null;
     }
     case "draw_arrow": {
-      if (!isAnchor(a.from) || !isAnchor(a.to) || !inBounds(a.from) || !inBounds(a.to)) {
+      if (!(isPlacement(a.from) || isAnchor(a.from)) || !(isPlacement(a.to) || isAnchor(a.to))) {
         return { index, reason: "invalid or out-of-bounds anchor" };
       }
       return null;
     }
     case "erase_own_annotation": {
-      if (typeof a.targetAnnotationId !== "string" || a.targetAnnotationId.length === 0) {
+      if (!id(a.targetAnnotationId)) {
         return { index, reason: "missing targetAnnotationId" };
       }
       return null;
@@ -191,13 +266,14 @@ function validateOne(
         domain === null ||
         typeof domain.min !== "number" ||
         typeof domain.max !== "number" ||
-        !(domain.min < domain.max)
+        !Number.isFinite(domain.min) || !Number.isFinite(domain.max) || !(domain.min < domain.max)
       ) {
         return { index, reason: "invalid domain" };
       }
       if (
         typeof a.width !== "number" ||
         typeof a.height !== "number" ||
+        !Number.isFinite(a.width) || !Number.isFinite(a.height) ||
         a.width <= 0 ||
         a.height <= 0 ||
         a.width > MAX_PLOT_SIZE ||

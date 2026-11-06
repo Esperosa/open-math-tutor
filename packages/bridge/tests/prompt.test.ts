@@ -96,3 +96,11 @@ describe('learner context', () => {
     expect(userPrompt({ ...lesson, mode: 'hint' })).not.toContain('advisory data');
   });
 });
+
+describe('board-first pedagogy in both locales', () => {
+  it('requires relative writing, first-error marking, short labels and hint-first teaching', () => {
+    for (const phrase of ['WRITING ON THE BOARD', 'FIRST causal', 'strike_through', 'write_math below',
+      'placement:', '12 words', 'never invent target IDs', 'In Czech:', 'Tykej', 'In English:',
+      'do NOT state the corrected line', 'only for mode next_step']) expect(SYSTEM_PROMPT).toContain(phrase);
+  });
+});
