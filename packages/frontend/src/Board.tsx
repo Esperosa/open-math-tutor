@@ -6,7 +6,7 @@ import { createStepLocatorRegistry, textStepLocator, type StepLocator } from './
 import { useReducedMotion } from './useReducedMotion';
 import { annotationElements, revealNotes } from './annotations';
 import { GraphPlot } from './GraphPlot';
-import { fingerprint, isStudent, renderableActions, type BoardState } from './boardState';
+import { fingerprint, inkSymbolKey, isStudent, renderableActions, type BoardState } from './boardState';
 import type { Settings } from './storage';
 import { messages } from './i18n';
 import type { StepVerdict } from '@openmathtutor/shared';
@@ -18,18 +18,19 @@ export interface BoardHandle {
   addLine(text: string, stepId: string | null): void;
   /** Remove the student's own ink of one written line (one row of a multiline text keeps its siblings). */
   removeStepLine(stepId: string): boolean;
-  crop(state: BoardState): Promise<{ dataUrl: string; width: number; height: number }>;
+  crop(state: BoardState, stepId?: string): Promise<{ dataUrl: string; width: number; height: number }>;
   exportImage(kind: 'png' | 'svg'): Promise<Blob | null>;
 }
 interface Props {
   board: BoardState; settings: Settings;
   onCommit(elements: readonly ExcalidrawElement[], files: BinaryFiles): void;
   onBusy(busy: boolean): void;
+  onInkCorrection?(key: string, label: string): void;
   onAskHere?(): void;
   verdicts?: Record<string, StepVerdict>;
   onRemoveAnnotation?(id: string): void;
 }
-export const Board = forwardRef<BoardHandle, Props>(function Board({ board, settings, onCommit, onBusy, onAskHere, verdicts, onRemoveAnnotation }, ref) {
+export const Board = forwardRef<BoardHandle, Props>(function Board({ board, settings, onCommit, onBusy, onInkCorrection, onAskHere, verdicts, onRemoveAnnotation }, ref) {
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   const surface = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
@@ -139,8 +140,9 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
     return () => clearInterval(timer);
   }, [api, notes, reduced, settings.showAI]);
   useEffect(() => () => { cancelAnimationFrame(releaseFrame.current); if (hold.current) clearTimeout(hold.current.timer); }, []);
-  // The board is the only input: writing text is the default tool, so a click puts the cursor right where the student writes.
-  useEffect(() => { if (api) api.setActiveTool({ type: 'text', locked: true }); }, [api]);
+  // The board is the only input: the configured default tool puts the cursor (or the
+  // pen) right where the student writes, without a trip to the toolbar.
+  useEffect(() => { if (api) api.setActiveTool({ type: settings.defaultTool, locked: true }); }, [api, settings.defaultTool]);
   useImperativeHandle(ref, () => ({
     registerStepLocator(locator) {
       const unregister = registry.registerStepLocator(locator);
@@ -203,11 +205,12 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
       const svg = await exportToSvg({ elements, files: api.getFiles(), exportPadding: 32, appState });
       return new Blob([svg.outerHTML], { type: 'image/svg+xml' });
     },
-    async crop(snapshot) {
-      const step = snapshot.steps.find(s => s.stepId === snapshot.activeStepId);
+    async crop(snapshot, stepId) {
+      const step = snapshot.steps.find(s => s.stepId === (stepId ?? snapshot.activeStepId));
       if (!step) throw new Error('No active line');
       const ids = new Set(step.elementIds);
       const elements = snapshot.elements.filter(e => !e.isDeleted && ids.has(e.id)) as NonDeletedExcalidrawElement[];
+      if (!elements.length) throw new Error('No active line');
       // Only the active row, never an unconditional whole-board screenshot. Export dimensions are bounded.
       const canvas = await exportToCanvas({ elements, files: snapshot.files, exportPadding: 20, maxWidthOrHeight: 1024,
         appState: { exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false } });
@@ -220,10 +223,11 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
       setView(viewRef.current);
     }
     if (surface.current && surface.current.dataset.tool !== state.activeTool.type) surface.current.dataset.tool = state.activeTool.type;
-    // Writing is the default: when a line is finished, go back to the text tool so the next click starts the next line.
+    // When a line is finished, go back to the configured default tool so the next
+    // click (text) or stroke (pen) starts the next line.
     // A finished text stays selected, and the text tool would re-open that one instead of starting a new line: deselect it.
     if (wasEditing.current && !state.editingTextElement) {
-      if (state.activeTool.type !== 'text') api?.setActiveTool({ type: 'text', locked: true });
+      if (state.activeTool.type !== settings.defaultTool) api?.setActiveTool({ type: settings.defaultTool, locked: true });
       if (Object.keys(state.selectedElementIds).length) api?.updateScene({ appState: { selectedElementIds: {} } });
     }
     wasEditing.current = !!state.editingTextElement;
@@ -235,9 +239,10 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
   const paper = { '--cell': `${cell}px`, '--ox': `${(view.x * view.zoom) % cell}px`, '--oy': `${(view.y * view.zoom) % cell}px`,
     '--margin-x': `${(96 + view.x) * view.zoom}px` } as CSSProperties;
   return <div ref={surface} className="board-surface" data-testid="board" data-pattern={settings.boardPattern} style={paper} aria-label={t.board}
+    data-zoom={view.zoom} data-scroll-x={view.x} data-scroll-y={view.y}
     onPointerDownCapture={startHold} onPointerMove={moveHold} onPointerUp={cancelHold} onPointerCancel={cancelHold}
     onKeyDown={e => {
-      if (e.key === 'Escape') { setMenu(null); setTimeout(() => { if (api && !api.getAppState().editingTextElement) api.setActiveTool({ type: 'text', locked: true }); }, 0); }
+      if (e.key === 'Escape') { setMenu(null); setTimeout(() => { if (api && !api.getAppState().editingTextElement) api.setActiveTool({ type: settings.defaultTool, locked: true }); }, 0); }
       panByKey(e);
     }}>
     <Excalidraw excalidrawAPI={setApi} initialData={initial.current} onChange={change}
@@ -284,6 +289,31 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
           title={v.status === 'ok' ? t.stepOk : t.stepWrong} role="img" aria-label={v.status === 'ok' ? t.stepOk : t.stepWrong}
           style={{ left: (step.box.x + step.box.width + 10 + view.x) * view.zoom, top: (step.box.y + view.y) * view.zoom }}>
           {v.status === 'ok' ? '✓' : '✗'}</span>;
+      })}
+    </div>
+    <div className="ink-layer">
+      {board.steps.filter(step => step.origin === 'ink' && step.latexGuess.trim()).map(step => {
+        const soft = (step.symbols ?? []).map((symbol, index) => ({ symbol, index })).filter(({ symbol }) => {
+          const top = symbol.candidates[0]?.probability ?? 0;
+          const second = symbol.candidates[1]?.probability ?? 0;
+          return symbol.candidates.length > 1 && (top < 0.8 || top - second < 0.2);
+        }).slice(0, 6);
+        return <div key={step.stepId} className={`ink-reading${step.uncertain ? ' uncertain' : ''}`}
+          data-testid={`ink-reading-${step.stepId}`} data-confidence={step.confidence ?? 0}
+          style={{ left: (step.box.x + view.x) * view.zoom, top: (step.box.y + step.box.height + 4 + view.y) * view.zoom }}>
+          <span className="ink-read-label" title={step.uncertain ? t.handwritingUncertain : undefined}>
+            {t.handwritingRead} <strong>{step.latexGuess}</strong>{step.uncertain ? ' ?' : ''}
+          </span>
+          {soft.length > 0 && <span className="ink-candidates" aria-label={t.handwritingCorrect}>
+            {soft.flatMap(({ symbol, index }) => symbol.candidates.filter(candidate => candidate.label !== symbol.label).slice(0, 2)
+              .map(candidate => <button key={`${index}-${candidate.label}`} type="button"
+                data-testid={`ink-candidate-${step.stepId}-${index}-${candidate.label}`}
+                title={`${t.handwritingCorrect}: ${symbol.label} → ${candidate.label}`}
+                onPointerDown={event => event.stopPropagation()}
+                onClick={event => { event.stopPropagation(); onInkCorrection?.(inkSymbolKey(symbol.strokeIds, board.elements), candidate.label); }}>
+                {candidate.label}</button>))}
+          </span>}
+        </div>;
       })}
     </div>
     {menu_ && <div className="ctx-menu" role="menu" aria-label={t.ctxMenu} style={{ left: menu_.x, top: menu_.y }}>

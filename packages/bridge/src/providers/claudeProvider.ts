@@ -39,7 +39,7 @@ export class ClaudeProvider extends CliProvider {
   protected async infer(req: AnalyzeBoardRequest | ContinueLessonRequest, signal: AbortSignal): Promise<unknown> {
     if (!(await this.detect(signal)).installed) throw new ProviderError('cli_missing', 'Install the official claude CLI and add it to PATH.');
     if (signal.aborted) throw new ProviderError('cancelled', 'Request cancelled.');
-    if ('imageCrop' in req) throw new ProviderError('multimodal_unsupported', CLAUDE_IMAGE_RESTRICTION);
+    if (req.imageCrop) throw new ProviderError('multimodal_unsupported', CLAUDE_IMAGE_RESTRICTION);
     // Empty isolated cwd avoids project files; restricted settings, disabled skills
     // and strict empty MCP config isolate customizations without disabling OAuth.
     const cwd = await mkdtemp(join(tmpdir(), 'omt-claude-'));

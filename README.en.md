@@ -86,6 +86,12 @@ own login.
   `.txt`/`.pdf` sources (local TF-IDF retrieval, no embeddings, no extra
   API calls) — all covered by automated tests (shared, content, frontend,
   bridge, verifier) and CI.
+- **Handwriting on the board is read by a local model**: mouse, pen and
+  touch strokes are grouped into lines and symbols in the browser, turned
+  into an expression and checked exactly like typed text. Uncertain symbols
+  offer candidates and a one-tap fix; the AI receives structured hints, not
+  just an image. Measured accuracy and the e2e matrix are in
+  [`docs/handwriting-e2e-report.md`](docs/handwriting-e2e-report.md).
 - **Actually exercised against a live Claude Max subscription in this
   session**: text-based tutoring (Check/Hint/Next step/Explain
   differently/Ask) via `claude -p` without `--bare`, preserving
@@ -138,6 +144,23 @@ This overview is not legal advice.
 - **Memory of the student:** `learnerProfile.ts` quietly records mistake types and which explanation styles work; a short summary goes to the AI as `learnerContext`.
 - **Plan and tests:** a "Plan and path" drawer (percentages from mastery) and a take-home test with an answer key (print / PDF).
 - **Subjects:** mathematics, university subjects, physics and chemistry; drawing tasks are labelled and the AI cannot see drawings yet.
+
+### Handwriting on the board
+
+The student writes directly on the board and does not switch tools. A stroke
+line is read locally, without the network; the reading is shown beside it and
+uncertain symbols offer candidates. A one-tap fix recomputes only that line
+and keeps the step. When the AI is offline the HUD says so, but reading and
+✓/✗ still work. The AI optionally receives the reading, candidates, stroke
+order and confidence; an image is only a supplement because neither provider
+can read one in non-interactive mode yet.
+
+Measured on held-out data: **98.99%** MNIST, **97.57%** pendigits,
+**92.08%** unseen fonts, **100%** whole lines in the tested grid and **91%**
+lines with unseen digits. Median line reading is around **20–22 ms** (p95
+25–26 ms). Known confusions (`x`/`×`, occasional `4`/`7` in other fonts) are handled by
+candidates and correction; details and open gaps are in
+[`docs/handwriting-e2e-report.md`](docs/handwriting-e2e-report.md).
 
 ### Precision and first assessment
 

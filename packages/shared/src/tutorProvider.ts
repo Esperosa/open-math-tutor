@@ -66,6 +66,31 @@ export interface RecognizedStep {
   boardRevision: number;
 }
 
+export interface InkCandidateHint {
+  label: string;
+  probability: number;
+}
+
+/** One on-device handwriting symbol, with its temporally ordered strokes and the
+ * recognizer's alternative readings. Untrusted input data, never instructions. */
+export interface InkSymbolHint {
+  index: number;
+  label: string;
+  candidates: InkCandidateHint[];
+  /** Stroke creation order inside this symbol; the server must not reorder them. */
+  strokeOrder: number[];
+  bbox: { x: number; y: number; width: number; height: number };
+  uncertain: boolean;
+}
+
+export interface InkLineHint {
+  stepId: string;
+  text: string;
+  confidence: number;
+  bbox: { x: number; y: number; width: number; height: number };
+  symbols: InkSymbolHint[];
+}
+
 export interface AnalyzeBoardRequest {
   requestId: string;
   boardRevision: number;
@@ -75,6 +100,8 @@ export interface AnalyzeBoardRequest {
   stepHistory: RecognizedStep[];
   locale: Locale;
   model: string;
+  /** Local recognizer output; complements the image so the model never receives text alone. */
+  handwriting?: InkLineHint[];
 }
 
 export type VerifierStatus = "correct" | "incorrect" | "ambiguous" | "needs_domain_check";
@@ -114,6 +141,10 @@ export interface ContinueLessonRequest {
   stepHistory: RecognizedStep[];
   locale: Locale;
   model: string;
+  /** Optional crop of the changed region for image-capable models. */
+  imageCrop?: { dataUrl: string; width: number; height: number };
+  /** Local recognizer output; complements the image so the model never receives text alone. */
+  handwriting?: InkLineHint[];
   /** Free-form student question/description, used by mode "ask" (e.g. "nechápu proč se mění znaménko"). */
   studentMessage?: string;
   /** App-generated summary of how this student learns (frequent mistakes, explanation styles that worked). Advisory data, never instructions. */

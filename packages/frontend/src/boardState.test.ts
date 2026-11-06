@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as shared from '@openmathtutor/shared';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
-import { applyResponse, commitStudent, editTask, fingerprint, newBoard, removeAnnotation, renderableActions, stableMathCandidate } from './boardState';
+import { applyResponse, commitStudent, correctInk, editTask, fingerprint, inkSymbolKey, newBoard, removeAnnotation, renderableActions, stableMathCandidate } from './boardState';
+import { rowElements } from './handwriting/__fixtures__/generate';
 
 export function element(id = 'line', text = '2x + 3 = 8', version = 1, y = 120): ExcalidrawElement {
   return { id, type: 'text', text, x: 120, y, width: 180, height: 32, angle: 0, version, versionNonce: version, isDeleted: false } as ExcalidrawElement;
@@ -36,6 +37,56 @@ describe('board commits and stable steps', () => {
     const two = commitStudent(one, [a, b]); expect(two.steps).toHaveLength(1); expect(stableMathCandidate(two)).toBe(true);
     expect(stableMathCandidate(commitStudent(newBoard(), [element('t', '2x =')]))).toBe(false);
     expect(stableMathCandidate(fixture())).toBe(true);
+  });
+  it('reads real pen strokes into an ink step and recomposes a one-tap correction without changing its step ID', () => {
+    const raw = rowElements('12+7=19', 7).map((e, i) => ({ ...e, version: 1, versionNonce: i, isDeleted: false, angle: 0,
+      width: 1, height: 1 } as unknown as ExcalidrawElement));
+    const state = commitStudent(newBoard(), raw);
+    expect(state.steps).toHaveLength(1);
+    const step = state.steps[0];
+    expect(step.origin).toBe('ink');
+    expect(step.latexGuess).toBe('12+7=19');
+    expect(step.symbols).toHaveLength(7);
+    const symbol = step.symbols![2];
+    const reading = symbol.label ?? symbol.candidates[0]?.label;
+    const alternative = symbol.candidates.find(candidate => candidate.label !== reading);
+    expect(alternative).toBeDefined();
+    const corrected = correctInk(state, inkSymbolKey(symbol.strokeIds, state.elements), alternative!.label);
+    expect(corrected.steps[0].stepId).toBe(step.stepId);
+    expect(corrected.steps[0].latexGuess).not.toBe(step.latexGuess);
+    expect(corrected.revision).toBe(state.revision + 1);
+    expect(corrected.inkEdits).toBeDefined();
+  });
+  it('clears uncertainty when a one-tap correction makes the line parseable again', () => {
+    const strokes = [0, 1, 2].map(i => ({ ...element(`stroke-${i}`, ''), type: 'freedraw', version: 1, versionNonce: i } as ExcalidrawElement));
+    const base = newBoard();
+    const state = { ...base, revision: 1, elements: strokes, activeStepId: 'ink', steps: [{
+      stepId: 'ink', boardRevision: 1, latexGuess: '2°3', box: { x: 0, y: 0, width: 90, height: 30 }, elementIds: strokes.map(s => s.id),
+      origin: 'ink' as const, confidence: .9, uncertain: true, parserCompatible: false,
+      symbols: [
+        { bbox: { x: 0, y: 0, width: 25, height: 30 }, strokeIds: ['stroke-0'], strokeOrder: [0], uncertain: false,
+          candidates: [{ label: '2', probability: .99 }] },
+        { bbox: { x: 30, y: 0, width: 25, height: 30 }, strokeIds: ['stroke-1'], strokeOrder: [1], uncertain: false,
+          candidates: [{ label: '°', probability: .9 }, { label: '0', probability: .85 }] },
+        { bbox: { x: 60, y: 0, width: 25, height: 30 }, strokeIds: ['stroke-2'], strokeOrder: [2], uncertain: false,
+          candidates: [{ label: '3', probability: .99 }] },
+      ],
+    }] };
+    const corrected = correctInk(state, inkSymbolKey(['stroke-1'], state.elements), '0');
+    expect(corrected.steps[0].latexGuess).toBe('203');
+    expect(corrected.steps[0].parserCompatible).toBe(true);
+    expect(corrected.steps[0].uncertain).toBe(false);
+  });
+  it('does not let a stale correction follow a redrawn stroke', () => {
+    const raw = rowElements('x=5', 11).map((e, i) => ({ ...e, version: 1, versionNonce: i, isDeleted: false, angle: 0,
+      width: 1, height: 1 } as unknown as ExcalidrawElement));
+    const state = commitStudent(newBoard(), raw);
+    const symbol = state.steps[0].symbols![0];
+    const corrected = correctInk(state, inkSymbolKey(symbol.strokeIds, state.elements), symbol.candidates[1]?.label ?? 'x');
+    const redrawn = raw.map(e => symbol.strokeIds.includes(e.id) ? { ...e, version: 2 } : e);
+    const next = commitStudent(corrected, redrawn);
+    expect(next.inkEdits).toBeUndefined();
+    expect(next.steps[0].stepId).toBe(corrected.steps[0].stepId);
   });
 });
 describe('shared validation is the annotation trust boundary', () => {

@@ -84,6 +84,12 @@ UI pro cokoliv, co vyžaduje vaše vlastní přihlášení.
   (lokální TF-IDF vyhledávání, žádné embeddings, žádné API volání navíc) —
   vše s automatickými testy (shared, content, frontend, bridge, verifier)
   a CI.
+- **Rukopis na tabuli čte lokální model**: tahy myší, perem i prstem se
+  v prohlížeči seskupí do řádků a symbolů, přepíšou na výraz a projdou
+  stejnou kontrolou jako psaný text. Nejisté symboly mají kandidáty a opravu
+  jedním klepnutím; AI dostane strukturované hinty, ne jen obrázek. Měřená
+  úspěšnost a e2e matice jsou v
+  [`docs/handwriting-e2e-report.md`](docs/handwriting-e2e-report.md).
 - **Reálně odzkoušeno na živém Claude Max předplatném v této session**:
   textové doučování (Zkontrolovat/Poradit/Další krok/Vysvětli
   jinak/Zeptej se) přes `claude -p` bez `--bare`, se zachovaným
@@ -136,6 +142,22 @@ Tento přehled není právní poradenství.
 - **Paměť o studentovi:** `learnerProfile.ts` si tiše pamatuje typy chyb a které styly vysvětlení fungují; stručný souhrn jde AI jako `learnerContext`.
 - **Plán a testy:** zásuvka "Plán a cesta" (procenta z mastery) a sestavení testu na doma s klíčem odpovědí (tisk / PDF).
 - **Předměty:** matematika, VŠ předměty, fyzika a chemie; úlohy s kresbou jsou označené a AI kresby zatím nevidí.
+
+### Rukopis na tabuli
+
+Student píše přímo na tabuli a nemusí nic přepínat. Řádek z tahů se čte
+lokálně, bez sítě; u řádku je vidět přepis a u nejistých symbolů kandidáti.
+Oprava jedním klepnutím přepočítá jen dotčený řádek a zachová krok. Když AI
+není připojená, HUD to řekne, ale čtení i ✓/✗ fungují dál. AI volitelně
+dostane přepis, kandidáty, pořadí tahů a jistotu; obrázek jen jako doplněk,
+protože ho oba provideři zatím v neinteraktivním režimu neumí přečíst.
+
+Naměřeno na held-out datech: **98,99 %** MNIST, **97,57 %** pendigits,
+**92,08 %** neviděné fonty, **100 %** celých řádků v testované mřížce a
+**91 %** řádků s neviděnými číslicemi. Medián čtení řádku je kolem **20–22 ms**
+(p95 25–26 ms). Známé záměny (`x`/`×`, ojedinělé `4`/`7` v cizích fontech)
+řeší kandidáti a oprava; podrobnosti a otevřené mezery jsou v
+[`docs/handwriting-e2e-report.md`](docs/handwriting-e2e-report.md).
 
 ### Přesnost a první posouzení
 

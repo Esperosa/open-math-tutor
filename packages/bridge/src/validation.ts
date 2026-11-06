@@ -1,7 +1,7 @@
 import {
   ProviderError, validateBoardActions, isPlacement,
   type AnalyzeBoardRequest, type AnalyzeBoardResponse, type ContinueLessonRequest,
-  type RecognizedStep,
+  type InkLineHint, type InkSymbolHint, type RecognizedStep,
 } from '@openmathtutor/shared';
 
 export function record(value: unknown): value is Record<string, unknown> {
@@ -22,6 +22,42 @@ function steps(value: unknown, expected?: number): value is RecognizedStep[] {
     (expected === undefined || s.boardRevision === expected));
 }
 
+function finiteBox(value: unknown): boolean {
+  return record(value) && ['x', 'y', 'width', 'height'].every(k =>
+    typeof value[k] === 'number' && Number.isFinite(value[k] as number) && Math.abs(value[k] as number) <= 1e8);
+}
+
+function candidates(value: unknown): boolean {
+  return Array.isArray(value) && value.length > 0 && value.length <= 5 && value.every(c =>
+    record(c) && text(c.label, 16) && typeof c.probability === 'number' &&
+    Number.isFinite(c.probability) && c.probability >= 0 && c.probability <= 1);
+}
+
+function symbols(value: unknown): value is InkSymbolHint[] {
+  return Array.isArray(value) && value.length <= 300 && value.every(s =>
+    record(s) && revision(s.index) && text(s.label, 16) && candidates(s.candidates) && finiteBox(s.bbox) &&
+    Array.isArray(s.strokeOrder) && s.strokeOrder.length <= 300 && s.strokeOrder.every(revision) &&
+    typeof s.uncertain === 'boolean');
+}
+
+/** Handwriting hints are untrusted data. Bound every field so a huge or
+ * malformed local reading cannot expand the bridge request without limit. */
+function handwriting(value: unknown): value is InkLineHint[] {
+  return value === undefined || (Array.isArray(value) && value.length <= 40 && value.every(line =>
+    record(line) && text(line.stepId, 128) && optionalText(line.text, 300) &&
+    typeof line.confidence === 'number' && Number.isFinite(line.confidence) &&
+    line.confidence >= 0 && line.confidence <= 1 && finiteBox(line.bbox) && symbols(line.symbols)));
+}
+
+function imageCrop(value: unknown): boolean {
+  return record(value) && Number.isInteger(value.width) && Number.isInteger(value.height) &&
+    (value.width as number) > 0 && (value.width as number) <= 4096 &&
+    (value.height as number) > 0 && (value.height as number) <= 4096 &&
+    text(value.dataUrl, 6_000_000) &&
+    /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value.dataUrl) &&
+    value.dataUrl.slice(value.dataUrl.indexOf(',') + 1).length % 4 === 0;
+}
+
 export function validRequest(value: unknown, image: true): value is AnalyzeBoardRequest;
 export function validRequest(value: unknown, image: false): value is ContinueLessonRequest;
 export function validRequest(value: unknown, image: boolean): boolean {
@@ -30,7 +66,8 @@ export function validRequest(value: unknown, image: boolean): boolean {
       !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]*$/.test(value.model) || !record(value.task) ||
       // Topic and statement are genuinely optional: a student may just write
       // steps without first typing a restated problem or a topic label.
-      !optionalText(value.task.topic, 100) || !steps(value.stepHistory)) return false;
+      !optionalText(value.task.topic, 100) || !steps(value.stepHistory) ||
+      !handwriting(value.handwriting)) return false;
   for (const key of ['statementText', 'statementLatex']) {
     if (value.task[key] !== undefined && !optionalText(value.task[key], 2000)) return false;
   }
@@ -46,15 +83,10 @@ export function validRequest(value: unknown, image: boolean): boolean {
     if (chunks !== undefined && (!Array.isArray(chunks) || chunks.length > 20 || !chunks.every(chunk =>
       record(chunk) && text(chunk.sourceId, 128) && text(chunk.sourceTitle, 500) &&
       revision(chunk.chunkIndex) && text(chunk.text, 8000)))) return false;
+    if (value.imageCrop !== undefined && !imageCrop(value.imageCrop)) return false;
     return true;
   }
-  const crop = value.imageCrop;
-  return record(crop) && Number.isInteger(crop.width) && Number.isInteger(crop.height) &&
-    (crop.width as number) > 0 && (crop.width as number) <= 4096 &&
-    (crop.height as number) > 0 && (crop.height as number) <= 4096 &&
-    text(crop.dataUrl, 6_000_000) &&
-    /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(crop.dataUrl) &&
-    crop.dataUrl.slice(crop.dataUrl.indexOf(',') + 1).length % 4 === 0;
+  return imageCrop(value.imageCrop);
 }
 
 /** The model only names existing steps and relative anchors. Absolute anchors

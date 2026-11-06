@@ -7,10 +7,12 @@ async function start(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Přeskočit, chci jen volnou tabuli', exact: true }).click();
 }
+async function chooseTextTool(page: Page) { await page.locator('label:has([data-testid="toolbar-text"])').click(); }
 async function wrongLine(page: Page) {
   await page.getByRole('button', { name: 'Upravit zadání' }).click();
   await page.getByRole('textbox', { name: 'Zadání', exact: true }).fill('5+1');
   await page.getByRole('button', { name: 'Hotovo', exact: true }).click();
+  await chooseTextTool(page);
   await page.mouse.click(560, 360);
   await expect(page.locator('textarea.excalidraw-wysiwyg')).toBeFocused();
   await page.keyboard.type('5+1=8'); await page.keyboard.press('Escape');

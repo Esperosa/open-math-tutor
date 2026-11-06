@@ -57,6 +57,7 @@ async function selectProvider(page: Page) {
 async function writeOnBoard(page: Page, text: string, row: number) {
   const canvas = page.locator('.excalidraw__canvas.interactive');
   const rect = await canvas.boundingBox(); if (!rect) throw new Error('Canvas missing');
+  await page.locator('label:has([data-testid="toolbar-text"])').click();
   await page.mouse.click(rect.x + 560, rect.y + 270 + row * 90);
   await expect(page.locator('textarea.excalidraw-wysiwyg')).toBeFocused();
   await page.keyboard.type(text);
@@ -103,7 +104,7 @@ test('deterministic replay: stroke → settled crop → first error annotations 
   await page.getByLabel('Zobrazit poznámky AI').check();
   await expect(page.getByTestId('math-annotation')).toHaveCount(1);
   // A corrected line written on the board settles, is analysed again and the old annotations disappear.
-  await page.getByTitle(/^Text — T/).click();
+  await page.locator('label:has([data-testid="toolbar-text"])').click();
   await writeOnBoard(page, 'x = 2', 2);
   await expect.poll(() => requests.length, { timeout: 12000 }).toBe(2);
   expect(requests[1].boardRevision).toBeGreaterThan(requests[0].boardRevision);
@@ -215,9 +216,12 @@ test('canvas controls: pressing and holding on empty board opens a menu, a short
   const canvas = page.locator('.excalidraw__canvas.interactive');
   await expect(canvas).toBeVisible();
   const rect = await canvas.boundingBox(); if (!rect) throw new Error('Canvas missing');
+  // Hold-menu remains available on the text/selection tools, not while a pen stroke is drawn.
+  await page.locator('label:has([data-testid="toolbar-text"])').click();
   await page.mouse.click(rect.x + 600, rect.y + 450);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(700);
+  await page.locator('label:has([data-testid="toolbar-text"])').click();
   await expect(page.getByRole('menu', { name: 'Nabídka tabule' })).toHaveCount(0);
   await page.mouse.move(rect.x + 600, rect.y + 450);
   await page.mouse.down();
@@ -373,8 +377,9 @@ test('plan: solving a problem moves the percentage, and a printable test with an
   await page.getByRole('button', { name: /^Přijímačky na střední školu/ }).click();
   const task = ((await page.getByTestId('task-text').textContent()) ?? '').trim();
   const match = /^(-?\d+)([+-])(\d+)$/.exec(task);
-  expect(match, `unexpected first task: ${task}`).not.toBeNull();
-  const sum = match![2] === '+' ? Number(match![1]) + Number(match![3]) : Number(match![1]) - Number(match![3]);
+  const lone = /^-?\d+$/.test(task);
+  expect(match || lone, `unexpected first task: ${task}`).not.toBeNull();
+  const sum = match ? (match[2] === '+' ? Number(match[1]) + Number(match[3]) : Number(match[1]) - Number(match[3])) : Number(task);
   await openPanel(page, 'Plán a cesta');
   await expect(page.getByTestId('plan-percent')).toHaveText('0 %');
   await page.keyboard.press('Escape');

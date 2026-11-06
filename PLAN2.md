@@ -5,9 +5,9 @@ reálný doučující, pamatuje si studenta a ukazuje cestu s procenty. Fáze se
 a každá končí testy, živým ověřením a commitem. Konec: smyčka nezávislých agentů.
 
 ## 0. NEJVYŠŠÍ PRIORITA: čtení rukopisu z tabule (viz REQUIREMENTS.md sekce 0)
-- Lokální model nad tahy Excalidraw (freedraw): seskupení do řádků, rozdělení na symboly, malá síť (MNIST + syntetické operátory), skladba do výrazu (zlomky, mocniny), kandidáti a oprava klepnutím.
-- Řádek z rukopisu se stane krokem jako psaný text; stav „AI nepřipojena“ a návod k připojení; AI s obrazem jen doplněk.
-- Měřená testovací matice místo domněnek; úspěšnost se publikuje v README.
+- ✅ Lokální model nad tahy Excalidraw (freedraw): seskupení do řádků, rozdělení na symboly, malá síť (MNIST + syntetické operátory), skladba do výrazu (zlomky, mocniny), kandidáti a oprava klepnutím.
+- ✅ Řádek z rukopisu se stane krokem jako psaný text; stav „AI nepřipojena“ a návod k připojení; AI s obrazem jen doplněk.
+- ✅ Měřená testovací matice místo domněnek; úspěšnost je publikovaná v README a v [`docs/handwriting-e2e-report.md`](docs/handwriting-e2e-report.md). Otevřené mezery: 50% zoom, tmavý/světlý motiv, `localhost` vs `127.0.0.1`, obrázek u AI (`multimodal_unsupported`) a plná korektura přeškrtnutím.
 
 ## A. Tabule jako jediné vstupní místo, HUD bez překryvů
 - Žádná textová pole: zmizí dolní lišta s řádkem klávesnicí a akčními tlačítky; zadání je

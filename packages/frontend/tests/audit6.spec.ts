@@ -47,6 +47,7 @@ test('Escape finishing a real Excalidraw line keeps the calculator open', async 
   await page.goto('/');
   await page.getByRole('button', { name: 'Přeskočit, chci jen volnou tabuli' }).click();
   await page.getByRole('button', { name: 'Kalkulačka', exact: true }).click();
+  await page.locator('label:has([data-testid="toolbar-text"])').click();
   await page.mouse.click(560, 350);
   await expect(page.locator('textarea.excalidraw-wysiwyg')).toBeFocused();
   await page.keyboard.type('3*0,7=2,2');

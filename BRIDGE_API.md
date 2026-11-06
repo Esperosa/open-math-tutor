@@ -80,6 +80,28 @@ it, optionally an arrow; a worked next step (`write_math` below) only for mode
 `next_step`. The response schema is the same for the `claude` and `codex`
 providers.
 
+## `handwriting`: local recognizer hints (optional)
+
+Both board requests may carry `handwriting?: InkLineHint[]`. This is the
+on-device reading, sent alongside the image (not instead of it). Each line has
+`stepId`, `text`, `confidence`, `bbox`, and `symbols`; each symbol has
+`index`, `label`, `candidates` (`label` + `probability`), `strokeOrder`,
+`bbox`, and `uncertain`. The hints are **untrusted data**, never
+instructions: they may be wrong, and the model must compare them with the
+image and the student's work.
+
+Bridge validation applies hard bounds: at most 40 lines, 300 symbols per
+line, 300 stroke-order entries per symbol, 5 candidates per symbol, finite
+bounding boxes with coordinates up to `1e8`, probabilities in `0..1`, and
+non-negative integer `strokeOrder` entries. A request that exceeds them is
+rejected as invalid.
+
+`POST /providers/:id/analyze-board` requires the image crop. The continuation
+request may carry an optional `imageCrop` of the changed region (same data
+URL, dimensions, and length checks as the analyze request); when present it
+is passed to the provider, and when absent the provider works from the text,
+history and handwriting hints alone.
+
 ## `POST /providers/:id/continue-lesson`
 
 Body: `ContinueLessonRequest`. Response: `AnalyzeBoardResponse`. Same error
