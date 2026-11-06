@@ -1,4 +1,4 @@
-import { checkAnswerLine, expectedAnswerFor, looksLikeFinalLine, unitFromLine, type ExpectedAnswer } from "./answers.js";
+import { checkAnswerLine, expectedAnswerFor, looksLikeFinalLine, numbersIn, unitFromLine, type ExpectedAnswer } from "./answers.js";
 import { checkStep, statementHasSymbols, type StepVerdict } from "./stepCheck.js";
 export interface JudgedLine { stepId: string; latexGuess: string; uncertain?: boolean }
 
@@ -21,11 +21,17 @@ export function judgeLines(statement: string, lines: readonly JudgedLine[], expe
         ? { ...expected, wordProblem: false, givens: [] } : expected, line.latexGuess);
       if (answer === 'wrong' || answer === 'unit') verdict = { status: 'wrong', reason: 'wrong_value' };
       else if (answer === 'correct' && (!symbols || verdict.status === 'ok')) {
-        verdict = expected.unit && !unitFromLine(line.latexGuess) ? { status: 'unknown' } : { status: 'ok' };
+        verdict = expected.wordProblem && expected.unit && !unitFromLine(line.latexGuess) ? { status: 'unknown' } : { status: 'ok' };
       } else if (expected.wordProblem) verdict = { status: 'unknown' };
     }
     // Arithmetic correctness alone is not task correctness for a word problem.
     if (expected?.wordProblem && verdict.status === 'ok' && !final) verdict = { status: 'unknown' };
+    if (expected?.wordProblem && expected.givens?.length && verdict.status === 'ok') {
+      const computations = line.latexGuess.split('=').slice(0, -1).filter(part => /\d\s*[+\-*/:]/.test(part));
+      if (computations.some(part => numbersIn(part).some(n => !expected.givens!.some(g => Math.abs(n - Math.abs(g)) < 1e-9)))) {
+        verdict = { status: 'unknown' };
+      }
+    }
     result[line.stepId] = verdict;
   }
   return result;

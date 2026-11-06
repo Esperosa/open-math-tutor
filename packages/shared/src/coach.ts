@@ -72,7 +72,11 @@ export function nextCoachEvent(input: CoachInput): CoachEvent {
   const verdict = verdicts[newest.stepId]!;
   // The first line of a free board is the task itself: nothing to verify, nothing to comment on.
   if (verdict.status === "unknown" && input.statement.trim() === newest.latexGuess.trim()) return { kind: "ok_step", key, n: newest.n };
-  if (verdict.status === "wrong") return { kind: "wrong_step", key, n: newest.n, reason: verdict.reason ?? "not_equivalent" };
+  if (verdict.status === "wrong") {
+    if (final && input.expected && verdict.reason === 'wrong_value') return { kind: 'wrong_final', key, n: newest.n,
+      ...(checkAnswerLine(input.expected, newest.latexGuess) === 'unit' ? { reason: 'unit' as const } : {}) };
+    return { kind: "wrong_step", key, n: newest.n, reason: verdict.reason ?? "not_equivalent" };
+  }
   if (input.expected && newest === written.at(-1)) {
     const answer = checkAnswerLine(input.expected, newest.latexGuess);
     if (answer === "correct" && verdict.status === "ok") return { kind: "solved", key, n: newest.n };
