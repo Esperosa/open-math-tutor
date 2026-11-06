@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ContinueLessonRequest, ProviderId } from '@openmathtutor/shared';
 import {
-  recordAttempt, retrieveTopChunks, isMastered, instantiateTemplate,
+  recordAttempt, retrieveTopChunks, checkSteps, isMastered, instantiateTemplate,
   getTopicSkills, nextUnlockedTopic, nextUnlockedSkill, pickTemplateForDifficulty,
 } from '@openmathtutor/shared';
 import { catalog } from '@openmathtutor/content';
@@ -49,8 +49,17 @@ export function App() {
   const [panel, setPanel] = useState<PanelId | null>(null);
   const [pinned, setPinned] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
   const leaveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const verdicts = useMemo(() => checkSteps(board.statement, board.steps), [board.statement, board.steps]);
+  const offer = useMemo(() => {
+    for (let i = board.steps.length - 1; i >= 0; i--) {
+      const step = board.steps[i]!;
+      if (verdicts[step.stepId]?.status === 'wrong' && !dismissed.has(`${step.stepId}:${step.latexGuess}`)) return { n: i + 1, key: `${step.stepId}:${step.latexGuess}` };
+    }
+    return null;
+  }, [board.steps, verdicts, dismissed]);
   useEffect(() => {
     const away = (e: PointerEvent) => {
       if ((e.target as Element | null)?.closest('.rail, .drawer, .settings-pop, .icon-btn')) return;
@@ -271,7 +280,7 @@ export function App() {
   const alertChip = !connected ? <span role="alert">{t.bridgeUnavailable} <button onClick={() => setRetry(r => r + 1)}>{t.retry}</button></span>
     : !canRequest ? <span>{provider && !provider.models.length ? t.noModels : t.selectProvider}</span> : null;
   return <div className="app-shell">
-    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} onAskHere={() => { setPanel('ask'); setPinned(true); }} /></div>
+    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} verdicts={verdicts} onAskHere={() => { setPanel('ask'); setPinned(true); }} /></div>
     <div className="hud" data-testid="hud">
       <div className="hud-top-left">
         {settings.activeTrackId && <TrackBreadcrumb catalog={catalog} trackId={settings.activeTrackId} mastery={mastery} t={t} locale={settings.locale} onChangeTrack={changeTrack} />}
@@ -344,6 +353,14 @@ export function App() {
           <h2 className="h2-muted">{t.annotations}</h2><p className="muted">{t.annotationReveal}</p><ul className="annotations-list">{board.annotations.map((a, i) => <li key={a.id} data-testid="annotation-item">
             <span>{t.aiBadge} {i + 1}</span><button onClick={() => { stop(false); updateBoard(removeAnnotation(board, a.id)); }}>{t.undoAnnotation} {i + 1}</button></li>)}</ul></section>
       </aside>
+      {offer && <div className="tutor-bubble" role="group" aria-live="polite" data-testid="tutor-offer">
+        <p>{t.tutorOffer.replace('{n}', String(offer.n))}</p>
+        <div className="row">
+          <button className="primary" disabled={!canRequest || running} onClick={() => { setDismissed(d => new Set(d).add(offer.key)); void request('check'); }}>{t.offerExplain}</button>
+          <button disabled={!canRequest || running} onClick={() => { setDismissed(d => new Set(d).add(offer.key)); void request('hint'); }}>{t.offerHint}</button>
+          <button onClick={() => setDismissed(d => new Set(d).add(offer.key))}>{t.offerDismiss}</button>
+        </div>
+      </div>}
       <div className="hud-dock">
         <form className="keyboard-entry" onSubmit={e => { e.preventDefault(); if (line.trim()) { editor.current?.addLine(line.trim(), selectedStep || null); setLine(''); setSelectedStep(''); } }}>
           <label><span className="sr">{t.keyboardLine}</span><input value={line} onChange={e => setLine(e.target.value)} placeholder={t.linePlaceholder} maxLength={1000} /></label>

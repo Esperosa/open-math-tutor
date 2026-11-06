@@ -177,3 +177,15 @@ body { overflow: hidden; }
 .ctx-menu button { text-align: left; border-color: transparent; background: transparent; min-height: 38px; }
 .ctx-menu button:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 12%, transparent); box-shadow: none; }
 @keyframes ctx-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+
+.mark-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
+.step-mark { position: absolute; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; font-weight: 700; font-size: 15px;
+  background: var(--paper); box-shadow: var(--shadow-1); animation: ctx-in var(--duration-base) var(--ease-standard); }
+.step-mark.ok { color: var(--accent); border: 2px solid var(--accent); }
+.step-mark.wrong { color: #a32d2d; border: 2px solid #c47777; }
+.tutor-bubble { position: absolute; left: 50%; bottom: 216px; transform: translateX(-50%); width: min(520px, calc(100vw - 460px)); min-width: 300px; padding: var(--space-3) var(--space-4);
+  background: var(--glass-surface); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid var(--glass-border); border-left: 4px solid var(--accent); border-radius: var(--radius-md); box-shadow: var(--shadow-1); animation: ctx-in var(--duration-base) var(--ease-standard); }
+.tutor-bubble p { margin: 0 0 var(--space-2); font-weight: 600; }
+.tutor-bubble .row { margin-top: 0; }
+@media (max-width: 900px) { .tutor-bubble { left: 68px; right: 12px; width: auto; transform: none; bottom: 260px; } }

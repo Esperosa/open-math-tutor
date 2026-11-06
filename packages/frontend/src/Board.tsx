@@ -8,6 +8,7 @@ import { GraphPlot } from './GraphPlot';
 import { fingerprint, isStudent, renderableActions, type BoardState } from './boardState';
 import type { Settings } from './storage';
 import { messages } from './i18n';
+import type { StepVerdict } from '@openmathtutor/shared';
 
 export interface BoardHandle {
   addLine(text: string, stepId: string | null): void;
@@ -18,8 +19,9 @@ interface Props {
   onCommit(elements: readonly ExcalidrawElement[], files: BinaryFiles): void;
   onBusy(busy: boolean): void;
   onAskHere?(): void;
+  verdicts?: Record<string, StepVerdict>;
 }
-export const Board = forwardRef<BoardHandle, Props>(function Board({ board, settings, onCommit, onBusy, onAskHere }, ref) {
+export const Board = forwardRef<BoardHandle, Props>(function Board({ board, settings, onCommit, onBusy, onAskHere, verdicts }, ref) {
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
   const viewRef = useRef(view);
@@ -159,6 +161,16 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
           transform: `scale(${view.zoom})`,
         }}><small>{t.aiBadge}</small><GraphPlot action={a} /></div>
       ))}
+    </div>
+    <div className="mark-layer">
+      {board.steps.map(step => {
+        const v = verdicts?.[step.stepId];
+        if (!v || v.status === 'unknown') return null;
+        return <span key={step.stepId} data-testid={`step-mark-${v.status}`} className={`step-mark ${v.status}`}
+          title={v.status === 'ok' ? t.stepOk : t.stepWrong} role="img" aria-label={v.status === 'ok' ? t.stepOk : t.stepWrong}
+          style={{ left: (step.box.x + step.box.width + 10 + view.x) * view.zoom, top: (step.box.y + view.y) * view.zoom }}>
+          {v.status === 'ok' ? '✓' : '✗'}</span>;
+      })}
     </div>
     {menu_ && <div className="ctx-menu" role="menu" aria-label={t.ctxMenu} style={{ left: menu_.x, top: menu_.y }}>
       <button role="menuitem" onClick={() => menuAction('text')}>{t.ctxText}</button>

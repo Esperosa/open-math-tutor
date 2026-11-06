@@ -219,3 +219,19 @@ test('canvas controls: arrow keys pan the board when nothing is selected', async
   const after = await page.screenshot({ clip });
   expect(Buffer.compare(before, after)).not.toBe(0);
 });
+
+test('live check: a wrong line is flagged and explanation is offered without pressing any button', async ({ page }) => {
+  await page.goto('/');
+  await skipOnboarding(page);
+  await page.getByRole('textbox', { name: 'Zadání', exact: true }).fill('5+1');
+  await page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true }).fill('5+1=6');
+  await page.getByRole('button', { name: 'Přidat řádek', exact: true }).click();
+  await expect(page.getByTestId('step-mark-ok')).toBeVisible();
+  await expect(page.getByTestId('tutor-offer')).toHaveCount(0);
+  await page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true }).fill('5+1=8');
+  await page.getByRole('button', { name: 'Přidat řádek', exact: true }).click();
+  await expect(page.getByTestId('step-mark-wrong')).toBeVisible();
+  await expect(page.getByTestId('tutor-offer')).toContainText('Řádek 2 nesedí');
+  await page.getByRole('button', { name: 'Zkusím sám' }).click();
+  await expect(page.getByTestId('tutor-offer')).toHaveCount(0);
+});

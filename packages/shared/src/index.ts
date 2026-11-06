@@ -5,3 +5,4 @@ export * from "./tutorProvider.js";
 export * from "./curriculum.js";
 export * from "./mastery.js";
 export * from "./retrieval.js";
+export * from "./stepCheck.js";
