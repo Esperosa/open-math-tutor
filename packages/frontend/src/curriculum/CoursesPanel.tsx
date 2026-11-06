@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   getTrackTopics, getTopicSkills, instantiateProblem, nextUnlockedSkill, pickTemplateForDifficulty,
-  isMastered, searchCatalog, type CourseCatalog, type CurriculumContext, type ExpectedAnswer, type Locale, type Skill,
+  isMastered, searchCatalog, skillCheckLevel, type CourseCatalog, type CurriculumContext, type ExpectedAnswer, type Locale, type Skill,
 } from '@openmathtutor/shared';
 import type { MessageKey } from '../i18n';
 import type { MasteryMap } from '../curriculumStorage';
@@ -38,6 +38,11 @@ export function CoursesPanel({ catalog, mastery, t, locale, onStartLesson, activ
   const skills = useMemo(() => (topic ? getTopicSkills(catalog, topic.id) : []), [catalog, topic]);
   const masteredIds = useMemo(() => new Set(Object.values(mastery).filter(isMastered).map(s => s.skillId)), [mastery]);
 
+  function checkNote(skill: Skill): string | null {
+    if (skill.drawing) return t.checkDrawing;
+    const level = skillCheckLevel(catalog, skill);
+    return level === 'answer' ? t.checkAnswer : level === 'none' ? t.checkNone : null;
+  }
   function start(skill: Skill, tr = track, tp = topic) {
     if (!tr || !tp) return;
     const state = mastery[skill.id];
@@ -87,7 +92,7 @@ export function CoursesPanel({ catalog, mastery, t, locale, onStartLesson, activ
         const unlocked = skill.prerequisiteSkillIds.every(id => masteredIds.has(id));
         const isNext = nextUnlockedSkill(skills, masteredIds)?.id === skill.id;
         return <li key={skill.id} data-testid="skill-item" className={skill.id === activeSkillId ? 'active' : ''}>
-          <span>{skill.title[locale]}{skill.autoCheck === false && <small className="no-check" title={t.noAutoCheck}> · {t.noAutoCheck}</small>}</span>
+          <span>{skill.title[locale]}{checkNote(skill) && <small className="no-check"> · {checkNote(skill)}</small>}</span>
           <small>{masteryLabel(t, skill, mastery, unlocked)}</small>
           <button disabled={!unlocked} onClick={() => start(skill)}>
             {!unlocked ? t.skillLocked : isNext ? t.startNextSkill : t.practiceSkill}

@@ -286,3 +286,13 @@ body { overflow: hidden; }
 .track-breadcrumb-path { flex: 1 1 100%; overflow-wrap: normal; word-break: normal; }
 @media (max-width: 900px) { .hud-top-left { width: calc(100vw - 150px); min-width: 0; } }
 @media (max-width: 700px) { .hud-chip { display: none; } }
+
+/* ---- geometry rules that keep every floating thing out of every other one ---- */
+.drawer { top: 72px; bottom: 72px; }
+.hud.drawer-open .hud-top-left { opacity: 0; pointer-events: none; }
+.hud-top-left { transition: opacity var(--duration-fast) var(--ease-standard); }
+.settings-pop { max-height: calc(100vh - 64px - 100px); }
+.calculator { right: 364px; top: 80px; }
+.calc-grid .stop { margin: 0; }
+.excalidraw .HintViewer { display: none !important; }
+@media (max-width: 900px) { .calculator { right: 12px; top: 72px; } .drawer { width: calc(100vw - 80px); } }

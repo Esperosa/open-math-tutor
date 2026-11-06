@@ -50,3 +50,14 @@ describe("generateTest", () => {
     expect(answerKeyText(test.items[2]!, "cs")).toContain("kresba");
   });
 });
+
+describe("progress is earned by correct work", () => {
+  it("a failed first attempt does not move the bar, the first correct answer shows at least 1 %", () => {
+    const failed = recordAttempt(createMasteryState("a", 0), false, 1);
+    expect(skillProgress(failed)).toBe(0);
+    expect(trackPercent(catalog, "tr", { a: failed })).toBe(0);
+    const solved = recordAttempt(failed, true, 2);
+    expect(skillProgress(solved)).toBeGreaterThan(0);
+    expect(trackPercent(catalog, "tr", { a: solved })).toBeGreaterThanOrEqual(1);
+  });
+});

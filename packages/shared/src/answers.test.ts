@@ -81,15 +81,15 @@ describe("audit regressions", () => {
     expect(prettySigns("5*-3")).toBe("5*(-3)");
   });
   it("derived values make division tasks come out even and degenerate equations are re-sampled", () => {
-    const t = { id: "d", skillId: "s", difficultyLevel: 1, topic: "t", freeText: true, statementTemplate: "{s} m za {t} s", generatorRanges: { v: [5, 30], t: [2, 12] },
-      derived: { s: "{v}*{t}" }, answerTemplate: "{s}/{t}" } as const;
+    const t: ProblemTemplate = { id: "d", skillId: "s", difficultyLevel: 1, topic: "t", freeText: true, statementTemplate: "{s} m za {t} s", generatorRanges: { v: [5, 30], t: [2, 12] },
+      derived: { s: "{v}*{t}" }, answerTemplate: "{s}/{t}" };
     for (let i = 0; i < 20; i++) {
       const p = instantiateProblem(t);
       const [s, tt] = /(\d+) m za (\d+) s/.exec(p.statement)!.slice(1).map(Number);
       expect(s! % tt!).toBe(0);
       expect(p.expected!.value).toBe(s! / tt!);
     }
-    const degenerate = { id: "g", skillId: "s", difficultyLevel: 1, topic: "t", statementTemplate: "{a}x+1={c}x+2", generatorRanges: { a: [1, 3], c: [1, 3] } };
+    const degenerate: ProblemTemplate = { id: "g", skillId: "s", difficultyLevel: 1, topic: "t", statementTemplate: "{a}x+1={c}x+2", generatorRanges: { a: [1, 3], c: [1, 3] } };
     for (let i = 0; i < 50; i++) expect(instantiateProblem(degenerate).expected).toBeDefined();
   });
   it("formats very large answers as a power of ten", () => {

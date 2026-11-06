@@ -22,6 +22,8 @@ export interface MasteryState {
   attempts: number;
   masteredAt: number | null;
   lastPracticedAt: number;
+  /** Correct answers in total (absent in data saved by older versions). */
+  correctTotal?: number;
 }
 
 export function createMasteryState(skillId: string, now: number): MasteryState {
@@ -38,6 +40,10 @@ export function createMasteryState(skillId: string, now: number): MasteryState {
 
 /** Pure state transition: given the outcome of one attempt, returns the next MasteryState. */
 export function recordAttempt(state: MasteryState, wasCorrect: boolean, now: number): MasteryState {
+  return { ...transition(state, wasCorrect, now), correctTotal: (state.correctTotal ?? 0) + (wasCorrect ? 1 : 0) };
+}
+
+function transition(state: MasteryState, wasCorrect: boolean, now: number): MasteryState {
   const attempts = state.attempts + 1;
   if (!wasCorrect) {
     const incorrectStreak = state.incorrectStreak + 1;

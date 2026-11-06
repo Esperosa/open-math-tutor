@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ContinueLessonRequest, ExpectedAnswer, ProviderId } from '@openmathtutor/shared';
 import {
-  recordAttempt, retrieveTopChunks, checkSteps, isMastered, instantiateProblem, expectedAnswerFor, statementHasSymbols,
+  recordAttempt, retrieveTopChunks, isMastered, instantiateProblem, expectedAnswerFor, statementHasSymbols,
   looksLikeFinalLine, nextCoachEvent, coachLine, stepKey, recordError, recordSolved, chooseStyle, recordStyleShown,
-  resolveStyleOutcome, profileSummary, generateTest, topicMastered, checkAnswerLine, getTopicSkills, nextUnlockedTopic, nextUnlockedSkill, pickTemplateForDifficulty,
+  resolveStyleOutcome, profileSummary, generateTest, topicMastered, getTopicSkills, nextUnlockedTopic, nextUnlockedSkill, pickTemplateForDifficulty,
   type ExplainStyle, type LearnerProfile,
 } from '@openmathtutor/shared';
 import { catalog } from '@openmathtutor/content';
@@ -17,7 +17,7 @@ import { load, save, type Saved, type Settings } from './storage';
 import { StrokeSettler } from './settle';
 import { useMic, useVoice } from './useVoice';
 import { loadProfile, saveProfile } from './profileStorage';
-import { effectiveStatement, markPerStep, writtenLines } from './lines';
+import { computeLineVerdicts, effectiveStatement, markPerStep, writtenLines } from './lines';
 import { TutorHud, type TutorChoice, type TutorMessage } from './TutorHud';
 import { loadMastery, saveMastery, getOrCreateMastery } from './curriculumStorage';
 import { CoursesPanel, type LessonStart } from './curriculum/CoursesPanel';
@@ -72,21 +72,8 @@ export function App() {
   const leaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const lines = useMemo(() => writtenLines(board.steps), [board.steps]);
   const statement = useMemo(() => effectiveStatement(board.statement, lines), [board.statement, lines]);
-  const verdicts = useMemo(() => {
-    if (settings.coachMode === 'off') return {};
-    const byLine = checkSteps(statement, lines);
-    const expected = board.expected ?? expectedAnswerFor(statement);
-    if (expected) {
-      const symbols = statementHasSymbols(statement);
-      for (const line of lines) {
-        if (byLine[line.stepId]?.status === 'wrong' || !looksLikeFinalLine(line.latexGuess, symbols)) continue;
-        const answer = checkAnswerLine(expected, line.latexGuess);
-        if (answer === 'correct') byLine[line.stepId] = { status: 'ok' };
-        else if (answer === 'wrong' || answer === 'unit') byLine[line.stepId] = { status: 'wrong', reason: 'wrong_value' };
-      }
-    }
-    return markPerStep(byLine, lines);
-  }, [statement, lines, board.expected, settings.coachMode]);
+  const verdicts = useMemo(() => settings.coachMode === 'off' ? {} : markPerStep(computeLineVerdicts(statement, lines, board.expected ?? expectedAnswerFor(statement)), lines),
+    [statement, lines, board.expected, settings.coachMode]);
   useEffect(() => {
     const away = (e: PointerEvent) => {
       if ((e.target as Element | null)?.closest('.rail, .drawer, .settings-pop, .icon-btn, .tutor-hud, .calculator')) return;
@@ -239,6 +226,11 @@ export function App() {
     stop(false);
     const value = { ...live.current, activeId: id }; live.current = value; setSaved(value); setStatus('idle');
   }
+  function openOnly(which: 'settings' | 'calc' | 'tutor') {
+    setSettingsOpen(o => which === 'settings' ? !o : false);
+    setCalcOpen(o => which === 'calc' ? !o : false);
+    setTutorMenu(o => which === 'tutor' ? !o : false);
+  }
   function hoverPanel(id: PanelId) {
     clearTimeout(leaveTimer.current); clearTimeout(hoverTimer.current);
     if (!pinned) hoverTimer.current = setTimeout(() => setPanel(id), 220);
@@ -311,6 +303,7 @@ export function App() {
     const topicTitle = scope.topicId ? catalog.topics.find(tp => tp.id === scope.topicId)?.title[settings.locale] : undefined;
     const html = buildTestHtml(test, `${t.testTitle}: ${topicTitle ?? trackTitle}`, t, settings.locale);
     if (mode === 'print') printHtml(html); else downloadBlob(new Blob([html], { type: 'text/html' }), 'test.html');
+    setMessage({ id: `test-${Date.now()}`, kind: 'info', text: t.testReady });
   }
   function nextProblem() {
     if (settings.activeTrackId) startNext(settings.activeTrackId, settings.startLevel); else createExercise();
@@ -378,7 +371,8 @@ export function App() {
     };
     switch (event.kind) {
       case 'ok_step':
-        updateProfile(p => resolveStyleOutcome(p, true)); flashHappy(); updateBoard(marked); break;
+        updateProfile(p => resolveStyleOutcome(p, true)); flashHappy(); updateBoard(marked);
+        setMessage(m => (m?.kind === 'wrong' ? null : m)); break;
       case 'wrong_step': case 'wrong_final': {
         const reason = event.kind === 'wrong_step' ? event.reason : 'wrong_final';
         updateProfile(p => resolveStyleOutcome(recordError(p, marked.skillId ?? null, reason, Date.now()), false));
@@ -452,7 +446,7 @@ export function App() {
   const shownMessage: TutorMessage | null = running ? { id: 'thinking', kind: 'thinking', text: t.tutorThinking } : message;
   return <div className="app-shell">
     <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} verdicts={verdicts} onAskHere={() => { setPanel('ask'); setPinned(true); }} /></div>
-    <div className="hud" data-testid="hud">
+    <div className={`hud${openPanel ? ' drawer-open' : ''}`} data-testid="hud">
       <div className="hud-top-left">
         <span className="sr"><output data-testid="revision">{board.revision}</output></span>
         {settings.activeTrackId && <TrackBreadcrumb catalog={catalog} trackId={settings.activeTrackId} mastery={mastery} t={t} locale={settings.locale} onChangeTrack={changeTrack} />}
@@ -468,8 +462,8 @@ export function App() {
       </div>
       <div className="hud-top-right">
         <div className="hud-icons">
-        {calcPolicy !== 'none' && <button className="icon-btn" title={`${t.calcOpen} — ${t.hintCalc}`} aria-label={t.calcOpen} aria-pressed={calcOpen} onClick={() => { setCalcOpen(o => !o); setSettingsOpen(false); }}><Icon name="calc" /></button>}
-        <button className="icon-btn" title={`${t.settings} — ${t.hintSettings}`} aria-label={t.settings} aria-expanded={settingsOpen} onClick={() => { setSettingsOpen(o => !o); setCalcOpen(false); }}>
+        {calcPolicy !== 'none' && <button className="icon-btn" title={`${t.calcOpen} — ${t.hintCalc}`} aria-label={t.calcOpen} aria-pressed={calcOpen} onClick={() => openOnly('calc')}><Icon name="calc" /></button>}
+        <button className="icon-btn" title={`${t.settings} — ${t.hintSettings}`} aria-label={t.settings} aria-expanded={settingsOpen} onClick={() => openOnly('settings')}>
           <span className={`status-dot ${canRequest ? 'ok' : 'idle'}`} aria-hidden="true" /><Icon name="settings" /></button>
         </div>
         {alertChip && <div className="hud-chip" aria-live="polite">{alertChip}</div>}
@@ -549,9 +543,9 @@ export function App() {
           <h2 className="h2-muted">{t.annotations}</h2><p className="muted">{t.annotationReveal}</p><ul className="annotations-list">{board.annotations.map((a, i) => <li key={a.id} data-testid="annotation-item">
             <span>{t.aiBadge} {i + 1}</span><button onClick={() => { stop(false); updateBoard(removeAnnotation(board, a.id)); }}>{t.undoAnnotation} {i + 1}</button></li>)}</ul></section>
       </aside>
-      <TutorHud t={t} mood={mood} speaking={voice.speaking} message={shownMessage} menuOpen={tutorMenu} running={running} canRequest={canRequest}
+      <TutorHud t={t} quiet={settingsOpen || calcOpen || !!openPanel} mood={mood} speaking={voice.speaking} message={shownMessage} menuOpen={tutorMenu} running={running} canRequest={canRequest}
         lessonActive={!!lessonSkillId || !!board.skillId} mode={settings.coachMode} voiceOn={settings.tutorVoice} micAvailable={mic.available} listening={mic.listening}
-        onToggleMenu={() => { setTutorMenu(o => !o); setSettingsOpen(false); }}
+        onToggleMenu={() => openOnly('tutor')}
         onMode={mode => configure({ coachMode: mode })} onVoice={on => { if (!on) voice.cancel(); configure({ tutorVoice: on }); }}
         onMic={() => mic.toggle(text => ask(text))}
         onAction={action => { setTutorMenu(false); if (action === 'stop') stop(); else if (action === 'next_problem') nextProblem(); else if (action === 'free') createExercise(); else void request(action, { learnerContext: learnerContext() }); }}

@@ -36,6 +36,8 @@ export interface ProblemTemplate {
   answerTemplate?: string;
   /** Unit shown with the expected answer, for example m/s. */
   answerUnit?: string;
+  /** Model answer shown in a printed test's key when there is no single number (a balanced equation). */
+  answerNote?: string;
 }
 
 export interface Skill {

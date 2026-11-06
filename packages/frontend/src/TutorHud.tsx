@@ -17,6 +17,8 @@ interface Props {
   speaking: boolean;
   message: TutorMessage | null;
   menuOpen: boolean;
+  /** A settings panel or drawer is open: only the mascot stays, bubble and menu wait. */
+  quiet?: boolean;
   running: boolean;
   canRequest: boolean;
   lessonActive: boolean;
@@ -39,7 +41,7 @@ const MODES: { mode: CoachMode; label: MessageKey }[] = [
 export function TutorHud(p: Props) {
   const { t, message } = p;
   return <div className="tutor-hud">
-    {message && <div className={`tutor-bubble tutor-bubble-${message.kind}`} role="group" aria-live="polite" data-testid="tutor-bubble" data-kind={message.kind}>
+    {message && !p.quiet && <div className={`tutor-bubble tutor-bubble-${message.kind}`} role="group" aria-live="polite" data-testid="tutor-bubble" data-kind={message.kind}>
       <BubbleText id={message.id} text={message.text} more={t.moreText} less={t.lessText} />
       {message.kind === 'wrong' && <div className="row">
         <button className="primary" disabled={!p.canRequest || p.running} onClick={() => p.onChoice('explain')}>{t.offerExplain}</button>
@@ -55,7 +57,7 @@ export function TutorHud(p: Props) {
         <button onClick={() => p.onChoice('dismiss')}>{t.offerDismiss}</button>
       </div>}
     </div>}
-    {p.menuOpen && <div className="tutor-menu" role="menu" aria-label={t.tutorMenu}>
+    {p.menuOpen && !p.quiet && <div className="tutor-menu" role="menu" aria-label={t.tutorMenu}>
       <div className="tutor-modes" role="radiogroup" aria-label={t.coachModeLabel}>
         {MODES.map(m => <button key={m.mode} role="radio" aria-checked={p.mode === m.mode} className={p.mode === m.mode ? 'primary' : ''} onClick={() => p.onMode(m.mode)}>{t[m.label]}</button>)}
       </div>

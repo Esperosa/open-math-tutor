@@ -1,4 +1,4 @@
-import type { StepVerdict } from '@openmathtutor/shared';
+import { checkAnswerLine, checkSteps, looksLikeFinalLine, statementHasSymbols, type ExpectedAnswer, type StepVerdict } from '@openmathtutor/shared';
 import type { Step } from './boardState';
 
 export interface WrittenLine { stepId: string; latexGuess: string; parentId: string }
@@ -29,4 +29,18 @@ export function markPerStep(lineVerdicts: Record<string, StepVerdict>, lines: re
     }
   }
   return result;
+}
+
+/** Step-by-step verdicts, then the final answer line judged against the expected answer (number and unit). */
+export function computeLineVerdicts(statement: string, lines: readonly WrittenLine[], expected?: ExpectedAnswer): Record<string, StepVerdict> {
+  const byLine = checkSteps(statement, lines);
+  if (!expected) return byLine;
+  const symbols = statementHasSymbols(statement);
+  for (const line of lines) {
+    if (byLine[line.stepId]?.status === 'wrong' || !looksLikeFinalLine(line.latexGuess, symbols)) continue;
+    const answer = checkAnswerLine(expected, line.latexGuess);
+    if (answer === 'correct') byLine[line.stepId] = { status: 'ok' };
+    else if (answer === 'wrong' || answer === 'unit') byLine[line.stepId] = { status: 'wrong', reason: 'wrong_value' };
+  }
+  return byLine;
 }

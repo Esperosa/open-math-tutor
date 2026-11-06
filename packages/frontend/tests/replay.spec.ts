@@ -370,9 +370,9 @@ test('plan: solving a problem moves the percentage, and a printable test with an
   await page.getByRole('button', { name: /Chystám se na střední školu/ }).click();
   await page.getByRole('button', { name: /^Přijímačky na střední školu/ }).click();
   const task = ((await page.getByTestId('task-text').textContent()) ?? '').trim();
-  const match = /^(-?\d+)\+(-?\d+)$/.exec(task);
+  const match = /^(-?\d+)([+-])(\d+)$/.exec(task);
   expect(match, `unexpected first task: ${task}`).not.toBeNull();
-  const sum = Number(match![1]) + Number(match![2]);
+  const sum = match![2] === '+' ? Number(match![1]) + Number(match![3]) : Number(match![1]) - Number(match![3]);
   await openPanel(page, 'Plán a cesta');
   await expect(page.getByTestId('plan-percent')).toHaveText('0 %');
   await page.keyboard.press('Escape');
@@ -400,7 +400,11 @@ test('popovers: settings, calculator and the teacher menu never stack, Escape cl
   await expect(page.locator('.settings-pop')).not.toHaveClass(/open/);
   await expect(page.getByRole('dialog', { name: 'Kalkulačka' })).toBeVisible();
   await page.getByRole('button', { name: 'Učitel', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Kalkulačka' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Kalkulačka' })).toHaveCount(0);
+  await expect(page.getByRole('menu', { name: 'Učitel' })).toBeVisible();
+  await page.getByRole('button', { name: 'Kalkulačka', exact: true }).click();
+  await expect(page.getByRole('menu', { name: 'Učitel' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Učitel', exact: true }).click();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Kalkulačka' })).toHaveCount(0);
   await expect(page.getByRole('menu', { name: 'Učitel' })).toHaveCount(0);

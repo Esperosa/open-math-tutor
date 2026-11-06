@@ -7,6 +7,7 @@ export interface TestItem {
   skillTitle: string;
   statement: string;
   expected?: ExpectedAnswer;
+  answerNote?: string;
   /** The task is to draw; the answer is judged by a person. */
   drawing: boolean;
 }
@@ -27,7 +28,7 @@ export function generateTest(catalog: CourseCatalog, scope: { trackId: string; t
       const template = templates[Math.min(templates.length - 1, Math.round(i * (templates.length - 1) / Math.max(1, perSkill - 1)))]!;
       const problem = instantiateProblem(template, random);
       items.push({ n: items.length + 1, skillId: skill.id, skillTitle: skill.title.cs, statement: problem.statement,
-        ...(problem.expected ? { expected: problem.expected } : {}), drawing: skill.drawing === true });
+        ...(problem.expected ? { expected: problem.expected } : {}), ...(template.answerNote ? { answerNote: template.answerNote } : {}), drawing: skill.drawing === true });
     }
   }
   return { trackId: scope.trackId, topicId: scope.topicId ?? null, items };
@@ -35,6 +36,7 @@ export function generateTest(catalog: CourseCatalog, scope: { trackId: string; t
 
 export function answerKeyText(item: TestItem, locale: "cs" | "en"): string {
   if (item.expected) return formatExpected(item.expected, locale);
+  if (item.answerNote) return item.answerNote;
   if (item.drawing) return locale === "cs" ? "kresba, posuzuje učitel" : "a drawing, judged by a teacher";
   return locale === "cs" ? "výsledek se musí ověřit (bez automatického řešení)" : "needs checking by hand (no automatic solution)";
 }

@@ -1,4 +1,5 @@
-import { isMastered, getTopicSkills, getTrackTopics, checkSteps, type CourseCatalog, type Locale } from '@openmathtutor/shared';
+import { isMastered, getTopicSkills, getTrackTopics, expectedAnswerFor, type CourseCatalog, type Locale } from '@openmathtutor/shared';
+import { computeLineVerdicts, effectiveStatement, writtenLines } from './lines';
 import type { BoardState } from './boardState';
 import type { MasteryMap } from './curriculumStorage';
 import type { MessageKey } from './i18n';
@@ -43,15 +44,16 @@ export function studyTextRequest(strengths: Strengths, locale: Locale): string {
 const escapeHtml = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
 function boardSection(board: BoardState, index: number, t: T) {
-  const verdicts = checkSteps(board.statement, board.steps);
-  const steps = board.steps.filter(s => s.latexGuess.trim()).map((s, i) => {
-    const v = verdicts[s.stepId]?.status;
-    return { text: s.latexGuess.trim(), mark: v === 'ok' ? '✓' : v === 'wrong' ? '✗' : '', n: i + 1 };
+  const lines = writtenLines(board.steps);
+  const task = effectiveStatement(board.statement, lines);
+  const verdicts = computeLineVerdicts(task, lines, board.expected ?? expectedAnswerFor(task));
+  const steps = lines.map((l, i) => {
+    const v = verdicts[l.stepId]?.status;
+    return { text: l.latexGuess, mark: v === 'ok' ? '✓' : v === 'wrong' ? '✗' : '', n: i + 1 };
   });
-  return { index, title: board.statement.trim() || '…', topic: board.topic.trim(), steps,
+  return { index, title: task || t.emptyExercise, topic: board.topic.trim(), steps,
     notes: board.history.map(h => ({ status: t[h.status], text: h.text })) };
 }
-
 export function buildNotesMarkdown(boards: readonly BoardState[], t: T, strengths?: Strengths): string {
   const out = [`# ${t.notesTitle}`, ''];
   boards.filter(b => b.statement.trim() || b.steps.length || b.history.length).forEach((board, i) => {

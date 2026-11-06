@@ -35,6 +35,11 @@ const ANSWERS: Record<string, [formula: string, unit?: string]> = {
   "probability-basic-2": ["{a}/({a}+{b})"],
 };
 
+/** Model answers for printed test keys where the result is not one number. */
+const ANSWER_NOTES: Record<string, string> = {
+  "ch-balance-1": "2 H₂ + O₂ → 2 H₂O", "ch-balance-2": "4 Fe + 3 O₂ → 2 Fe₂O₃", "ch-balance-3": "C₃H₈ + 5 O₂ → 3 CO₂ + 4 H₂O",
+};
+
 /** Ranges and derived values for tasks whose answer is a division: the numbers are built so the result comes out even. */
 const OVERRIDES: Record<string, { ranges: Ranges; derived: Record<string, string> }> = {
   "fy-velocity-1": { ranges: { v: [5, 30], b: [2, 12] }, derived: { a: "{v}*{b}" } },
@@ -68,6 +73,7 @@ function topic(id: string, cs: string, en: string, specs: SkillSpec[]) {
     s.templates.forEach(([statementTemplate, generatorRanges], i) => extraTemplates.push({
       id: ids[i]!, skillId: s.id, difficultyLevel: levels[i]!, topic: id, statementTemplate,
       ...(OVERRIDES[ids[i]!] ? { generatorRanges: OVERRIDES[ids[i]!]!.ranges, derived: OVERRIDES[ids[i]!]!.derived } : generatorRanges ? { generatorRanges } : {}), ...(s.free === false ? {} : s.auto === false ? { freeText: true } : {}),
+      ...(ANSWER_NOTES[ids[i]!] ? { answerNote: ANSWER_NOTES[ids[i]!] } : {}),
       ...(ANSWERS[ids[i]!] ? { answerTemplate: ANSWERS[ids[i]!]![0], ...(ANSWERS[ids[i]!]![1] ? { answerUnit: ANSWERS[ids[i]!]![1] } : {}) } : {}),
       ...(s.answers?.[i] ? { answerTemplate: s.answers[i]![0], ...(s.answers[i]![1] ? { answerUnit: s.answers[i]![1] } : {}) } : {}),
     }));

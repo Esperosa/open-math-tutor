@@ -73,6 +73,7 @@ export const cs = {
   freeProblem: 'Vlastní příklad', emptyExercise: 'prázdná tabule', moreText: 'Více', lessText: 'Méně',
   pickCourseAgain: 'Vybrat jiný kurz nebo předmět',
   eraseAll: 'Smazat všechna uložená data', eraseAllConfirm: 'Opravdu smazat všechny tabule, pokrok a profil z tohoto prohlížeče?',
+  testReady: 'Test je připravený, klíč správných odpovědí je na poslední stránce.',
   onboardingSkip: 'Přeskočit, chci jen volnou tabuli', trackComplete: 'vše zvládnuto', changeTrack: 'Změnit kurz',
 } as const;
 export type MessageKey = keyof typeof cs;
@@ -149,6 +150,7 @@ export const en: Record<MessageKey, string> = {
   freeProblem: 'My own problem', emptyExercise: 'empty board', moreText: 'More', lessText: 'Less',
   pickCourseAgain: 'Pick another course or subject',
   eraseAll: 'Delete all saved data', eraseAllConfirm: 'Really delete all boards, progress and the learner profile from this browser?',
+  testReady: 'The test is ready; the answer key is on the last page.',
   onboardingSkip: 'Skip, I just want the free board', trackComplete: 'all done', changeTrack: 'Change track',
 };
 export const messages: Record<Locale, Record<MessageKey, string>> = { cs, en };
