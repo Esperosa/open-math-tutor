@@ -18,6 +18,7 @@ import { loadMastery, saveMastery, getOrCreateMastery } from './curriculumStorag
 import { CoursesPanel, type LessonStart } from './curriculum/CoursesPanel';
 import { Onboarding } from './curriculum/Onboarding';
 import { TrackBreadcrumb } from './curriculum/TrackBreadcrumb';
+import { Rail, Icon, type PanelId } from './Hud';
 import { AskPanel } from './AskPanel';
 import { UploadBoard, type UploadedImage } from './UploadBoard';
 import { CustomSourcesPanel } from './CustomSourcesPanel';
@@ -45,6 +46,20 @@ export function App() {
   const [line, setLine] = useState('');
   const [selectedStep, setSelectedStep] = useState('');
   const [rejected, setRejected] = useState(false);
+  const [panel, setPanel] = useState<PanelId | null>(null);
+  const [pinned, setPinned] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
+  const leaveTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    const away = (e: PointerEvent) => {
+      if ((e.target as Element | null)?.closest('.rail, .drawer, .settings-pop, .icon-btn')) return;
+      setPanel(null); setPinned(false); setSettingsOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { setPanel(null); setPinned(false); setSettingsOpen(false); } };
+    document.addEventListener('pointerdown', away); document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc); };
+  }, []);
   const voice = useVoice(settings);
   const [settler] = useState(() => new StrokeSettler(() => void analyze.current()));
   const analyze = useRef<() => Promise<void>>(async () => {});
@@ -180,6 +195,18 @@ export function App() {
     stop(false); setLine(''); setSelectedStep('');
     const value = { ...live.current, activeId: id }; live.current = value; setSaved(value); setStatus('idle');
   }
+  function hoverPanel(id: PanelId) {
+    clearTimeout(leaveTimer.current); clearTimeout(hoverTimer.current);
+    if (!pinned) hoverTimer.current = setTimeout(() => setPanel(id), 220);
+  }
+  function togglePanel(id: PanelId) {
+    clearTimeout(hoverTimer.current);
+    if (panel === id && pinned) { setPanel(null); setPinned(false); } else { setPanel(id); setPinned(true); }
+  }
+  function leavePanel() {
+    clearTimeout(hoverTimer.current);
+    if (!pinned) leaveTimer.current = setTimeout(() => setPanel(null), 450);
+  }
   function createExercise() {
     stop(false); const next = newBoard();
     const value = { ...live.current, boards: [...live.current.boards, next], activeId: next.id };
@@ -240,16 +267,30 @@ export function App() {
   if (!settings.activeTrackId && !settings.onboardingDismissed) {
     return <Onboarding catalog={catalog} t={t} locale={settings.locale} onSelectTrack={startTrack} onSkip={() => configure({ onboardingDismissed: true })} />;
   }
+  const openPanel = panel;
+  const alertChip = !connected ? <span role="alert">{t.bridgeUnavailable} <button onClick={() => setRetry(r => r + 1)}>{t.retry}</button></span>
+    : !canRequest ? <span>{provider && !provider.models.length ? t.noModels : t.selectProvider}</span> : null;
   return <div className="app-shell">
-    <header className="app-header"><strong>{t.title}</strong><span className="save-label">{t.saved}</span>
-      <label>{t.language}<select value={settings.locale} onChange={e => configure({ locale: e.target.value as Settings['locale'], voiceURI: '' })}>
-        <option value="cs">Čeština</option><option value="en">English</option></select></label>
-      <button onClick={() => configure({ theme: settings.theme === 'light' ? 'dark' : 'light' })}>{settings.theme === 'light' ? t.dark : t.light}</button>
-    </header>
-    <section className="connection" aria-live="polite">
-      {!connected ? <><span>{t.bridgeUnavailable}</span><button onClick={() => setRetry(r => r + 1)}>{t.retry}</button></> : <>
-        <label className="field-glass"><span className={`status-dot ${provider?.authStatus.authenticated ? 'ok' : 'idle'}`} aria-hidden="true" />{t.provider}
-          <select value={settings.provider} onChange={e => {
+    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} /></div>
+    <div className="hud" data-testid="hud">
+      <div className="hud-top-left">
+        {settings.activeTrackId && <TrackBreadcrumb catalog={catalog} trackId={settings.activeTrackId} mastery={mastery} t={t} locale={settings.locale} onChangeTrack={changeTrack} />}
+        <div className="task-card"><label>{t.task}<textarea rows={2} maxLength={4000} value={board.statement} placeholder={t.taskPlaceholder}
+          onChange={e => { stop(false); updateBoard(editTask(board, 'statement', e.target.value)); }} /></label>
+          <label>{t.topic}<input value={board.topic} maxLength={200} placeholder={t.topicPlaceholder}
+            onChange={e => { stop(false); updateBoard(editTask(board, 'topic', e.target.value)); }} /></label></div>
+      </div>
+      <div className="hud-top-right">
+        {alertChip && <div className="hud-chip" aria-live="polite">{alertChip}</div>}
+        <button className="icon-btn" title={t.settings} aria-label={t.settings} aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>
+          <span className={`status-dot ${canRequest ? 'ok' : 'idle'}`} aria-hidden="true" /><Icon name="settings" /></button>
+      </div>
+      <aside className={`settings-pop${settingsOpen ? ' open' : ''}`} aria-label={t.settings}>
+        <label>{t.language}<select value={settings.locale} onChange={e => configure({ locale: e.target.value as Settings['locale'], voiceURI: '' })}>
+          <option value="cs">Čeština</option><option value="en">English</option></select></label>
+        <button onClick={() => configure({ theme: settings.theme === 'light' ? 'dark' : 'light' })}>{settings.theme === 'light' ? t.dark : t.light}</button>
+        {connected && <>
+          <label>{t.provider}<select value={settings.provider} onChange={e => {
             const id = e.target.value as ProviderId | '';
             // Picking a provider should also pick a usable model, not leave
             // every action button silently disabled until the person notices.
@@ -258,67 +299,64 @@ export function App() {
           }}>
           <option value="">{t.choose}</option>{providers.map(p => <option key={p.id} value={p.id}>{p.id}
             {!p.detect.installed ? ` — ${t.providerMissing}` : !p.authStatus.authenticated ? ` — ${t.authMissing}` : !p.authStatus.tutoringAvailable ? ` — ${t.providerLimited}` : ''}</option>)}</select></label>
-        <label className="field-glass">{t.model}<select value={settings.model} onChange={e => configure({ model: e.target.value })}><option value="">{t.choose}</option>
-          {provider?.models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
-        {!canRequest && <span>{provider && !provider.models.length ? t.noModels : t.selectProvider}</span>}
-        {provider?.authStatus.authenticated && !provider.authStatus.tutoringAvailable &&
-          <span role="alert" className="warning-inline" title={provider.authStatus.detail}>{t.tutoringLimited}</span>}
-        {!verifierOK && <span role="alert">{t.healthVerifier}</span>}
-      </>}
-    </section>
-    <main className="workspace">
-      <section className="work-area">
-        {settings.activeTrackId && <TrackBreadcrumb catalog={catalog} trackId={settings.activeTrackId} mastery={mastery} t={t} locale={settings.locale} onChangeTrack={changeTrack} />}
-        <div className="problem"><label>{t.task}<textarea rows={2} maxLength={4000} value={board.statement} placeholder={t.taskPlaceholder}
-          onChange={e => { stop(false); updateBoard(editTask(board, 'statement', e.target.value)); }} /></label>
-          <label>{t.topic}<input value={board.topic} maxLength={200} placeholder={t.topicPlaceholder}
-            onChange={e => { stop(false); updateBoard(editTask(board, 'topic', e.target.value)); }} /></label></div>
-        <div className="board-toolbar"><span>{t.board} <small>{t.revision} <output data-testid="revision">{board.revision}</output></small></span>
-          <label className="check-label"><input type="checkbox" checked={settings.showAI} onChange={e => configure({ showAI: e.target.checked })} />{t.aiLayer}</label></div>
-        <Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} />
+          <label>{t.model}<select value={settings.model} onChange={e => configure({ model: e.target.value })}><option value="">{t.choose}</option>
+            {provider?.models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
+          {provider?.authStatus.authenticated && !provider.authStatus.tutoringAvailable &&
+            <span role="alert" className="warning-inline" title={provider.authStatus.detail}>{t.tutoringLimited}</span>}
+          {!verifierOK && <span role="alert">{t.healthVerifier}</span>}
+        </>}
+        <label className="check-label"><input type="checkbox" checked={settings.showAI} onChange={e => configure({ showAI: e.target.checked })} />{t.aiLayer}</label>
+        <label className="check-label"><input type="checkbox" checked={settings.auto} onChange={e => configure({ auto: e.target.checked })} />{t.consent}</label>
+        {model && !model.supportsImageInput && <p className="warning">{t.imageUnsupported}</p>}
+        <label className="check-label"><input type="checkbox" checked={settings.voiceEnabled} onChange={e => configure({ voiceEnabled: e.target.checked })} />{t.voice}</label>
+        <label>{t.voiceChoice}<select value={voice.voices.some(v => v.voiceURI === settings.voiceURI) ? settings.voiceURI : ''} onChange={e => configure({ voiceURI: e.target.value })}>
+          <option value="">{t.choose}</option>{voice.voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</select></label>
+        <label>{t.rate} ({settings.rate})<input type="range" min="0.5" max="1.5" step="0.1" value={settings.rate} onChange={e => configure({ rate: Number(e.target.value) })} /></label>
+        {voice.warning && <p className="warning" role="alert">{t[voice.warning]}</p>}
+        <p className="privacy">{t.privacy}</p>
+      </aside>
+      <Rail items={[{ id: 'courses', label: t.courses }, { id: 'ask', label: t.askLabel }, { id: 'materials', label: t.customSources },
+        { id: 'exercises', label: t.exercise }, { id: 'history', label: t.history }]}
+        active={openPanel} onHover={hoverPanel} onToggle={togglePanel} />
+      <aside className={`drawer${openPanel ? ' open' : ''}`}
+        onMouseEnter={() => clearTimeout(leaveTimer.current)} onMouseLeave={leavePanel}>
+        <section hidden={openPanel !== 'courses'}>
+          <CoursesPanel catalog={catalog} mastery={mastery} t={t} locale={settings.locale} onStartLesson={startLesson} activeSkillId={lessonSkillId} />
+        </section>
+        <section hidden={openPanel !== 'ask'}>
+          <AskPanel t={t} disabled={!canRequest || running} onAsk={ask} />
+          <UploadBoard t={t} disabled={!canRequest || !model?.supportsImageInput || running} onUpload={uploadScan} />
+        </section>
+        <section hidden={openPanel !== 'materials'}>
+          <CustomSourcesPanel t={t} sources={sources} onAdd={addCustomSource} onRemove={removeCustomSource} />
+        </section>
+        <section hidden={openPanel !== 'exercises'}><h2>{t.exercise}</h2><label>{t.exercise}<select value={saved.activeId} onChange={e => switchExercise(e.target.value)}>
+          {saved.boards.map((b, i) => <option key={b.id} value={b.id}>{i + 1}. {b.statement.slice(0, 40) || '…'}</option>)}</select></label>
+          <div className="row"><button onClick={createExercise}>{t.newExercise}</button><button onClick={deleteExercise}>{t.deleteExercise}</button></div></section>
+        <section hidden={openPanel !== 'history'}><h2 className="h2-muted">{t.history}<span className="info-icon" title={t.unverified} aria-label={t.unverified} role="img">ⓘ</span></h2>
+          {!board.history.length && <p className="muted">{t.emptyHistory}</p>}
+          <ol className="history">{board.history.map(h => <li key={h.id} data-testid="explanation">
+            <strong>{t[h.status]}</strong>{h.firstErrorStepId && <small>{t.firstError}: {board.steps.findIndex(s => s.stepId === h.firstErrorStepId) + 1 || '—'}</small>}
+            <p>{h.text}</p>{h.clarification && <p>{h.clarification}</p>}<small>{t.revision} {h.revision}</small>
+            <button onClick={() => voice.speak(h.ttsText)} disabled={!voice.available}>{t.speak}</button>
+          </li>)}</ol>
+          <h2 className="h2-muted">{t.annotations}</h2><p className="muted">{t.annotationReveal}</p><ul className="annotations-list">{board.annotations.map((a, i) => <li key={a.id} data-testid="annotation-item">
+            <span>{t.aiBadge} {i + 1}</span><button onClick={() => { stop(false); updateBoard(removeAnnotation(board, a.id)); }}>{t.undoAnnotation} {i + 1}</button></li>)}</ul></section>
+      </aside>
+      <div className="hud-dock">
         <form className="keyboard-entry" onSubmit={e => { e.preventDefault(); if (line.trim()) { editor.current?.addLine(line.trim(), selectedStep || null); setLine(''); setSelectedStep(''); } }}>
-          <label>{t.keyboardLine}<input value={line} onChange={e => setLine(e.target.value)} placeholder={t.linePlaceholder} maxLength={1000} /></label>
-          <label>{t.steps}<select value={selectedStep} onChange={e => { setSelectedStep(e.target.value); setLine(board.steps.find(s => s.stepId === e.target.value)?.latexGuess ?? ''); }}>
+          <label><span className="sr">{t.keyboardLine}</span><input value={line} onChange={e => setLine(e.target.value)} placeholder={t.linePlaceholder} maxLength={1000} /></label>
+          <label><span className="sr">{t.steps}</span><select value={selectedStep} onChange={e => { setSelectedStep(e.target.value); setLine(board.steps.find(s => s.stepId === e.target.value)?.latexGuess ?? ''); }}>
             <option value="">{t.newLine}</option>{board.steps.map((s, i) => <option key={s.stepId} value={s.stepId}>{i + 1}. {s.latexGuess || '…'}</option>)}</select></label>
           <button type="submit" disabled={!line.trim()}>{selectedStep ? t.replaceLine : t.addLine}</button>
         </form>
         <div className="manual-controls"><button disabled={!canRequest || !model?.supportsImageInput || !board.activeStepId || running} onClick={() => void request()}>{t.readBoard}</button>{(['check', 'hint', 'next_step', 'explain_differently'] as const).map(mode =>
           <button key={mode} className={mode === 'check' ? 'primary' : ''} disabled={!canRequest || running} onClick={() => void request(mode)}>{t[mode]}</button>)}
           <button className="stop" onClick={() => stop()} disabled={!running && !settings.voiceEnabled}>{t.stop}</button></div>
-        <p className="status" role="status">{t[status === 'bridgeUnavailable' ? 'offline' : status]}</p>
+        <p className="status" role="status">{t[status === 'bridgeUnavailable' ? 'offline' : status]} <small>{t.revision} <output data-testid="revision">{board.revision}</output></small></p>
         {saveError && <p role="alert" className="warning">{t.localSaveError}</p>}
         {rejected && <p role="alert" className="warning">{t.rejectedActions}</p>}
-      </section>
-      <aside className="sidebar">
-        <details open><summary>{t.courses}</summary>
-          <CoursesPanel catalog={catalog} mastery={mastery} t={t} locale={settings.locale} onStartLesson={startLesson} activeSkillId={lessonSkillId} />
-        </details>
-        <AskPanel t={t} disabled={!canRequest || running} onAsk={ask} />
-        <UploadBoard t={t} disabled={!canRequest || !model?.supportsImageInput || running} onUpload={uploadScan} />
-        <CustomSourcesPanel t={t} sources={sources} onAdd={addCustomSource} onRemove={removeCustomSource} />
-        <section><h2>{t.exercise}</h2><label>{t.exercise}<select value={saved.activeId} onChange={e => switchExercise(e.target.value)}>
-          {saved.boards.map((b, i) => <option key={b.id} value={b.id}>{i + 1}. {b.statement.slice(0, 40) || '…'}</option>)}</select></label>
-          <div className="row"><button onClick={createExercise}>{t.newExercise}</button><button onClick={deleteExercise}>{t.deleteExercise}</button></div></section>
-        <section><h2 className="h2-muted">{t.history}<span className="info-icon" title={t.unverified} aria-label={t.unverified} role="img">ⓘ</span></h2>
-          {!board.history.length && <p className="muted">{t.emptyHistory}</p>}
-          <ol className="history">{board.history.map(h => <li key={h.id} data-testid="explanation">
-            <strong>{t[h.status]}</strong>{h.firstErrorStepId && <small>{t.firstError}: {board.steps.findIndex(s => s.stepId === h.firstErrorStepId) + 1 || '—'}</small>}
-            <p>{h.text}</p>{h.clarification && <p>{h.clarification}</p>}<small>{t.revision} {h.revision}</small>
-            <button onClick={() => voice.speak(h.ttsText)} disabled={!voice.available}>{t.speak}</button>
-          </li>)}</ol></section>
-        <section><h2 className="h2-muted">{t.annotations}</h2><p className="muted">{t.annotationReveal}</p><ul className="annotations-list">{board.annotations.map((a, i) => <li key={a.id} data-testid="annotation-item">
-          <span>{t.aiBadge} {i + 1}</span><button onClick={() => { stop(false); updateBoard(removeAnnotation(board, a.id)); }}>{t.undoAnnotation} {i + 1}</button></li>)}</ul></section>
-        <details><summary>{t.settings}</summary>
-          <label className="check-label"><input type="checkbox" checked={settings.auto} onChange={e => configure({ auto: e.target.checked })} />{t.consent}</label>
-          {model && !model.supportsImageInput && <p className="warning">{t.imageUnsupported}</p>}
-          <label className="check-label"><input type="checkbox" checked={settings.voiceEnabled} onChange={e => configure({ voiceEnabled: e.target.checked })} />{t.voice}</label>
-          <label>{t.voiceChoice}<select value={voice.voices.some(v => v.voiceURI === settings.voiceURI) ? settings.voiceURI : ''} onChange={e => configure({ voiceURI: e.target.value })}>
-            <option value="">{t.choose}</option>{voice.voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</select></label>
-          <label>{t.rate} ({settings.rate})<input type="range" min="0.5" max="1.5" step="0.1" value={settings.rate} onChange={e => configure({ rate: Number(e.target.value) })} /></label>
-        </details>
-        {voice.warning && <p className="warning" role="alert">{t[voice.warning]}</p>}
-        <p className="privacy">{t.privacy}</p>
-      </aside>
-    </main>
+      </div>
+    </div>
   </div>;
 }

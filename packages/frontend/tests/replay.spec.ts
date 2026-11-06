@@ -34,15 +34,22 @@ async function mockBridge(page: Page, requests: AnalyzeBoardRequest[], manuals: 
 async function skipOnboarding(page: Page) {
   await page.getByRole('button', { name: 'Přeskočit, chci jen volnou tabuli', exact: true }).click();
 }
+async function openSettings(page: Page) {
+  const button = page.getByRole('button', { name: 'Nastavení', exact: true });
+  if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+}
+async function openPanel(page: Page, name: string) {
+  await page.getByRole('button', { name, exact: true }).click();
+}
 test('deterministic replay: stroke → settled crop → first error annotations → correction → success', async ({ page }) => {
   const requests: AnalyzeBoardRequest[] = [], manuals: ContinueLessonRequest[] = [];
   const exceptions: string[] = []; page.on('pageerror', e => exceptions.push(e.message));
   await mockBridge(page, requests, manuals);
   await page.goto('/');
   await skipOnboarding(page);
+  await openSettings(page);
   await page.getByRole('combobox', { name: 'Poskytovatel', exact: true }).selectOption('codex');
   await page.getByRole('combobox', { name: 'Model', exact: true }).selectOption('replay-model');
-  await page.getByText('Nastavení', { exact: true }).click();
   await page.getByLabel(/Povolit automatickou kontrolu/).check();
   await page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true }).fill('2x + 3 = 7');
   await page.getByRole('button', { name: 'Přidat řádek', exact: true }).click();
@@ -66,6 +73,7 @@ test('deterministic replay: stroke → settled crop → first error annotations 
   await expect(page.getByTestId('math-annotation')).toHaveCSS('opacity', '1');
   await expect(page.getByTestId('explanation')).toContainText('První chyba');
   await page.screenshot({ path: 'test-results/replay-annotated.png', fullPage: true });
+  await openSettings(page);
   await page.getByLabel('Zobrazit poznámky AI').uncheck();
   await expect(page.getByTestId('math-annotation')).toHaveCount(0);
   await page.getByLabel('Zobrazit poznámky AI').check();
@@ -105,13 +113,14 @@ test('test-only delayed bridge replay: Stop aborts in-flight work and calls the 
   page.on('request', request => { if (request.url().endsWith('/cancel')) cancels.push(request.postDataJSON().requestId); });
   await page.goto('/');
   await skipOnboarding(page);
+  await openSettings(page);
   await page.getByRole('combobox', { name: 'Poskytovatel', exact: true }).selectOption('codex');
   await page.getByRole('combobox', { name: 'Model', exact: true }).selectOption('replay-model');
   await page.getByRole('button', { name: 'Zkontrolovat', exact: true }).click();
   await expect.poll(() => started).toBe(true);
   await page.getByRole('button', { name: 'Zastavit', exact: true }).click();
   await expect.poll(() => cancels.length).toBe(1);
-  await expect(page.getByText('Kontrola zastavena.', { exact: true })).toBeVisible();
+  await expect(page.locator('p.status')).toContainText('Kontrola zastavena.');
   release();
   await expect(page.getByTestId('annotation-item')).toHaveCount(0);
   await expect(page.getByTestId('explanation')).toHaveCount(0);
@@ -137,8 +146,10 @@ test('curriculum mode: picking a skill starts a lesson and a correct check advan
   });
   await page.goto('/');
   await skipOnboarding(page);
+  await openSettings(page);
   await page.getByRole('combobox', { name: 'Poskytovatel', exact: true }).selectOption('codex');
   await page.getByRole('combobox', { name: 'Model', exact: true }).selectOption('replay-model');
+  await openPanel(page, 'Kurzy');
   await page.getByRole('combobox', { name: 'Kurz', exact: true }).selectOption({ label: 'Přijímačky na střední školu' });
   await page.getByRole('combobox', { name: 'Téma kurzu', exact: true }).selectOption({ label: 'Základy čísel' });
   const skillItem = page.getByTestId('skill-item').filter({ hasText: 'Počítání se zápornými čísly' });
@@ -149,6 +160,7 @@ test('curriculum mode: picking a skill starts a lesson and a correct check advan
   await expect(page.getByRole('textbox', { name: 'Zadání', exact: true })).not.toHaveValue('');
   await page.getByRole('button', { name: 'Zkontrolovat', exact: true }).click();
   await expect.poll(() => manuals.at(-1)?.mode).toBe('check');
+  await openPanel(page, 'Kurzy');
   await expect(skillItem.getByText('Rozpracováno')).toBeVisible();
 });
 
@@ -163,6 +175,7 @@ test('real unavailable-bridge state remains usable, persistent, bilingual and re
   await page.waitForTimeout(500);
   await page.reload();
   await expect(page.getByRole('textbox', { name: 'Zadání', exact: true })).toHaveValue('x + 1 = 3');
+  await openSettings(page);
   await page.getByRole('button', { name: 'Tmavý režim' }).click();
   await page.getByRole('combobox', { name: 'Jazyk', exact: true }).selectOption('en');
   await expect(page.getByRole('button', { name: 'Check', exact: true })).toBeDisabled();
