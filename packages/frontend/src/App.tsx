@@ -216,9 +216,10 @@ export function App() {
     </header>
     <section className="connection" aria-live="polite">
       {!connected ? <><span>{t.bridgeUnavailable}</span><button onClick={() => setRetry(r => r + 1)}>{t.retry}</button></> : <>
-        <label>{t.provider}<select value={settings.provider} onChange={e => configure({ provider: e.target.value as ProviderId | '', model: '' })}>
+        <label className="field-glass"><span className={`status-dot ${provider?.authStatus.authenticated ? 'ok' : 'idle'}`} aria-hidden="true" />{t.provider}
+          <select value={settings.provider} onChange={e => configure({ provider: e.target.value as ProviderId | '', model: '' })}>
           <option value="">{t.choose}</option>{providers.map(p => <option key={p.id} value={p.id}>{p.id}{!p.detect.installed ? ` — ${t.providerMissing}` : !p.authStatus.authenticated ? ` — ${t.authMissing}` : ''}</option>)}</select></label>
-        <label>{t.model}<select value={settings.model} onChange={e => configure({ model: e.target.value })}><option value="">{t.choose}</option>
+        <label className="field-glass">{t.model}<select value={settings.model} onChange={e => configure({ model: e.target.value })}><option value="">{t.choose}</option>
           {provider?.models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
         {!canRequest && <span>{provider && !provider.models.length ? t.noModels : t.selectProvider}</span>}
         {!verifierOK && <span role="alert">{t.healthVerifier}</span>}
@@ -256,13 +257,13 @@ export function App() {
         <section><h2>{t.exercise}</h2><label>{t.exercise}<select value={saved.activeId} onChange={e => switchExercise(e.target.value)}>
           {saved.boards.map((b, i) => <option key={b.id} value={b.id}>{i + 1}. {b.statement.slice(0, 40) || '…'}</option>)}</select></label>
           <div className="row"><button onClick={createExercise}>{t.newExercise}</button><button onClick={deleteExercise}>{t.deleteExercise}</button></div></section>
-        <section><h2>{t.history}</h2>{!board.history.length && <p className="muted">{t.emptyHistory}</p>}
+        <section><h2 className="h2-muted">{t.history}</h2>{!board.history.length && <p className="muted">{t.emptyHistory}</p>}
           <ol className="history">{board.history.map(h => <li key={h.id} data-testid="explanation">
             <strong>{t[h.status]}</strong>{h.firstErrorStepId && <small>{t.firstError}: {board.steps.findIndex(s => s.stepId === h.firstErrorStepId) + 1 || '—'}</small>}
             <p>{h.text}</p>{h.clarification && <p>{h.clarification}</p>}<small>{t.revision} {h.revision}</small>
             <button onClick={() => voice.speak(h.ttsText)} disabled={!voice.available}>{t.speak}</button>
           </li>)}</ol><small className="muted">{t.unverified}</small></section>
-        <section><h2>{t.annotations}</h2><p className="muted">{t.annotationReveal}</p><ul className="annotations-list">{board.annotations.map((a, i) => <li key={a.id} data-testid="annotation-item">
+        <section><h2 className="h2-muted">{t.annotations}</h2><p className="muted">{t.annotationReveal}</p><ul className="annotations-list">{board.annotations.map((a, i) => <li key={a.id} data-testid="annotation-item">
           <span>{t.aiBadge} {i + 1}</span><button onClick={() => { stop(false); updateBoard(removeAnnotation(board, a.id)); }}>{t.undoAnnotation} {i + 1}</button></li>)}</ul></section>
         <details><summary>{t.settings}</summary>
           <label className="check-label"><input type="checkbox" checked={settings.auto} onChange={e => configure({ auto: e.target.checked })} />{t.consent}</label>
