@@ -241,10 +241,11 @@ export function App() {
   }
   function hoverPanel(id: PanelId) {
     clearTimeout(leaveTimer.current); clearTimeout(hoverTimer.current);
-    if (!pinned) hoverTimer.current = setTimeout(() => setPanel(id), 220);
+    if (!pinned) hoverTimer.current = setTimeout(() => { setCalcOpen(false); setSettingsOpen(false); setTutorMenu(false); setPanel(id); }, 220);
   }
   function togglePanel(id: PanelId) {
     clearTimeout(hoverTimer.current);
+    setCalcOpen(false); setSettingsOpen(false); setTutorMenu(false);
     if (panel === id && pinned) { setPanel(null); setPinned(false); } else { setPanel(id); setPinned(true); }
   }
   function leavePanel() {
@@ -260,7 +261,7 @@ export function App() {
     // A new lesson is a new problem, not an edit of the current one — reusing
     // the active board here left the previous problem's handwriting and
     // explanation history visible underneath the new statement.
-    stop(false);
+    stop(false); setPanel(null); setPinned(false);
     const next: BoardState = { ...newBoard(), topic: lesson.topic, statement: lesson.statementText, skillId: lesson.skillId, ...(lesson.expected ? { expected: lesson.expected } : {}) };
     setMessage(null);
     const value = { ...live.current, boards: [...live.current.boards, next], activeId: next.id };
@@ -324,7 +325,11 @@ export function App() {
     setTestNotice(`${t.testReady} (${test.items.length})`);
   }
   function nextProblem() {
-    if (settings.activeTrackId) startNext(settings.activeTrackId, settings.startLevel); else createExercise();
+    const skillId = board.skillId;
+    const topic = skillId ? catalog.topics.find(tp => tp.skillIds.includes(skillId)) : undefined;
+    if (skillId && topic && !isMastered(mastery[skillId] ?? { masteredAt: null } as never)) startSkill(topic.id, skillId);
+    else if (settings.activeTrackId) startNext(settings.activeTrackId, settings.startLevel);
+    else createExercise();
   }
   function changeTrack() {
     configure({ activeTrackId: '', onboardingDismissed: false });
@@ -405,6 +410,8 @@ export function App() {
         updateProfile(p => resolveStyleOutcome(recordSolved(p, Date.now()), true));
         updateBoard({ ...marked, outcome: 'solved' }); say('solved'); break;
       }
+      case 'check_in':
+        updateBoard(marked); say('wrong'); break;
       case 'unclear': {
         updateBoard(marked);
         const text = ls.find(l => stepKey(l) === event.key)?.latexGuess ?? '';
@@ -418,9 +425,9 @@ export function App() {
   function selfAssess(done: boolean) {
     const cur = live.current.boards.find(b => b.id === live.current.activeId);
     if (!cur?.skillId) return;
-    if (!cur.outcome) recordMastery(cur.skillId, done);
+    if (done ? cur.outcome !== 'solved' : !cur.outcome) recordMastery(cur.skillId, done);
     updateProfile(p => done ? recordSolved(p, Date.now()) : recordError(p, cur.skillId ?? null, 'self_reported', Date.now()));
-    updateBoard({ ...cur, outcome: cur.outcome ?? (done ? 'solved' : 'failed') });
+    updateBoard({ ...cur, outcome: done ? 'solved' : cur.outcome ?? 'failed' });
     setMessage({ id: `self-${cur.id}`, kind: 'solved', text: t.selfNoted });
   }
   async function tutorChoice(choice: TutorChoice) {
@@ -470,7 +477,7 @@ export function App() {
   const openPanel = panel;
   async function exportImage(kind: 'png' | 'svg') {
     const blob = await editor.current?.exportImage(kind);
-    if (blob) downloadBlob(blob, `tabule.${kind}`);
+    if (blob) { downloadBlob(blob, `tabule.${kind}`); setMessage({ id: `board-${Date.now()}`, kind: 'info', text: t.notesSaved }); }
   }
   const activeTrack = catalog.tracks.find(tr => tr.id === settings.activeTrackId);
   const calcPolicy = activeTrack?.calculator ?? 'scientific';
@@ -480,7 +487,7 @@ export function App() {
   const shownMessage: TutorMessage | null = running ? { id: 'thinking', kind: 'thinking', text: t.tutorThinking } : message;
   return <div className="app-shell">
     <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} verdicts={verdicts} onAskHere={() => { setPanel('ask'); setPinned(true); }} /></div>
-    <div className={`hud${openPanel ? ' drawer-open' : ''}`} data-testid="hud">
+    <div className={`hud${openPanel ? ' drawer-open' : ''}${settingsOpen ? ' settings-open' : ''}`} data-testid="hud">
       <div className="hud-top-left">
         <span className="sr"><output data-testid="revision">{board.revision}</output></span>
         {settings.activeTrackId && !board.skillId && <div className="track-breadcrumb" data-testid="free-chip">
@@ -566,7 +573,7 @@ export function App() {
         <section hidden={openPanel !== 'notes'}>
           <NotesPanel t={t} strengths={strengths} canAsk={canRequest && !running}
             onExportImage={kind => void exportImage(kind)}
-            onExportMarkdown={() => downloadBlob(new Blob([buildNotesMarkdown(saved.boards, t, strengths)], { type: 'text/markdown' }), 'zapisky.md')}
+            onExportMarkdown={() => { downloadBlob(new Blob([buildNotesMarkdown(saved.boards, t, strengths)], { type: 'text/markdown' }), 'zapisky.md'); setMessage({ id: `notes-${Date.now()}`, kind: 'info', text: t.notesSaved }); }}
             onPrint={() => printHtml(buildNotesHtml(saved.boards, t, strengths))}
             onStudyText={() => { setPanel('history'); ask(studyTextRequest(strengths, settings.locale)); }} />
         </section>

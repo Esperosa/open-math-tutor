@@ -145,7 +145,10 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
   }
   return <div className="board-surface" data-testid="board" aria-label={t.board}
     onPointerDownCapture={startHold} onPointerMove={moveHold} onPointerUp={cancelHold} onPointerCancel={cancelHold}
-    onKeyDown={e => { if (e.key === 'Escape') setMenu(null); panByKey(e); }}>
+    onKeyDown={e => {
+      if (e.key === 'Escape') { setMenu(null); setTimeout(() => { if (api && !api.getAppState().editingTextElement) api.setActiveTool({ type: 'text', locked: true }); }, 0); }
+      panByKey(e);
+    }}>
     <Excalidraw excalidrawAPI={setApi} initialData={initial.current} onChange={change}
       langCode={settings.locale === 'cs' ? 'cs-CZ' : 'en'} theme={settings.theme}
       autoFocus={false} handleKeyboardGlobally={false} validateEmbeddable={() => false}

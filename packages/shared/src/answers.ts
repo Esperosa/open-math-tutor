@@ -138,7 +138,8 @@ export function looksLikeFinalLine(line: string, taskHasSymbols: boolean): boole
   if (!text) return false;
   const eq = text.lastIndexOf("=");
   const tail = (eq >= 0 ? text.slice(eq + 1) : text).trim();
-  const fractionless = tail.replace(/^([-−]?\d+(?:[.,]\d+)?)\s*\/\s*\d+(?:[.,]\d+)?(?=\s|$|[\p{L}°%µΩπ])/u, "$1");
+  const mixedless = tail.replace(/^([-−]?\d+)\s+\d+\s*\/\s*\d+(?=\s|$|[\p{L}°%µΩπ])/u, "$1");
+  const fractionless = mixedless.replace(/^([-−]?\d+(?:[.,]\d+)?)\s*\/\s*\d+(?:[.,]\d+)?(?=\s|$|[\p{L}°%µΩπ])/u, "$1");
   const m = /^[-−]?\d+(?:[.,]\d+)?(?:\s*[·×x*]\s*10\s*\^?\s*[-−]?\d+)?\s*(.*)$/u.exec(fractionless);
   if (!m) return false;
   const rest = m[1]!;
@@ -152,11 +153,11 @@ export function looksLikeFinalLine(line: string, taskHasSymbols: boolean): boole
   return !taskHasSymbols;
 }
 
-export type AnswerVerdict = "correct" | "wrong" | "unit" | "none";
+export type AnswerVerdict = "correct" | "wrong" | "maybe" | "unit" | "none";
 
 const UNIT_WORDS: [RegExp, string][] = [
   [/newton(?:ů|u|y)?/g, "n"], [/ohm(?:ů|u|y)?/g, "Ω"], [/korun(?:a|y)?|\bkc\b/g, "kč"], [/procent(?:o|a|ech)?/g, "%"], [/mol(?:ů|u|y)?(?![/a-z])/g, "mol"],
-  [/joule(?:ů|u)?/g, "j"], [/watt(?:ů|u|y)?/g, "w"], [/volt(?:ů|u|y)?/g, "v"], [/ampér(?:ů|u|y)?/g, "a"], [/kilogram(?:ů|u|y)?/g, "kg"], [/gram(?:ů|u|y)?/g, "g"],
+  [/joul(?:ů|u|y|e)?/g, "j"], [/kilometr(?:ů|u|y)?/g, "km"], [/kilopascal(?:ů|u|y)?/g, "kpa"], [/g\.?cm\^?-3/g, "g/cm3"], [/watt(?:ů|u|y)?/g, "w"], [/volt(?:ů|u|y)?/g, "v"], [/ampér(?:ů|u|y)?/g, "a"], [/kilogram(?:ů|u|y)?/g, "kg"], [/gram(?:ů|u|y)?/g, "g"],
   [/metr(?:ů|u|y)?/g, "m"], [/sekund(?:a|y|)?/g, "s"], [/hodin(?:a|y)?/g, "h"], [/pascal(?:ů|u|y)?/g, "pa"], [/litr(?:ů|u|y)?/g, "l"],
 ];
 const BASE_UNITS = new Set(["m", "km", "cm", "mm", "mol", "kg", "g", "n", "j", "w", "v", "a", "l", "s", "h", "pa", "kč"]);
@@ -178,7 +179,8 @@ export function normalizeUnit(unit: string): string {
 export function unitFromLine(line: string): string {
   const text = line.trim().replace(ANSWER_WORDS, "");
   const tail = (text.includes("=") ? text.slice(text.lastIndexOf("=") + 1) : text).trim();
-  const prefix = /^[\d\s.,+\-−*×·/^()%]+/.exec(tail)?.[0] ?? "";
+  const sci = SCIENTIFIC.exec(tail);
+  const prefix = sci ? sci[0] : /^[\d\s.,+\-−*×·/^()%]+/.exec(tail)?.[0] ?? "";
   const rest = tail.slice(prefix.length).trim();
   return /^[\p{L}°%µΩπ][\p{L}°%µΩπ/²³^·\-\d\s.]{0,14}$/u.test(rest) ? rest : "";
 }
@@ -188,13 +190,16 @@ export function checkAnswerLine(expected: ExpectedAnswer, line: string): AnswerV
   if (given === null) return "none";
   const scale = Math.max(Math.abs(expected.value), 1e-12);
   const unit = unitFromLine(line);
-  const isGiven = !!expected.givens?.some(g => Math.abs(g - given) <= 1e-9 * Math.max(1, Math.abs(g)));
-  const valueMatches = Math.abs(given - expected.value) <= expected.tolerance * scale + 1e-12;
+  const isChain = (line.match(/=/g) ?? []).length >= 2;
+  const isGiven = !isChain && Array.isArray(expected.givens) && expected.givens.some(g => Math.abs(g - given) <= 1e-9 * Math.max(1, Math.abs(g)));
+  const decimals = /[.,](\d+)(?!\d*[.,]\d)/.exec(line.slice(line.lastIndexOf("=") + 1))?.[1]?.length ?? 0;
+  const roundingSlack = !Number.isInteger(expected.value) && decimals > 0 ? 0.5 * Math.pow(10, -decimals) : 0;
+  const valueMatches = Math.abs(given - expected.value) <= Math.max(expected.tolerance * scale, roundingSlack) + 1e-12;
   const written = normalizeUnit(unit);
   const sameUnit = !written || !expected.unit || written === normalizeUnit(expected.unit);
   if (!valueMatches) {
     if (!expected.wordProblem) return "wrong";
-    return !isGiven && !!written && !!expected.unit && sameUnit ? "wrong" : "none";
+    return !isGiven && !!written && !!expected.unit && sameUnit ? "maybe" : "none";
   }
   if (!sameUnit) return isGiven ? "none" : "unit";
   // The answer is a multiple of pi: a bare number that is also in the statement is the given radius or diameter, not the result.

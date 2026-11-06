@@ -127,7 +127,7 @@ describe("audit round 3", () => {
   it("given data and intermediate results in a word problem are not wrong answers", () => {
     expect(checkAnswerLine(force, "m = 5 kg")).toBe("none");
     expect(checkAnswerLine(force, "81/3 = 27")).toBe("none");
-    expect(checkAnswerLine(force, "F = 40 N")).toBe("wrong");
+    expect(checkAnswerLine(force, "F = 40 N")).toBe("maybe");
     expect(checkAnswerLine(force, "F = m*a = 5*10 = 50 N")).toBe("correct");
   });
   it("a chain starting with a single symbol is a result, even after lines with symbols", () => {
@@ -168,5 +168,24 @@ describe("audit round 4", () => {
     expect(answerFromLine("x = 3 3/5")).toBeCloseTo(3.6, 12);
     expect(checkAnswerLine(expectedAnswerFor("17/9")!, "1,89")).toBe("correct");
     expect(checkAnswerLine(expectedAnswerFor("17/9")!, "2,5")).toBe("wrong");
+  });
+});
+
+describe("audit round 5", () => {
+  it("a different number with the answer's unit in a word problem is a soft check-in, not a failure", () => {
+    const interest = { value: 31200, unit: "Kč", tolerance: 1e-9, wordProblem: true, givens: [30000, 4] };
+    expect(checkAnswerLine(interest, "úrok = 1200 Kč")).toBe("maybe");
+    expect(checkAnswerLine(interest, "30000 * 1,04 = 31200 Kč")).toBe("correct");
+    expect(checkAnswerLine({ ...interest, givens: [30000, 4, 1200] }, "úrok = 1200 Kč")).toBe("none");
+    expect(checkAnswerLine({ value: 6, unit: "mol", tolerance: 1e-9, wordProblem: true, givens: [1, 6] }, "n = c·V = 1 · 6 = 6 g")).toBe("unit");
+  });
+  it("mixed numbers are results, roundings to two places are accepted, joules and kilometres are units", () => {
+    expect(looksLikeFinalLine("x = 3 3/5", true)).toBe(true);
+    expect(checkAnswerLine(expectedAnswerFor("7/8")!, "0,88")).toBe("correct");
+    expect(checkAnswerLine(expectedAnswerFor("7/8")!, "0,8")).toBe("wrong");
+    for (const [unit, written] of [["J", "joulů"], ["J", "jouly"], ["km", "kilometrů"], ["kPa", "kilopascalů"], ["g/cm³", "g.cm^-3"]] as const) {
+      expect(checkAnswerLine({ value: 88, unit, tolerance: 1e-9 }, `x = 88 ${written}`), `${unit} vs ${written}`).toBe("correct");
+    }
+    expect(checkAnswerLine({ value: 31200, unit: "Kč", tolerance: 1e-9 }, "3.12e4 Kč")).toBe("correct");
   });
 });

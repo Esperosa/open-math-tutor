@@ -13,6 +13,7 @@ export type CoachEvent =
   | { kind: "idle" }
   | { kind: "ok_step"; key: string; n: number }
   | { kind: "wrong_step"; key: string; n: number; reason: WrongReason }
+  | { kind: "check_in"; key: string; n: number }
   | { kind: "solved"; key: string; n: number }
   | { kind: "wrong_final"; key: string; n: number; reason?: "unit" }
   | { kind: "unclear"; key: string; n: number };
@@ -47,6 +48,7 @@ export function nextCoachEvent(input: CoachInput): CoachEvent {
       const answer = checkAnswerLine(input.expected, newest.latexGuess);
       if (answer === "correct") return { kind: "solved", key, n: newest.n };
       if (answer === "wrong") return { kind: "wrong_final", key, n: newest.n };
+      if (answer === "maybe") return { kind: "check_in", key, n: newest.n };
       if (answer === "unit") return { kind: "wrong_final", key, n: newest.n, reason: "unit" };
     }
     return { kind: "unclear", key, n: newest.n };
@@ -60,6 +62,7 @@ export function nextCoachEvent(input: CoachInput): CoachEvent {
     const answer = checkAnswerLine(input.expected, newest.latexGuess);
     if (answer === "correct" && (final || verdict.status === "ok")) return { kind: "solved", key, n: newest.n };
     if (answer === "wrong" && final) return { kind: "wrong_final", key, n: newest.n };
+    if (answer === "maybe" && final) return { kind: "check_in", key, n: newest.n };
     if (answer === "unit" && final) return { kind: "wrong_final", key, n: newest.n, reason: "unit" };
   }
   if (verdict.status === "ok") return { kind: "ok_step", key, n: newest.n };
@@ -79,6 +82,10 @@ const LINES: Record<string, Record<Locale, string[]>> = {
   wrong_value: {
     cs: ["Tahle hodnota nesouhlasí se zadáním.", "Počítáš to správně, ale něco jiného, než se ptá zadání."],
     en: ["This value does not match the task.", "The calculation is fine, but it answers something other than the task."],
+  },
+  check_in: {
+    cs: ["To ještě není výsledek, který čekám. Je to mezivýsledek? Pokračuj, nebo se zeptej."],
+    en: ["That is not the result I am expecting yet. Is it an intermediate result? Keep going, or ask."],
   },
   wrong_unit: {
     cs: ["Číslo sedí, ale jednotka ne. Podívej se na ni ještě jednou."],

@@ -319,3 +319,12 @@ body { overflow: hidden; }
   .hud.drawer-open .tutor-button { display: none; }
   .tutor-bubble { max-height: 30vh; }
 }
+
+/* round 5 geometry */
+.calculator { right: 340px; max-height: calc(100vh - 100px); overflow: auto; }
+.hud.settings-open .hud-chip { display: none; }
+@media (max-width: 700px) {
+  .hud-top-right { top: auto; bottom: 76px; left: 12px; right: auto; align-items: flex-start; }
+  .settings-pop { top: auto; bottom: 130px; left: 12px; right: auto; width: min(300px, calc(100vw - 24px)); max-height: calc(100vh - 200px); }
+  .calculator { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; max-height: 78vh; z-index: 30; }
+}

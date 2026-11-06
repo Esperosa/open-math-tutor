@@ -1,4 +1,4 @@
-import type { CoachMode, Locale, ProviderId } from '@openmathtutor/shared';
+import { numbersIn, type CoachMode, type Locale, type ProviderId } from '@openmathtutor/shared';
 import { newBoard, renderableActions, type BoardState } from './boardState';
 export interface Settings {
   locale: Locale; theme: 'light' | 'dark'; auto: boolean; voiceEnabled: boolean; voiceURI: string;
@@ -30,7 +30,9 @@ function sanitizeBoard(board: BoardState): BoardState {
     history: board.history.filter(h => isObj(h) && typeof h.id === 'string' && typeof h.text === 'string' && typeof h.ttsText === 'string'),
     elements: board.elements.filter(e => isObj(e)),
     ...(board.handled && !Array.isArray(board.handled) ? { handled: [] } : {}),
-    ...(board.expected && !(Number.isFinite(board.expected.value) && Number.isFinite(board.expected.tolerance)) ? { expected: undefined } : {}) };
+    ...(board.expected && !(Number.isFinite(board.expected.value) && Number.isFinite(board.expected.tolerance)) ? { expected: undefined } : {}),
+    // Boards saved before 'givens' existed: rebuild them from the statement so word-problem data lines are still recognised.
+    ...(board.expected?.wordProblem && !Array.isArray(board.expected.givens) ? { expected: { ...board.expected, givens: numbersIn(board.statement) } } : {}) };
 }
 export function load(): Saved {
   try {
