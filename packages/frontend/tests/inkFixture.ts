@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 type Point = [number, number];
 interface Template { label: string; source: string; strokes: Point[][] }
-interface FixtureStroke { id: string; type: 'freedraw'; x: number; y: number; points: Point[]; strokeWidth: number }
+export interface FixtureStroke { id: string; type: 'freedraw'; x: number; y: number; points: Point[]; strokeWidth: number }
 
 const templates = JSON.parse(readFileSync(new URL('../../../tools/handwriting/templates.json', import.meta.url), 'utf8')) as Template[];
 const heldout = JSON.parse(readFileSync(new URL('../../../tools/handwriting/heldout.json', import.meta.url), 'utf8')) as Template[];
@@ -64,4 +64,28 @@ export function rowElements(text: string, seed: number, height = 40, offset: Poi
     index++;
   }
   return out;
+}
+
+/** Exact geometry variants: a point, a short diagonal and a comma hook. */
+export function decimalElements(shape: 'dot' | 'slash' | 'hook', offset: Point = [420, 260]): FixtureStroke[] {
+  const points: Point[] = shape === 'dot' ? [[0, 0], [.1, .1]] : shape === 'slash' ? [[0, 0], [-3, 8]] : [[0, 0], [2, 3], [-2, 7]];
+  return rowElements('2,5+1,5=4', 7, 60, offset).map(e => {
+    const ys = e.points.map(p => p[1]);
+    return Math.max(...ys) - Math.min(...ys) < 10 && Math.min(...ys) > 50
+      ? { ...e, points: points.map(p => [p[0], p[1] + 56] as Point) } : e;
+  });
+}
+export function standingFractionElements(offset: Point = [420, 260]): FixtureStroke[] {
+  const fraction = (n: string, d: string, x: number, seed: number): FixtureStroke[] => [
+    ...rowElements(n, seed, 35, [x + 10 + offset[0], offset[1]]),
+    { id: `bar-${x}`, type: 'freedraw', x: x + offset[0], y: 45 + offset[1], points: [[0, 0], [50, 0]], strokeWidth: 2 },
+    ...rowElements(d, seed + 1, 35, [x + 10 + offset[0], 58 + offset[1]]),
+  ];
+  return [...fraction('1', '2', 0, 13), ...rowElements('+', 11, 40, [65 + offset[0], 25 + offset[1]]),
+    ...fraction('1', '3', 115, 17), ...rowElements('=', 19, 40, [185 + offset[0], 25 + offset[1]]), ...fraction('5', '6', 235, 23)];
+}
+export function noisyElements(): FixtureStroke[] {
+  const rng = random(123);
+  return rowElements('4=4', 13, 70, [420, 260]).map(e => ({ ...e,
+    points: e.points.map(p => [p[0] + (rng() - .5) * 15, p[1] + (rng() - .5) * 15]) }));
 }

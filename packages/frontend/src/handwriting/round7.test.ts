@@ -63,3 +63,8 @@ it('flags a late short cross-out as ambiguous instead of judging its silhouette'
   const lines = recognizeBoardLines([...ink, cross]);
   expect(lines[0].uncertain || lines[0].ignoredStrokeIds.includes('short-cross')).toBe(true);
 });
+
+it('keeps full rows separate with only 18 pixels below the previous baseline', () => {
+  const lines = recognizeBoardLines([...rowElements('12:4=3', 13, 40, [420, 260]), ...rowElements('12:4=3', 17, 40, [420, 318])]);
+  expect(lines.map(l => l.text)).toEqual(['12/4=3', '12/4=3']);
+});
