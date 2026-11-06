@@ -6,7 +6,7 @@ import { classifyFailure } from './providers/errors.js';
 import { record, text, validRequest, validateResponse } from './validation.js';
 import { VerifierClient, validVerifyRequest } from './verifierClient.js';
 
-export const ALLOWED_ORIGINS = ['http://localhost:5173', 'app://openmathtutor'] as const;
+export const ALLOWED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173', 'app://openmathtutor'] as const;
 export interface BridgeOptions {
   providers?: Record<ProviderId, TutorProvider>;
   verifier?: VerifierClient;
