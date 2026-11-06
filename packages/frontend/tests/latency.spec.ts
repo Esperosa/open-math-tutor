@@ -16,7 +16,7 @@ const SAMPLES = resolve(dirname(fileURLToPath(import.meta.url)), '../test-result
 let samples: Record<string, number[]> = {};
 const note = (name: string, ms: number) => { (samples[name] ??= []).push(Math.round(ms)); };
 test.beforeEach(() => { samples = {}; });
-test.afterEach(({}, info) => {
+test.afterEach((_fixtures, info) => {
   mkdirSync(SAMPLES, { recursive: true });
   writeFileSync(resolve(SAMPLES, `${info.title.replace(/[^a-z0-9]+/gi, '-').slice(0, 60)}.json`), JSON.stringify(samples));
 });
@@ -104,7 +104,7 @@ test('a finished typed line gets its mark and the tutor comment almost at once',
   }
 });
 
-test('lifting the pen is answered at once and a half-written line is not judged', async ({ page }) => {
+test('lifting the pen is answered at once by the mascot', async ({ page }) => {
   await page.route('http://127.0.0.1:4178/**', route => route.abort('connectionrefused'));
   await start(page);
   await instrument(page);

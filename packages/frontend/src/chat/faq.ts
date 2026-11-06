@@ -7,7 +7,7 @@ export interface FaqAnswer { id: FaqId; text: string }
 interface Entry { id: FaqId; keys: RegExp[]; cs: string; en: string }
 
 const ENTRIES: Entry[] = [
-  { id: 'marks', keys: [/\bznacka|\bznacky|znamen\w* (zelen|cerven|fajf|krizek|✓|✗)|fajfk|krizek|zelen\w* (znack|fajf)|cerven\w* (znack|krizek)|[✓✗]|checkmark|\btick\b|\bcross\b/],
+  { id: 'marks', keys: [/\bznacka|\bznacky|znamen\w* (zelen|cerven|fajf|krizek|✓|✗)|fajfk|krizek|zelen\w* (znack|fajf)|cerven\w* (znack|krizek)|[✓✗]|check ?marks?|\btick\b|\bcross\b/],
     cs: 'U každého řádku vidíš ✓ (řádek sedí s předchozím) nebo ✗ (něco nesedí). Značka je jen moje rychlá kontrola počítání. Když si nejsem jistý, nedám žádnou. Na ✗ můžeš klepnout v bublině na „Nápověda“.',
     en: 'Each line gets a ✓ (it matches the line before) or a ✗ (something does not add up). It is only my quick calculation check. When I am not sure, I show no mark. Tap "Hint" in the bubble after a ✗.' },
   { id: 'modes', keys: [/prubezn|az na konec|hlidan|trener|vypnout|zapnout (kontrol|hlid)|rezim|prepnout|\blive\b|at the end|checking mode|switch (mode|checking)|turn off/],
