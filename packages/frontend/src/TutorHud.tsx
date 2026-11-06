@@ -79,8 +79,8 @@ export function TutorHud(p: Props) {
         <button onClick={() => p.onChoice('dismiss')}>{t.offerDismiss}</button>
       </div>}
       {message.kind === 'wrong' && <div className="row">
-        <button className="primary" disabled={!p.canRequest || p.running} onClick={() => p.onChoice('explain')}>{t.offerExplain}</button>
-        <button disabled={!p.canRequest || p.running} onClick={() => p.onChoice('hint')}>{t.offerHint}</button>
+        <button className="primary" disabled={p.running} onClick={() => p.onChoice('explain')}>{t.offerExplain}</button>
+        <button disabled={p.running} onClick={() => p.onChoice('hint')}>{t.offerHint}</button>
         <button onClick={() => p.onChoice('dismiss')}>{t.offerDismiss}</button>
       </div>}
       {message.kind === 'solved' && <div className="row">
@@ -88,7 +88,7 @@ export function TutorHud(p: Props) {
         <button onClick={() => p.onChoice('dismiss')}>{t.offerDismiss}</button>
       </div>}
       {message.kind === 'unclear' && <div className="row">
-        <button className="primary" disabled={!p.canRequest || p.running} onClick={() => p.onChoice('ask_ai')}>{t.askTeacher}</button>
+        <button className="primary" disabled={p.running} onClick={() => p.onChoice('ask_ai')}>{t.askTeacher}</button>
         <button onClick={() => p.onChoice('dismiss')}>{t.offerDismiss}</button>
       </div>}
       </fieldset>

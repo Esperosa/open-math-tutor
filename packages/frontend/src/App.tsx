@@ -480,10 +480,14 @@ export function App() {
     }
     if (choice === 'dismiss') { setMessage(null); return; }
     if (choice === 'next') { nextProblem(); return; }
-    if (choice === 'ask_ai') { setMessage(null); void request('check', { learnerContext: learnerContext() }); return; }
+    if (choice === 'ask_ai') { if (!canRequest) { setMessage({ id: `noai-${Date.now()}`, kind: 'info', text: t.aiNotConnected }); return; } setMessage({ id: `thinking-${Date.now()}`, kind: 'thinking', text: t.thinking }); void request('check', { learnerContext: learnerContext() }); return; }
+    {
+      if (!canRequest) { setMessage({ id: `noai-${Date.now()}`, kind: 'info', text: t.aiNotConnected, ...(message?.stepId ? { stepId: message.stepId } : {}) }); return; }
+    }
     const style: ExplainStyle = choice === 'hint' ? 'hint' : chooseStyle(profileRef.current, Math.random, profileRef.current.pending?.style);
     updateProfile(p => recordStyleShown(p, style, key));
-    setMessage(null);
+    // Keep the tutor talking while the AI works instead of making the bubble vanish.
+    setMessage({ id: `thinking-${Date.now()}`, kind: 'thinking', text: t.thinking });
     void request(STYLE_MODE[style], { learnerContext: learnerContext(style) });
   }
   useEffect(() => {
