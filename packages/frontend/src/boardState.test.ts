@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as shared from '@openmathtutor/shared';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
-import { applyResponse, commitStudent, correctInk, editTask, fingerprint, inkSymbolKey, newBoard, removeAnnotation, renderableActions, stableMathCandidate } from './boardState';
+import { applyResponse, commitStudent, correctInk, correctionLabels, editTask, fingerprint, inkSymbolKey, newBoard, removeAnnotation, renderableActions, stableMathCandidate } from './boardState';
 import { recognizeBoardLines, type RecognizedLine } from './handwriting';
 import { rowElements } from './handwriting/__fixtures__/generate';
 
@@ -15,6 +15,10 @@ function response(state = fixture(), actions: shared.BoardAction[] = []): shared
     needsClarification: null, boardActions: actions };
 }
 describe('board commits and stable steps', () => {
+  it('offers equals for a noisy pair of wide pen strokes even when the classifier omitted it', () => {
+    expect(correctionLabels({ bbox: { x: 0, y: 0, width: 44, height: 25 }, strokeIds: ['a', 'b'], strokeOrder: [0, 1], uncertain: true,
+      candidates: [{ label: '2', probability: .6 }, { label: '8', probability: .3 }, { label: 'x', probability: .1 }] })).toContain('=');
+  });
   it('does not resolve an ambiguous cross-out by confirming a different glyph', () => {
     const ink = rowElements('4+1=5', 13);
     const box = recognizeBoardLines(ink)[0].symbols[0].bbox;

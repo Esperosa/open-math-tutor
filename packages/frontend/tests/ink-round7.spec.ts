@@ -66,9 +66,10 @@ test('D5 noisy pen input stays uncertain; correction chips are labelled and touc
     expect(rect!.width).toBeGreaterThanOrEqual(44); expect(rect!.height).toBeGreaterThanOrEqual(44);
   }
   await page.screenshot({ path: 'test-results/round7-uncertain.png' });
-  const before = await readings(page).locator('strong').allTextContents();
-  await chips.first().click();
-  await expect(readings(page).locator('strong')).toHaveText(before);
+  await chips.filter({ hasText: /^=$/ }).click();
+  await expect(readings(page).locator('strong')).toHaveText('4=4');
+  await expect(page.getByTestId('step-mark-ok')).toBeVisible();
+  await expect(page.getByTestId('step-mark-wrong')).toHaveCount(0);
 });
 
 test('D2/D5 even a provider response cannot write an arithmetic correction from uncertain pen input', async ({ page }) => {

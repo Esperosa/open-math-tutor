@@ -108,6 +108,9 @@ export function correctedInkLine(line: RecognizedLine, edits: Record<string, str
 export function correctionLabels(symbol: RecognizedSymbol): string[] {
   const labels = [symbol.label ?? symbol.candidates[0]?.label, ...symbol.candidates.map(c => c.label)].filter((s): s is string => !!s);
   for (const pair of [['1', '7'], ['4', '9'], ['x', '×'], [',', '.']]) if (pair.some(label => labels.includes(label))) labels.push(...pair);
+  // Two noisy horizontal strokes can be classified as a digit. Still let
+  // the writer choose equals; offering it does not silently change the ink.
+  if (symbol.strokeIds.length === 2 && symbol.bbox.width > Math.max(8, symbol.bbox.height * 1.2)) labels.push('=');
   return [...new Set(labels)];
 }
 function uncertainInk(line: Pick<RecognizedLine, 'symbols' | 'parserCompatible' | 'confidence' | 'uncertain'>): boolean {
