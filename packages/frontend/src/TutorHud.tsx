@@ -1,12 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CoachMode } from '@openmathtutor/shared';
 import type { MessageKey } from './i18n';
 import { Tutor, type TutorMood } from './Tutor';
+import { useReducedMotion } from './useReducedMotion';
+import { useTutorVisit } from './useTutorVisit';
+import type { TutorRect } from './tutorPosition';
 
 export interface TutorMessage {
   id: string;
   kind: 'wrong' | 'solved' | 'unclear' | 'info' | 'thinking' | 'error';
   text: string;
+  /** Exact written line (including a multiline suffix), scoped to the current board. */
+  stepId?: string;
 }
 export type TutorAction = 'check' | 'hint' | 'next_step' | 'explain_differently' | 'next_problem' | 'free' | 'self_done' | 'self_fail' | 'stop';
 export type TutorChoice = 'explain' | 'hint' | 'dismiss' | 'next' | 'ask_ai';
@@ -16,6 +21,7 @@ interface Props {
   mood: TutorMood;
   speaking: boolean;
   message: TutorMessage | null;
+  locateStep?(id: string): TutorRect | null;
   menuOpen: boolean;
   /** A settings panel or drawer is open: only the mascot stays, bubble and menu wait. */
   quiet?: boolean;
@@ -42,9 +48,31 @@ const MODES: { mode: CoachMode; label: MessageKey }[] = [
 
 export function TutorHud(p: Props) {
   const { t, message } = p;
-  return <div className="tutor-hud">
-    {message && !p.quiet && <div className={`tutor-bubble tutor-bubble-${message.kind}`} role="group" aria-live="polite" data-testid="tutor-bubble" data-kind={message.kind}>
-      <BubbleText id={message.id} text={message.text} more={t.moreText} less={t.lessText} />
+  const reduced = useReducedMotion();
+  const visit = useTutorVisit(message?.id, message?.text ?? '', message?.stepId, !!p.quiet || p.menuOpen, reduced, p.locateStep);
+  const key = `${message?.id}:${message?.text}`;
+  const [reveal, setReveal] = useState({ key, count: 1 });
+  const brief = message ? briefText(message.text) : '';
+  const count = reduced ? brief.length : reveal.key === key ? reveal.count : 1;
+  const visible = !!message && !p.quiet && !p.menuOpen;
+  const writing = visible && count < brief.length;
+  useEffect(() => {
+    if (!visible || reduced) return;
+    setReveal({ key, count: 1 });
+    const start = Date.now() + 650;
+    const timer = setInterval(() => {
+      const count = Math.min(brief.length, Math.max(1, Math.floor((Date.now() - start) / 24)));
+      setReveal({ key, count });
+      if (count === brief.length) clearInterval(timer);
+    }, 24);
+    return () => clearInterval(timer);
+  }, [key, brief.length, visible, reduced]);
+  return <div ref={visit.ref} className={`tutor-hud${visit.away ? ' tutor-visiting' : ''}`} data-testid="tutor-hud" data-visiting={visit.visiting} data-returning={visit.returning}
+    style={{ transform: `translate(${visit.x}px, ${visit.y}px)`, ...(visit.snap ? { transition: 'none' } : {}) }}
+    onTransitionEnd={e => { if (e.target === e.currentTarget && e.propertyName === 'transform') visit.finishReturn(); }}>
+    {message && visible && <div className={`tutor-bubble tutor-bubble-${message.kind}`} role="group" data-testid="tutor-bubble" data-kind={message.kind}>
+      <BubbleText id={message.id} text={message.text} count={count} away={visit.away} more={t.moreText} less={t.lessText} />
+      <fieldset className="tutor-choices" disabled={visit.away} aria-hidden={visit.away || undefined}>
       {message.kind === 'wrong' && <div className="row">
         <button className="primary" disabled={!p.canRequest || p.running} onClick={() => p.onChoice('explain')}>{t.offerExplain}</button>
         <button disabled={!p.canRequest || p.running} onClick={() => p.onChoice('hint')}>{t.offerHint}</button>
@@ -58,6 +86,7 @@ export function TutorHud(p: Props) {
         <button className="primary" disabled={!p.canRequest || p.running} onClick={() => p.onChoice('ask_ai')}>{t.askTeacher}</button>
         <button onClick={() => p.onChoice('dismiss')}>{t.offerDismiss}</button>
       </div>}
+      </fieldset>
     </div>}
     {p.menuOpen && !p.quiet && <div className="tutor-menu" role="menu" aria-label={t.tutorMenu}>
       <div className="tutor-modes" role="radiogroup" aria-label={t.coachModeLabel}>
@@ -76,17 +105,29 @@ export function TutorHud(p: Props) {
       <label className="check-label"><input type="checkbox" checked={p.voiceOn} onChange={e => p.onVoice(e.target.checked)} />{t.tutorSpeaks}</label>
       {p.micAvailable && <button role="menuitem" className={p.listening ? 'primary' : ''} aria-pressed={p.listening} onClick={p.onMic}>{p.listening ? t.micListening : t.micAsk}</button>}
     </div>}
-    <button className="tutor-button" aria-label={t.tutorMenu} aria-expanded={p.menuOpen} onClick={p.onToggleMenu}>
-      <Tutor mood={p.mood} speaking={p.speaking} />
+    <button className="tutor-button" aria-label={t.tutorMenu} aria-expanded={p.menuOpen} disabled={visit.away} onClick={p.onToggleMenu}>
+      <Tutor mood={p.mood} speaking={p.speaking} writing={writing} />
     </button>
   </div>;
 }
 
 const LIMIT = 220;
+function briefText(text: string) {
+  if (text.length <= LIMIT) return text;
+  return `${(text.slice(0, LIMIT).replace(/[^.!?…]*$/, '') || text.slice(0, LIMIT)).trim()}…`;
+}
 /** A tutor speaks briefly: long answers show the first sentences and expand on request. */
-function BubbleText({ id, text, more, less }: { id: string; text: string; more: string; less: string }) {
+function BubbleText({ id, text, count, away, more, less }: { id: string; text: string; count: number; away: boolean; more: string; less: string }) {
   const [open, setOpen] = useState<string | null>(null);
-  if (text.length <= LIMIT || open === id) return <p>{text}{open === id && <button className="link-btn" onClick={() => setOpen(null)}>{less}</button>}</p>;
-  const cut = text.slice(0, LIMIT).replace(/[^.!?…]*$/, '') || text.slice(0, LIMIT);
-  return <p>{cut.trim()}… <button className="link-btn" onClick={() => setOpen(id)}>{more}</button></p>;
+  const brief = briefText(text);
+  const shown = open === id ? text : brief;
+  return <>
+    {/* Announce the complete sentence once, never every typewriter character. */}
+    <span className="sr" role="status" aria-live="polite" aria-atomic="true">{shown}</span>
+    <p className="tutor-handwriting" aria-hidden="true">
+      <span className="tutor-text-space">{shown}</span>
+      <span className="tutor-text-reveal" data-testid="tutor-typewriter" data-complete={open === id || count >= brief.length}>{open === id ? text : shown.slice(0, count)}</span>
+    </p>
+    {text.length > LIMIT && <button className="link-btn" disabled={away} onClick={() => setOpen(open === id ? null : id)}>{open === id ? less : more}</button>}
+  </>;
 }

@@ -61,7 +61,7 @@ export function App() {
   const [pinned, setPinned] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [calcOpen, setCalcOpen] = useState(false);
-  const [message, setMessage] = useState<TutorMessage | null>(null);
+  const [message, setMessage] = useState<TutorMessage | null>(() => ({ id: 'welcome', kind: 'info', text: t.taskEmpty }));
   const [tutorMenu, setTutorMenu] = useState(false);
   const [bridgeChecked, setBridgeChecked] = useState(false);
   const [testNotice, setTestNotice] = useState('');
@@ -105,6 +105,7 @@ export function App() {
   const strengths = useMemo(() => summarizeStrengths(catalog, mastery, settings.locale), [mastery, settings.locale]);
   const [lessonSkillId, setLessonSkillId] = useState<string | null>(null);
   const [sources, setSources] = useState(loadSources);
+  const locateStep = useCallback((id: string) => editor.current?.stepViewportRect(id) ?? null, []);
   const provider = providers.find(p => p.id === settings.provider);
   const model = provider?.models.find(m => m.id === settings.model);
   const canRequest = connected && !!provider?.detect.installed && !!provider.authStatus.authenticated && !!model;
@@ -199,7 +200,8 @@ export function App() {
         updateBoard({ ...applied.state, outcome: wasCorrect ? 'solved' : 'failed' });
       }
       if (!applied.stale) {
-        setMessage({ id: id, kind: response.verifierStatus === 'correct' ? 'solved' : 'info', text: response.pedagogicalResponse });
+        setMessage({ id: id, kind: response.verifierStatus === 'correct' ? 'solved' : 'info', text: response.pedagogicalResponse,
+          stepId: response.firstErrorStepId ?? snapshot.activeStepId ?? undefined });
         voice.speak(response.ttsText);
       }
     } catch (error) {
@@ -230,7 +232,7 @@ export function App() {
     else schedule(live.current.boards.find(b => b.id === live.current.activeId)!);
   }
   function switchExercise(id: string) {
-    stop(false);
+    stop(false); setMessage(null); setTutorMenu(false);
     const value = { ...live.current, activeId: id }; live.current = value; setSaved(value); setStatus('idle');
   }
   function openOnly(which: 'settings' | 'calc' | 'tutor') {
@@ -409,7 +411,7 @@ export function App() {
         const after = { ...masteryRef.current, [marked.skillId]: recordAttempt(getOrCreateMastery(masteryRef.current, marked.skillId, Date.now()), true, Date.now()) };
         if (topic && marked.outcome !== 'solved' && topicMastered(catalog, topic.id, after)) text += ` ${messages[locale].topicDoneHint}`;
       }
-      setMessage({ id: event.key, kind, text }); voice.speak(text);
+      setMessage({ id: event.key, kind, text, stepId: ls[event.n - 1]?.stepId }); voice.speak(text);
     };
     switch (event.kind) {
       case 'ok_step':
@@ -465,11 +467,11 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board.id, board.revision, settings.coachMode, running, connected, canRequest]);
   useEffect(() => {
-    if (message?.kind !== 'info') return;
+    if (message?.kind !== 'info' || (!settings.activeTrackId && !settings.onboardingDismissed) || panel || settingsOpen || calcOpen) return;
     const id = message.id;
     const timer = setTimeout(() => setMessage(m => (m?.id === id ? null : m)), 25000);
     return () => clearTimeout(timer);
-  }, [message]);
+  }, [message, settings.activeTrackId, settings.onboardingDismissed, panel, settingsOpen, calcOpen]);
   useEffect(() => {
     // A missing bridge is already shown by the top-right chip; the tutor only speaks up about failed requests.
     const errorish = !['idle', 'ready', 'waiting', 'thinking', 'thinkingAnswer', 'bridgeUnavailable'].includes(status);
@@ -483,7 +485,7 @@ export function App() {
   }
   function deleteExercise() {
     if (!window.confirm(t.eraseConfirm)) return;
-    stop(false);
+    stop(false); setMessage(null); setTutorMenu(false);
     const boards = live.current.boards.filter(b => b.id !== live.current.activeId);
     if (!boards.length) boards.push(newBoard());
     const value = { ...live.current, boards, activeId: boards[0].id }; live.current = value; setSaved(value);
@@ -604,7 +606,7 @@ export function App() {
           <h2 className="h2-muted">{t.annotations}</h2><p className="muted">{t.annotationReveal}</p><ul className="annotations-list">{board.annotations.map((a, i) => <li key={a.id} data-testid="annotation-item">
             <span>{t.aiBadge} {i + 1}</span><button onClick={() => { stop(false); updateBoard(removeAnnotation(board, a.id)); }}>{t.undoAnnotation} {i + 1}</button></li>)}</ul></section>
       </aside>
-      <TutorHud t={t} quiet={settingsOpen || calcOpen || !!openPanel} mood={mood} speaking={voice.speaking} message={shownMessage} menuOpen={tutorMenu} running={running} canRequest={canRequest}
+      <TutorHud key={board.id} locateStep={locateStep} t={t} quiet={settingsOpen || calcOpen || !!openPanel} mood={mood} speaking={voice.speaking} message={shownMessage} menuOpen={tutorMenu} running={running} canRequest={canRequest}
         lessonActive={!!lessonSkillId || !!board.skillId} selfAssess={!!board.skillId && !board.expected && !board.outcome} mode={settings.coachMode} voiceOn={settings.tutorVoice} micAvailable={mic.available} listening={mic.listening}
         onToggleMenu={() => openOnly('tutor')}
         onMode={mode => { configure({ coachMode: mode }); if (mode === 'off') setMessage(null); }} onVoice={on => { if (!on) voice.cancel(); configure({ tutorVoice: on }); }}

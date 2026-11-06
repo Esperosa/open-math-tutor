@@ -79,7 +79,9 @@ button.stop { margin-left: auto; color: #a32d2d; border-color: #c47777; }
 .sources-list { list-style: none; padding: 0; margin: var(--space-3) 0 0; }
 .sources-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-2); overflow-wrap: anywhere; }
 .sources-list button { font-size: 12px; flex-shrink: 0; }
-.upload-board input[type="file"] { padding: 0; min-height: 0; border: 0; }
+.upload-board { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-4); border: 1.5px dashed var(--accent); border-radius: var(--radius-md, 14px); color: var(--accent); font-weight: 600; cursor: pointer; background: transparent; transition: background var(--duration-fast) var(--ease-standard); }
+.upload-board:hover, .upload-board:focus-within { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.upload-board input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; padding: 0; min-height: 0; border: 0; }
 summary { cursor: pointer; font-weight: 600; min-height: 44px; padding: var(--space-3) 0; }
 details > label { margin: var(--space-3) 0; }
 .warning { color: var(--warning); background: var(--warning-bg); padding: var(--space-3); border-radius: var(--radius-sm); font-size: 12px; }
@@ -337,3 +339,44 @@ body { overflow: hidden; }
   .tutor-bubble { max-height: 24vh; }
   .tutor-menu { max-height: 42vh; overflow: auto; }
 }
+
+/* A live teacher, drawn locally: small gestures, not a distracting looping dance. */
+.tutor-idle .tutor-body { animation: tutor-breathe 4.6s ease-in-out infinite; }
+.tutor-gaze { animation: tutor-glance 17s ease-in-out infinite; }
+.tutor-hand { transform-origin: 11px 42px; animation: tutor-wave 19s ease-in-out infinite; }
+.tutor-writing .tutor-pencil { animation: tutor-write .32s ease-in-out infinite alternate; transform-origin: 54px 44px; }
+.tutor-brows { animation: tutor-frown 1.2s ease-out both; }
+.tutor-dots circle { animation: tutor-dot 1.2s ease-in-out infinite; }
+.tutor-dots circle:nth-child(2) { animation-delay: .18s; }
+.tutor-dots circle:nth-child(3) { animation-delay: .36s; }
+@keyframes tutor-breathe { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-1.7px) rotate(1deg) scaleY(1.025); } }
+@keyframes tutor-glance { 0%, 70%, 84%, 100% { transform: translateX(0); } 74%, 80% { transform: translateX(-1.6px); } }
+@keyframes tutor-wave { 0%, 88%, 100% { transform: rotate(0); } 90%, 94% { transform: rotate(24deg); } 92%, 96% { transform: rotate(-16deg); } }
+@keyframes tutor-frown { from { transform: translateY(-1px); } to { transform: translateY(0); } }
+@keyframes tutor-dot { 0%, 75%, 100% { opacity: .35; } 35% { opacity: 1; } }
+
+/* One overlay moves, never any Excalidraw element. Reserve the full sentence's
+   space so typing cannot change the collision geometry or make the teacher jump. */
+.hud > .tutor-hud { pointer-events: none; }
+.tutor-hud { transition: transform 650ms cubic-bezier(.4, 0, .2, 1); }
+.tutor-bubble { background: var(--paper); backdrop-filter: none; -webkit-backdrop-filter: none; pointer-events: none; }
+.tutor-hud .tutor-bubble { pointer-events: none; }
+.tutor-bubble button { pointer-events: auto; }
+.tutor-handwriting { display: grid; font-family: 'Virgil', 'Segoe Print', 'Comic Sans MS', cursive; font-size: 17px; line-height: 1.55; color: var(--ink); }
+.tutor-handwriting > span { grid-area: 1 / 1; }
+.tutor-text-space { visibility: hidden; }
+.tutor-hud.tutor-visiting, .tutor-hud.tutor-visiting * { pointer-events: none !important; }
+.tutor-visiting .tutor-bubble .row, .tutor-visiting .link-btn { visibility: hidden; }
+.tutor-visiting .tutor-button { background: transparent; border-color: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+@media (max-width: 700px) {
+  .tutor-hud { left: auto; right: 12px; width: calc(100vw - 112px); max-width: 320px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tutor, .tutor *, .tutor-hud { animation: none !important; transition: none !important; }
+}
+/* Actions only become available once the return transition has actually ended. */
+.tutor-choices { border: 0; margin: 0; padding: 0; min-width: 0; }
+.tutor-choices:empty { display: none; }
+.tutor-hud:not(.tutor-visiting) .tutor-bubble { pointer-events: auto; }
+.tutor-visiting .tutor-button:disabled { opacity: 1; }
+.tutor-menu { max-height: calc(100dvh - 164px); overflow: auto; }

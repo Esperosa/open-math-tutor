@@ -18,7 +18,7 @@ it('uses selected local Czech voice, explicit cs-CZ language and chosen rate', (
   const speak = vi.fn();
   vi.stubGlobal('speechSynthesis', { getVoices: () => [voice], addEventListener: vi.fn(), removeEventListener: vi.fn(), cancel: vi.fn(), speak });
   vi.stubGlobal('SpeechSynthesisUtterance', class { constructor(public text: string) {} });
-  const { result } = renderHook(() => useVoice({ ...defaultSettings, voiceURI: 'local-cs', rate: 0.8 }));
+  const { result } = renderHook(() => useVoice({ ...defaultSettings, voiceURI: 'local-cs', rate: 0.8, tutorVoice: true }));
   expect(result.current.warning).toBe(null);
   act(() => result.current.speak('Odečti tři.'));
   expect(speak).toHaveBeenCalledWith(expect.objectContaining({ text: 'Odečti tři.', lang: 'cs-CZ', rate: 0.8, voice }));

@@ -11,7 +11,7 @@ const ICONS: Record<PanelId | 'settings' | 'calc', ReactNode> = {
   exercises: <path d="M7 7h12v12H7zM5 17V5h12" />,
   notes: <path d="M7 3h8l4 4v14H7zM14 3v5h5M10 12h6M10 16h6" />,
   history: <path d="M12 7v5l3 2M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 5v3.5H8" />,
-  settings: <path d="M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM19 12l1.5-1-1.5-3-1.8.4a6 6 0 0 0-1.4-.8L15.5 5h-3l-.3 1.6a6 6 0 0 0-1.4.8L9 7.0 7.5 10 9 12l-1.5 2L9 17l1.8-.4c.4.3.9.6 1.4.8l.3 1.6h3l.3-1.6c.5-.2 1-.5 1.4-.8l1.8.4 1.5-3z" />,
+  settings: <path d="M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4" />,
 };
 
 export function Icon({ name }: { name: PanelId | 'settings' | 'calc' }) {

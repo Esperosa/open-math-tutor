@@ -9,8 +9,10 @@ import { fingerprint, isStudent, renderableActions, type BoardState } from './bo
 import type { Settings } from './storage';
 import { messages } from './i18n';
 import type { StepVerdict } from '@openmathtutor/shared';
+import type { TutorRect } from './tutorPosition';
 
 export interface BoardHandle {
+  stepViewportRect(stepId: string): TutorRect | null;
   addLine(text: string, stepId: string | null): void;
   crop(state: BoardState): Promise<{ dataUrl: string; width: number; height: number }>;
   exportImage(kind: 'png' | 'svg'): Promise<Blob | null>;
@@ -24,6 +26,7 @@ interface Props {
 }
 export const Board = forwardRef<BoardHandle, Props>(function Board({ board, settings, onCommit, onBusy, onAskHere, verdicts }, ref) {
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
+  const surface = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
   const viewRef = useRef(view);
   const pointerDown = useRef(false);
@@ -95,6 +98,30 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
   // The board is the only input: writing text is the default tool, so a click puts the cursor right where the student writes.
   useEffect(() => { if (api) api.setActiveTool({ type: 'text', locked: true }); }, [api]);
   useImperativeHandle(ref, () => ({
+    stepViewportRect(stepId) {
+      if (!api || !surface.current) return null;
+      const step = board.steps.find(s => s.stepId === stepId || stepId.startsWith(`${s.stepId}#`));
+      if (!step) return null;
+      const ids = new Set(step.elementIds);
+      const elements = api.getSceneElements().filter(e => !e.isDeleted && ids.has(e.id));
+      if (!elements.length || elements.some(e => e.angle !== 0)) return null; // don't guess at rotated handwriting
+      const x = Math.min(...elements.map(e => e.x)), y = Math.min(...elements.map(e => e.y));
+      const width = Math.max(...elements.map(e => e.x + e.width)) - x;
+      let height = Math.max(...elements.map(e => e.y + e.height)) - y;
+      let lineY = y;
+      const index = stepId === step.stepId ? null : Number(stepId.slice(step.stepId.length + 1));
+      if (index !== null) {
+        if (elements.length !== 1 || elements[0].type !== 'text') return null;
+        const parts = elements[0].text.split('\n').map((text, line) => ({ text, line })).filter(p => p.text.trim());
+        const part = parts[index];
+        if (!part) return null;
+        height /= elements[0].text.split('\n').length;
+        lineY += part.line * height;
+      }
+      const state = api.getAppState(), rect = surface.current.getBoundingClientRect();
+      return { x: rect.left + (x + state.scrollX) * state.zoom.value, y: rect.top + (lineY + state.scrollY) * state.zoom.value,
+        width: width * state.zoom.value, height: height * state.zoom.value };
+    },
     addLine(text, stepId) {
       if (!api) return;
       const step = board.steps.find(s => s.stepId === stepId);
@@ -143,7 +170,7 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
     if (editing.current !== busy) { editing.current = busy; onBusy(busy); }
     if (!busy && (fingerprint(elements) !== fingerprint(board.elements) || files !== board.files)) onCommit(elements, files);
   }
-  return <div className="board-surface" data-testid="board" aria-label={t.board}
+  return <div ref={surface} className="board-surface" data-testid="board" aria-label={t.board}
     onPointerDownCapture={startHold} onPointerMove={moveHold} onPointerUp={cancelHold} onPointerCancel={cancelHold}
     onKeyDown={e => {
       if (e.key === 'Escape') { setMenu(null); setTimeout(() => { if (api && !api.getAppState().editingTextElement) api.setActiveTool({ type: 'text', locked: true }); }, 0); }
