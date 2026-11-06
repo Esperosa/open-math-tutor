@@ -57,6 +57,9 @@ export const cs = {
   whoSecondary: 'Jsem středoškolák nebo maturant', whoSecondaryHint: 'Maturita z matematiky nebo přijímačky na vysokou školu.',
   whoUniversity: 'Studuju vysokou školu', whoUniversityHint: 'Algebra, analýza, lineární algebra, diskrétní matematika, statistika.',
   onboardingBack: 'Zpět', levelQuestion: 'Jak ti to teď jde?', levelFresh: 'Začínám od začátku', levelRefresh: 'Chci to oprášit', levelAdvanced: 'Umím to, chci náročnější',
+  hintCourses: 'Vyber kurz, téma a dovednost, nebo hledej (Ctrl+K). Appka ti dá úlohu na míru.', hintAsk: 'Zeptej se na cokoli, nebo nahraj fotku úlohy.', hintMaterials: 'Nahraj vlastní poznámky, appka z nich bude čerpat.',
+  hintExercises: 'Přepínej mezi příklady, přidej nový nebo smaž ten aktuální.', hintHistory: 'Všechno, co ti AI vysvětlila, i její poznámky na tabuli.', hintNotes: 'Co ti jde a co ne, export zápisků a studijní text pro tebe.',
+  hintSettings: 'Jazyk, vzhled, model AI, hlas a soukromí.', hintCalc: 'Kalkulačka podle toho, co je u zkoušky povoleno.',
   onboardingSkip: 'Přeskočit, chci jen volnou tabuli', trackComplete: 'vše zvládnuto', changeTrack: 'Změnit kurz',
 } as const;
 export type MessageKey = keyof typeof cs;
@@ -117,6 +120,9 @@ export const en: Record<MessageKey, string> = {
   whoSecondary: 'I am a secondary-school student or taking the maturita', whoSecondaryHint: 'Maturita in mathematics or university entrance exams.',
   whoUniversity: 'I study at university', whoUniversityHint: 'Algebra, calculus, linear algebra, discrete mathematics, statistics.',
   onboardingBack: 'Back', levelQuestion: 'How is it going for you right now?', levelFresh: 'I am starting from scratch', levelRefresh: 'I want to refresh it', levelAdvanced: 'I know it, give me harder ones',
+  hintCourses: 'Pick a course, topic and skill, or search (Ctrl+K). You get a problem made for you.', hintAsk: 'Ask anything, or upload a photo of a problem.', hintMaterials: 'Upload your own notes; the app draws on them.',
+  hintExercises: 'Switch between problems, add a new one or delete the current one.', hintHistory: 'Everything the AI explained, and its notes on the board.', hintNotes: 'What goes well and what does not, notes export and a study text for you.',
+  hintSettings: 'Language, look, AI model, voice and privacy.', hintCalc: 'A calculator matching what the exam allows.',
   onboardingSkip: 'Skip, I just want the free board', trackComplete: 'all done', changeTrack: 'Change track',
 };
 export const messages: Record<Locale, Record<MessageKey, string>> = { cs, en };

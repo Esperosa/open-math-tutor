@@ -21,6 +21,7 @@ import { TrackBreadcrumb } from './curriculum/TrackBreadcrumb';
 import { Rail, Icon, type PanelId } from './Hud';
 import { Calculator } from './Calculator';
 import { NotesPanel } from './NotesPanel';
+import { Tutor, type TutorMood } from './Tutor';
 import { buildNotesHtml, buildNotesMarkdown, downloadBlob, printHtml, studyTextRequest, summarizeStrengths } from './notes';
 import { AskPanel } from './AskPanel';
 import { UploadBoard, type UploadedImage } from './UploadBoard';
@@ -57,6 +58,7 @@ export function App() {
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
   const leaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const verdicts = useMemo(() => checkSteps(board.statement, board.steps), [board.statement, board.steps]);
+  const lastVerdict = board.steps.length ? verdicts[board.steps[board.steps.length - 1]!.stepId]?.status : undefined;
   const offer = useMemo(() => {
     for (let i = board.steps.length - 1; i >= 0; i--) {
       const step = board.steps[i]!;
@@ -308,8 +310,8 @@ export function App() {
       </div>
       <div className="hud-top-right">
         {alertChip && <div className="hud-chip" aria-live="polite">{alertChip}</div>}
-        {calcPolicy !== 'none' && <button className="icon-btn" title={t.calcOpen} aria-label={t.calcOpen} aria-pressed={calcOpen} onClick={() => setCalcOpen(o => !o)}><Icon name="calc" /></button>}
-        <button className="icon-btn" title={t.settings} aria-label={t.settings} aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>
+        {calcPolicy !== 'none' && <button className="icon-btn" title={`${t.calcOpen} — ${t.hintCalc}`} aria-label={t.calcOpen} aria-pressed={calcOpen} onClick={() => setCalcOpen(o => !o)}><Icon name="calc" /></button>}
+        <button className="icon-btn" title={`${t.settings} — ${t.hintSettings}`} aria-label={t.settings} aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>
           <span className={`status-dot ${canRequest ? 'ok' : 'idle'}`} aria-hidden="true" /><Icon name="settings" /></button>
       </div>
       <aside className={`settings-pop${settingsOpen ? ' open' : ''}`} aria-label={t.settings}>
@@ -345,8 +347,8 @@ export function App() {
       </aside>
       {calcOpen && calcPolicy !== 'none' && <Calculator t={t} locale={settings.locale} policy={calcPolicy} examRules={!!activeTrack?.calculator}
         onClose={() => setCalcOpen(false)} onUse={text => setLine(text)} />}
-      <Rail items={[{ id: 'courses', label: t.courses }, { id: 'ask', label: t.askLabel }, { id: 'materials', label: t.customSources },
-        { id: 'exercises', label: t.exercise }, { id: 'history', label: t.history }, { id: 'notes', label: t.notesRail }]}
+      <Rail items={[{ id: 'courses', label: t.courses, hint: t.hintCourses }, { id: 'ask', label: t.askLabel, hint: t.hintAsk }, { id: 'materials', label: t.customSources, hint: t.hintMaterials },
+        { id: 'exercises', label: t.exercise, hint: t.hintExercises }, { id: 'history', label: t.history, hint: t.hintHistory }, { id: 'notes', label: t.notesRail, hint: t.hintNotes }]}
         active={openPanel} onHover={hoverPanel} onToggle={togglePanel} />
       <aside className={`drawer${openPanel ? ' open' : ''}`}
         onMouseEnter={() => clearTimeout(leaveTimer.current)} onMouseLeave={leavePanel}>
@@ -388,6 +390,7 @@ export function App() {
           <button onClick={() => setDismissed(d => new Set(d).add(offer.key))}>{t.offerDismiss}</button>
         </div>
       </div>}
+      <div className="tutor-corner"><Tutor mood={((running ? 'thinking' : offer ? 'concerned' : lastVerdict === 'ok' ? 'happy' : 'idle') satisfies TutorMood)} /></div>
       <div className="hud-dock">
         <form className="keyboard-entry" onSubmit={e => { e.preventDefault(); if (line.trim()) { editor.current?.addLine(line.trim(), selectedStep || null); setLine(''); setSelectedStep(''); } }}>
           <label><span className="sr">{t.keyboardLine}</span><input value={line} onChange={e => setLine(e.target.value)} placeholder={t.linePlaceholder} maxLength={1000} /></label>

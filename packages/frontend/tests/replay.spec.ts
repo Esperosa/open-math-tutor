@@ -232,6 +232,7 @@ test('live check: a wrong line is flagged and explanation is offered without pre
   await page.getByRole('button', { name: 'Přidat řádek', exact: true }).click();
   await expect(page.getByTestId('step-mark-wrong')).toBeVisible();
   await expect(page.getByTestId('tutor-offer')).toContainText('Řádek 2 nesedí');
+  await expect(page.getByTestId('tutor')).toHaveAttribute('data-mood', 'concerned');
   await page.getByRole('button', { name: 'Zkusím sám' }).click();
   await expect(page.getByTestId('tutor-offer')).toHaveCount(0);
 });
@@ -293,4 +294,14 @@ test('notes: progress panel, markdown and image export carry the student work', 
   const png = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Tabule jako PNG' }).click();
   expect((await png).suggestedFilename()).toBe('tabule.png');
+});
+
+test('progressive tooltip: short label right away, longer explanation if the pointer stays', async ({ page }) => {
+  await page.goto('/');
+  await skipOnboarding(page);
+  await page.getByRole('button', { name: 'Zápisky a pokrok' }).hover();
+  const tip = page.getByRole('tooltip');
+  await expect(tip).toContainText('Zápisky a pokrok');
+  await expect(tip).not.toContainText('export zápisků');
+  await expect(tip).toContainText('export zápisků', { timeout: 3000 });
 });

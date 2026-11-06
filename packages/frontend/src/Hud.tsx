@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 
 export type PanelId = 'courses' | 'ask' | 'materials' | 'exercises' | 'history' | 'notes';
 
@@ -19,18 +19,31 @@ export function Icon({ name }: { name: PanelId | 'settings' | 'calc' }) {
 }
 
 interface RailProps {
-  items: { id: PanelId; label: string }[];
+  items: { id: PanelId; label: string; hint: string }[];
   active: PanelId | null;
   onHover(id: PanelId): void;
   onToggle(id: PanelId): void;
 }
 
+/** Progressive tooltip: the short label on hover, the longer explanation if the pointer stays. */
+export function useProgressiveTip() {
+  const [tip, setTip] = useState<{ id: string; long: boolean } | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  return {
+    tip,
+    enter(id: string) { clearTimeout(timer.current); setTip({ id, long: false }); timer.current = setTimeout(() => setTip({ id, long: true }), 1200); },
+    leave() { clearTimeout(timer.current); setTip(null); },
+  };
+}
+
 export function Rail({ items, active, onHover, onToggle }: RailProps) {
+  const tips = useProgressiveTip();
   return <nav className="rail" aria-label="HUD">
     {items.map(item => <button key={item.id} className={`rail-btn${active === item.id ? ' active' : ''}`}
-      title={item.label} aria-label={item.label} aria-pressed={active === item.id}
-      onMouseEnter={() => onHover(item.id)} onClick={() => onToggle(item.id)}>
+      aria-label={item.label} aria-pressed={active === item.id}
+      onMouseEnter={() => { onHover(item.id); tips.enter(item.id); }} onMouseLeave={tips.leave} onClick={() => onToggle(item.id)}>
       <Icon name={item.id} />
+      {tips.tip?.id === item.id && <span className="tip" role="tooltip"><strong>{item.label}</strong>{tips.tip.long && <span>{item.hint}</span>}</span>}
     </button>)}
   </nav>;
 }

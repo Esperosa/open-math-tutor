@@ -1,5 +1,7 @@
 # PLAN — redesign podle zadání uživatele
 
+**Stav:** fáze 1–7 provedeny (viz git log). Odchylky od plánu: "Studijní text" používá existující režim `ask` místo nového režimu bridge; kontrola řádků běží lokálně v prohlížeči (ne přes /verify-step), protože pokrývá nejčastější chyby okamžitě a bez serveru. Verifikátor (SymPy) zatím nerozšířen o mocniny/soustavy/kvadratické rovnice; dovednosti, které neumí, jsou v UI označené "bez automatické kontroly".
+
 Závazný plán. Pořadí se nemění, fáze se neodbývají. Po každé fázi: typecheck, lint,
 unit + e2e testy, živé ověření v prohlížeči, commit, aktualizace REQUIREMENTS.md.
 Zdroje: výzkum UX (Excalidraw 0.18 API, vzory HUD) a výzkum veřejných specifikací

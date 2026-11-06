@@ -217,3 +217,24 @@ body { overflow: hidden; }
 
 .level-picker { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0; }
 .onboarding-track em { font-size: 12px; color: var(--muted); font-style: normal; }
+
+.rail-btn { position: relative; }
+.tip { position: absolute; left: 54px; top: 50%; transform: translateY(-50%); width: max-content; max-width: 240px; padding: var(--space-2) var(--space-3);
+  display: flex; flex-direction: column; gap: 2px; text-align: left; font-size: 12px; font-weight: 400; z-index: 30; pointer-events: none;
+  background: var(--ink); color: var(--paper); border-radius: var(--radius-sm); box-shadow: var(--shadow-1); animation: ctx-in var(--duration-fast) var(--ease-standard); }
+.tip strong { font-size: 13px; }
+.tutor-corner { position: absolute; right: 16px; bottom: 76px; pointer-events: none; }
+.tutor { display: block; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .15)); }
+.tutor-eyes { transform-origin: 32px 31px; animation: tutor-blink 5s infinite; }
+.tutor-body { transform-origin: 32px 52px; }
+.tutor-thinking .tutor-body { animation: tutor-bob 1.1s ease-in-out infinite; }
+.tutor-happy .tutor-body { animation: tutor-hop .7s var(--ease-standard) 1; }
+.tutor-concerned .tutor-body { animation: tutor-tilt 1.6s ease-in-out infinite; }
+.tutor-thinking .tutor-pencil { animation: tutor-write .5s ease-in-out infinite alternate; transform-origin: 54px 44px; }
+@keyframes tutor-blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+@keyframes tutor-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes tutor-hop { 0% { transform: translateY(0); } 40% { transform: translateY(-8px); } 100% { transform: translateY(0); } }
+@keyframes tutor-tilt { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes tutor-write { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
+@media (prefers-reduced-motion: reduce) { .tutor *, .tutor { animation: none !important; } }
+@media (max-width: 900px) { .tutor-corner { display: none; } }
