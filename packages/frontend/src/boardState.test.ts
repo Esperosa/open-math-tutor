@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import * as shared from '@openmathtutor/shared';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { applyResponse, commitStudent, correctInk, editTask, fingerprint, inkSymbolKey, newBoard, removeAnnotation, renderableActions, stableMathCandidate } from './boardState';
-import { recognizeBoardLines } from './handwriting';
+import { recognizeBoardLines, type RecognizedLine } from './handwriting';
 import { rowElements } from './handwriting/__fixtures__/generate';
 
 export function element(id = 'line', text = '2x + 3 = 8', version = 1, y = 120): ExcalidrawElement {
@@ -15,6 +15,29 @@ function response(state = fixture(), actions: shared.BoardAction[] = []): shared
     needsClarification: null, boardActions: actions };
 }
 describe('board commits and stable steps', () => {
+  it('does not resolve an ambiguous cross-out by confirming a different glyph', () => {
+    const ink = rowElements('4+1=5', 13);
+    const box = recognizeBoardLines(ink)[0].symbols[0].bbox;
+    const raw = [...ink, { id: 'short-cross', type: 'freedraw', x: box.x - 3, y: box.y + box.height * .55,
+      points: [[0, 0], [box.width * 1.4, -3]], strokeWidth: 2 }].map((e, i) => ({ ...e, version: 1, versionNonce: i } as unknown as ExcalidrawElement));
+    const state = commitStudent(newBoard(), raw);
+    expect(state.steps[0].uncertain).toBe(true);
+    const last = state.steps[0].symbols!.at(-1)!;
+    expect(correctInk(state, inkSymbolKey(last.strokeIds, raw), last.candidates[0].label).steps[0].uncertain).toBe(true);
+  });
+  it('replays symbol edits with task unit aliases and preserves inferred uncertainty', () => {
+    const labels = '77/7=11*n4/2'.split('');
+    const raw = labels.map((_, i) => ({ ...element(`raw-${i}`, ''), type: 'freedraw', version: 1, versionNonce: i } as ExcalidrawElement));
+    const symbols = labels.map((label, i) => ({ bbox: { x: i * 25, y: 0, width: 20, height: 40 }, strokeIds: [raw[i].id], strokeOrder: [i], uncertain: false,
+      candidates: [{ label, probability: .99 }, { label: '1', probability: .001 }] }));
+    const reading: RecognizedLine = { id: 'ink', strokeIds: raw.map(e => e.id), text: '77/7=11*n4/2', symbols, confidence: .99,
+      bbox: { x: 0, y: 0, width: 300, height: 40 }, alternatives: [], parserCompatible: true, ignoredStrokeIds: [] };
+    const state = commitStudent({ ...newBoard(), expected: { value: 11, unit: 'm/s', tolerance: 1e-9 } }, raw, {}, () => [reading]);
+    const corrected = correctInk(state, inkSymbolKey([raw[9].id], raw), '1');
+    expect(corrected.steps[0]).toMatchObject({ latexGuess: '77/7=11 m/s', uncertain: true });
+    const replay = commitStudent(corrected, [...raw, element('other', '1')], {}, () => [reading]);
+    expect(replay.steps.find(s => s.origin === 'ink')).toMatchObject({ latexGuess: '77/7=11 m/s', uncertain: true });
+  });
   it('keeps a parseable line uncertain when one symbol has weak evidence', () => {
     const raw = rowElements('4=4', 7).map((e, i) => ({ ...e, version: 1, versionNonce: i } as unknown as ExcalidrawElement));
     const state = commitStudent(newBoard(), raw, {}, els => sharedReading(els));
@@ -127,6 +150,14 @@ function sharedReading(els: readonly ExcalidrawElement[]) {
   return [{ ...line, confidence: .99, symbols: line.symbols.map((s, i) => ({ ...s, uncertain: i === 0 })) }];
 }
 describe('shared validation is the annotation trust boundary', () => {
+  it('keeps an unrelated explanation from explicit chat while never accepting grades or board corrections', () => {
+    const state = fixture(); state.steps[0].uncertain = true;
+    const explanation = { ...response(state), firstErrorStepId: null, verifierStatus: 'ambiguous' as const,
+      pedagogicalResponse: 'Zlomek vyjadřuje část celku.', ttsText: 'Zlomek vyjadřuje část celku.' };
+    const applied = applyResponse(state, explanation, 'req', 'cs', 'ask');
+    expect(applied.state.history.at(-1)?.text).toBe(explanation.pedagogicalResponse);
+    expect(applied.state.annotations).toEqual([]);
+  });
   it('drops even unanchored provider arithmetic and grades when any source ink is uncertain', () => {
     const state = fixture(); state.steps[0].uncertain = true;
     const applied = applyResponse(state, response(state, [{ id: 'invented', type: 'write_math', latex: '215+115=330', boardRevision: 1, anchor: { x: 100, y: 200 } }]), 'req');

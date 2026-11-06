@@ -261,7 +261,7 @@ export function App() {
         if (request.keep) chat.add(request.boardId, 'tutor', response.pedagogicalResponse, id);
         setStatus('waiting'); return;
       }
-      const applied = applyResponse(current, response, id, settings.locale);
+      const applied = applyResponse(current, response, id, settings.locale, mode === 'ask' ? 'ask' : 'check');
       if (applied.state !== current) updateBoard(applied.state);
       setStatus(applied.stale ? 'waiting' : 'ready'); setRejected(applied.rejected);
       if (!applied.stale && mode === 'check' && current.skillId && !current.outcome && (applied.response.verifierStatus === 'correct' || applied.response.verifierStatus === 'incorrect')) {

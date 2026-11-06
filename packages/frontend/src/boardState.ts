@@ -13,6 +13,7 @@ export interface Step extends RecognizedStep {
   confidence?: number;
   uncertain?: boolean;
   parserCompatible?: boolean;
+  crossOutUncertain?: boolean;
   symbols?: RecognizedSymbol[];
 }
 export interface Explanation {
@@ -93,14 +94,14 @@ function parserCompatible(text: string): boolean {
 }
 
 /** Apply one-tap symbol edits, then let the same spatial parser recompose the line. */
-export function correctedInkLine(line: RecognizedLine, edits: Record<string, string>, elements: readonly ExcalidrawElement[]) {
+export function correctedInkLine(line: RecognizedLine, edits: Record<string, string>, elements: readonly ExcalidrawElement[], unitAliases: readonly string[] = []) {
   if (!line.symbols.some(symbol => edits[inkSymbolKey(symbol.strokeIds, elements)])) return line;
   const symbols = line.symbols.map(symbol => {
     const label = edits[inkSymbolKey(symbol.strokeIds, elements)];
     return label && correctionLabels(symbol).includes(label) ? { ...symbol, label, uncertain: false, confirmed: true } : symbol;
   });
-  const parsed = parseLine(symbols, undefined, unitAliasesFor(unitFromLine(line.text)));
-  return { ...line, symbols, text: parsed.text, confidence: parsed.confidence, parserCompatible: parserCompatible(parsed.text) };
+  const parsed = parseLine(symbols, undefined, unitAliases);
+  return { ...line, symbols, uncertain: !!parsed.uncertain || !!line.crossOutUncertain, text: parsed.text, confidence: parsed.confidence, parserCompatible: parserCompatible(parsed.text) };
 }
 
 /** Model top three plus explicit, common handwriting confusions. No probabilities are invented. */
@@ -129,7 +130,7 @@ export function commitStudent(state: BoardState, incoming: readonly ExcalidrawEl
   const edits = state.inkEdits ?? {};
   const used = new Set<string>();
   const inkSteps: Step[] = recognized.flatMap(line => {
-    const corrected = correctedInkLine(line, edits, elements);
+    const corrected = correctedInkLine(line, edits, elements, unitAliasesFor(state.expected?.unit, state.statement));
     if (!corrected.text.trim()) return [];
     const old = state.steps.find(s => s.origin === 'ink' && !used.has(s.stepId)
       && s.elementIds.some(id => line.strokeIds.includes(id)));
@@ -138,7 +139,7 @@ export function commitStudent(state: BoardState, incoming: readonly ExcalidrawEl
     return [{
       stepId, boardRevision: revision, latexGuess: corrected.text, box: { ...line.bbox }, elementIds: [...line.strokeIds],
       origin: 'ink' as const, confidence: corrected.confidence, uncertain: uncertainInk(corrected),
-      parserCompatible: corrected.parserCompatible, symbols: corrected.symbols,
+      crossOutUncertain: corrected.crossOutUncertain, parserCompatible: corrected.parserCompatible, symbols: corrected.symbols,
     }];
   });
   const covered = new Set(recognized.flatMap(line => line.strokeIds));
@@ -165,7 +166,7 @@ export function correctInk(state: BoardState, key: string, label: string): Board
   // A chip must not turn a readable row into unsupported syntax.
   if (target.parserCompatible && !compatible) return state;
   const corrected = { ...target, symbols, boardRevision: revision, latexGuess: parsed.text, confidence: parsed.confidence,
-    uncertain: uncertainInk({ symbols, parserCompatible: compatible, confidence: parsed.confidence, uncertain: parsed.uncertain }), parserCompatible: compatible };
+    uncertain: uncertainInk({ symbols, parserCompatible: compatible, confidence: parsed.confidence, uncertain: parsed.uncertain || target.crossOutUncertain }), parserCompatible: compatible };
   const steps = state.steps.map(step => step === target ? corrected : { ...step, boardRevision: revision });
   return { ...state, revision, steps, inkEdits: edits, annotations: [] };
 }
@@ -192,12 +193,13 @@ export function removeAnnotation(state: BoardState, id: string): BoardState {
   return { ...state, revision, annotations: rebase(state.annotations.filter(a => a.id !== id), revision),
     steps: state.steps.map(s => ({ ...s, boardRevision: revision })) };
 }
-export function applyResponse(state: BoardState, response: AnalyzeBoardResponse, requestId: string, locale: 'cs' | 'en' = 'cs') {
+export function applyResponse(state: BoardState, response: AnalyzeBoardResponse, requestId: string, locale: 'cs' | 'en' = 'cs', intent: 'check' | 'ask' = 'check') {
   if (response.boardRevision !== state.revision || response.requestId !== requestId) return { state, stale: true, rejected: false, response };
   if (state.steps.some(step => step.uncertain)) {
     const text = locale === 'cs' ? 'Zkontroluj, jestli jsem to přečetl správně. Nejasný znak oprav klepnutím; při přeškrtnutí použij gumu.' : 'Check whether I read that correctly. Correct the unclear symbol; use the eraser for crossed-out ink.';
-    response = { ...response, boardActions: [], firstErrorStepId: null, verifierStatus: 'ambiguous', confidence: 0,
-      pedagogicalResponse: text, ttsText: text, needsClarification: { reason: text } };
+    const explanationOnly = intent === 'ask' && response.boardActions.length === 0 && response.firstErrorStepId === null && response.verifierStatus === 'ambiguous';
+    response = { ...response, recognizedSteps: state.steps, boardActions: [], firstErrorStepId: null, verifierStatus: 'ambiguous', confidence: 0,
+      ...(!explanationOnly ? { pedagogicalResponse: text, ttsText: text, needsClarification: { reason: text } } : {}) };
   }
   const result = validateBoardActions(response.boardActions, state.revision, boardBounds(state));
   // The local recognizer (and explicit student corrections) own ink text; the

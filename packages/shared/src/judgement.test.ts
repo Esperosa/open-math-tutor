@@ -22,3 +22,13 @@ it('treats uncertain lines as questions, including final mode and explicit confi
   const steps = [line('a', '215+115=4', true)];
   expect(nextCoachEvent({ mode: 'live', statement: '2,5+1,5', steps, expected: { value: 4, tolerance: 1e-9 }, handled: new Set() }).kind).toBe('unclear');
 });
+it('accepts a bare root but does not mistake another variable for the task root', () => {
+  const expected = { value: 4, tolerance: 1e-9 };
+  expect(judgeLines('2*x+3=11', [line('a', '4')], expected).a?.status).toBe('ok');
+  expect(judgeLines('2*x+3=11', [line('a', 'y=4')], expected).a?.status).not.toBe('ok');
+});
+it('accepts explicit time conversions from task units, not arbitrary operands', () => {
+  const expected = { value: 120, unit: 'km/h', tolerance: 1e-9, wordProblem: true, givens: [20, 10] };
+  expect(judgeLines('Vlak ujede 20 km za 10 min.', [line('a', '20/(10/60)=120 km/h')], expected).a?.status).toBe('ok');
+  expect(judgeLines('Vlak ujede 20 km za 10 min.', [line('a', '240/2=120 km/h')], expected).a?.status).not.toBe('ok');
+});

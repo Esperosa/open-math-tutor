@@ -51,6 +51,7 @@ export interface RecognizedLine {
   symbols: RecognizedSymbol[];
   parserCompatible: boolean;
   ignoredStrokeIds: string[];
+  crossOutUncertain?: boolean;
   /** Ambiguous layout or context-only unit spelling must be confirmed. */
   uncertain?: boolean;
 }
