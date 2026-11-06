@@ -114,7 +114,7 @@ export function App() {
     const controller = new AbortController();
     const id = crypto.randomUUID();
     const request: Pending = { id, controller, provider: settings.provider as ProviderId, boardId: snapshot.id, revision: snapshot.revision };
-    pending.current = request; setRunning(true); setStatus('thinking'); setRejected(false);
+    pending.current = request; setRunning(true); setStatus(mode === 'ask' ? 'thinkingAnswer' : 'thinking'); setRejected(false);
     const timer = setTimeout(() => { controller.abort(); void bridge.cancel(request.provider, id, AbortSignal.timeout(5000)).catch(() => {}); }, 120000);
     const base = { requestId: id, boardRevision: snapshot.revision,
       task: { statementText: snapshot.statement, topic: snapshot.topic },
@@ -217,7 +217,13 @@ export function App() {
     <section className="connection" aria-live="polite">
       {!connected ? <><span>{t.bridgeUnavailable}</span><button onClick={() => setRetry(r => r + 1)}>{t.retry}</button></> : <>
         <label className="field-glass"><span className={`status-dot ${provider?.authStatus.authenticated ? 'ok' : 'idle'}`} aria-hidden="true" />{t.provider}
-          <select value={settings.provider} onChange={e => configure({ provider: e.target.value as ProviderId | '', model: '' })}>
+          <select value={settings.provider} onChange={e => {
+            const id = e.target.value as ProviderId | '';
+            // Picking a provider should also pick a usable model, not leave
+            // every action button silently disabled until the person notices.
+            const match = providers.find(p => p.id === id);
+            configure({ provider: id, model: match?.models[0]?.id ?? '' });
+          }}>
           <option value="">{t.choose}</option>{providers.map(p => <option key={p.id} value={p.id}>{p.id}{!p.detect.installed ? ` — ${t.providerMissing}` : !p.authStatus.authenticated ? ` — ${t.authMissing}` : ''}</option>)}</select></label>
         <label className="field-glass">{t.model}<select value={settings.model} onChange={e => configure({ model: e.target.value })}><option value="">{t.choose}</option>
           {provider?.models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
@@ -249,7 +255,7 @@ export function App() {
       </section>
       <aside className="sidebar">
         <details open><summary>{t.courses}</summary>
-          <CoursesPanel catalog={catalog} mastery={mastery} t={t} onStartLesson={startLesson} activeSkillId={lessonSkillId} />
+          <CoursesPanel catalog={catalog} mastery={mastery} t={t} locale={settings.locale} onStartLesson={startLesson} activeSkillId={lessonSkillId} />
         </details>
         <AskPanel t={t} disabled={!canRequest || running} onAsk={ask} />
         <UploadBoard t={t} disabled={!canRequest || !model?.supportsImageInput || running} onUpload={uploadScan} />
@@ -257,12 +263,13 @@ export function App() {
         <section><h2>{t.exercise}</h2><label>{t.exercise}<select value={saved.activeId} onChange={e => switchExercise(e.target.value)}>
           {saved.boards.map((b, i) => <option key={b.id} value={b.id}>{i + 1}. {b.statement.slice(0, 40) || '…'}</option>)}</select></label>
           <div className="row"><button onClick={createExercise}>{t.newExercise}</button><button onClick={deleteExercise}>{t.deleteExercise}</button></div></section>
-        <section><h2 className="h2-muted">{t.history}</h2>{!board.history.length && <p className="muted">{t.emptyHistory}</p>}
+        <section><h2 className="h2-muted">{t.history}<span className="info-icon" title={t.unverified} aria-label={t.unverified} role="img">ⓘ</span></h2>
+          {!board.history.length && <p className="muted">{t.emptyHistory}</p>}
           <ol className="history">{board.history.map(h => <li key={h.id} data-testid="explanation">
             <strong>{t[h.status]}</strong>{h.firstErrorStepId && <small>{t.firstError}: {board.steps.findIndex(s => s.stepId === h.firstErrorStepId) + 1 || '—'}</small>}
             <p>{h.text}</p>{h.clarification && <p>{h.clarification}</p>}<small>{t.revision} {h.revision}</small>
             <button onClick={() => voice.speak(h.ttsText)} disabled={!voice.available}>{t.speak}</button>
-          </li>)}</ol><small className="muted">{t.unverified}</small></section>
+          </li>)}</ol></section>
         <section><h2 className="h2-muted">{t.annotations}</h2><p className="muted">{t.annotationReveal}</p><ul className="annotations-list">{board.annotations.map((a, i) => <li key={a.id} data-testid="annotation-item">
           <span>{t.aiBadge} {i + 1}</span><button onClick={() => { stop(false); updateBoard(removeAnnotation(board, a.id)); }}>{t.undoAnnotation} {i + 1}</button></li>)}</ul></section>
         <details><summary>{t.settings}</summary>

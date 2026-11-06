@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   getTrackTopics, getTopicSkills, getSkillTemplates, instantiateTemplate, nextUnlockedSkill,
-  isMastered, type CourseCatalog, type CurriculumContext, type ProblemTemplate, type Skill,
+  isMastered, type CourseCatalog, type CurriculumContext, type Locale, type ProblemTemplate, type Skill,
 } from '@openmathtutor/shared';
 import type { MessageKey } from '../i18n';
 import type { MasteryMap } from '../curriculumStorage';
@@ -12,6 +12,7 @@ interface Props {
   catalog: CourseCatalog;
   mastery: MasteryMap;
   t: Record<MessageKey, string>;
+  locale: Locale;
   onStartLesson: (lesson: LessonStart) => void;
   activeSkillId: string | null;
 }
@@ -31,7 +32,7 @@ function masteryLabel(t: Record<MessageKey, string>, skill: Skill, mastery: Mast
   return t.skillNotStarted;
 }
 
-export function CoursesPanel({ catalog, mastery, t, onStartLesson, activeSkillId }: Props) {
+export function CoursesPanel({ catalog, mastery, t, locale, onStartLesson, activeSkillId }: Props) {
   const [trackId, setTrackId] = useState('');
   const [topicId, setTopicId] = useState('');
   const track = catalog.tracks.find(tr => tr.id === trackId) ?? null;
@@ -48,7 +49,7 @@ export function CoursesPanel({ catalog, mastery, t, onStartLesson, activeSkillId
     if (!template) return;
     const statementText = instantiateTemplate(template);
     onStartLesson({
-      skillId: skill.id, statementText, topic: topic.title.cs,
+      skillId: skill.id, statementText, topic: topic.title[locale],
       curriculumContext: { trackId: track.id, topicId: topic.id, skillId: skill.id, difficultyLevel: template.difficultyLevel },
     });
   }
@@ -57,22 +58,22 @@ export function CoursesPanel({ catalog, mastery, t, onStartLesson, activeSkillId
     <h2>{t.courses}</h2>
     <label>{t.track}<select value={trackId} onChange={e => { setTrackId(e.target.value); setTopicId(''); }}>
       <option value="">{t.choose}</option>
-      {catalog.tracks.map(tr => <option key={tr.id} value={tr.id}>{tr.title.cs}</option>)}
+      {catalog.tracks.map(tr => <option key={tr.id} value={tr.id}>{tr.title[locale]}</option>)}
     </select></label>
-    {track && <p className="muted">{track.description.cs}</p>}
+    {track && <p className="muted">{track.description[locale]}</p>}
     {track && <label>{t.lessonTopic}<select value={topicId} onChange={e => setTopicId(e.target.value)}>
       <option value="">{t.choose}</option>
-      {topics.map(tp => <option key={tp.id} value={tp.id}>{tp.title.cs}</option>)}
+      {topics.map(tp => <option key={tp.id} value={tp.id}>{tp.title[locale]}</option>)}
     </select></label>}
     {topic && <ul className="skills-list">
       {skills.map(skill => {
         const unlocked = skill.prerequisiteSkillIds.every(id => masteredIds.has(id));
         const isNext = nextUnlockedSkill(skills, masteredIds)?.id === skill.id;
         return <li key={skill.id} data-testid="skill-item" className={skill.id === activeSkillId ? 'active' : ''}>
-          <span>{skill.title.cs}</span>
+          <span>{skill.title[locale]}</span>
           <small>{masteryLabel(t, skill, mastery, unlocked)}</small>
           <button disabled={!unlocked} onClick={() => start(skill)}>
-            {isNext ? t.startNextSkill : t.practiceSkill}
+            {!unlocked ? t.skillLocked : isNext ? t.startNextSkill : t.practiceSkill}
           </button>
         </li>;
       })}

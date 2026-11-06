@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { CourseCatalog } from '@openmathtutor/shared';
 import { CoursesPanel } from './CoursesPanel';
-import { cs } from '../i18n';
+import { cs, en } from '../i18n';
 
 afterEach(cleanup);
 
@@ -25,7 +25,7 @@ const catalog: CourseCatalog = {
 describe('CoursesPanel', () => {
   it('walks track -> topic -> skill and starts an unlocked skill', () => {
     const onStartLesson = vi.fn();
-    render(<CoursesPanel catalog={catalog} mastery={{}} t={cs} onStartLesson={onStartLesson} activeSkillId={null} />);
+    render(<CoursesPanel catalog={catalog} mastery={{}} t={cs} locale="cs" onStartLesson={onStartLesson} activeSkillId={null} />);
     fireEvent.change(screen.getByLabelText(cs.track), { target: { value: 'track-1' } });
     fireEvent.change(screen.getByLabelText(cs.lessonTopic), { target: { value: 'topic-1' } });
     expect(screen.getByText('Dovednost A')).toBeInTheDocument();
@@ -39,12 +39,33 @@ describe('CoursesPanel', () => {
   });
 
   it('locks a skill whose prerequisite is not yet mastered', () => {
-    render(<CoursesPanel catalog={catalog} mastery={{}} t={cs} onStartLesson={vi.fn()} activeSkillId={null} />);
+    render(<CoursesPanel catalog={catalog} mastery={{}} t={cs} locale="cs" onStartLesson={vi.fn()} activeSkillId={null} />);
     fireEvent.change(screen.getByLabelText(cs.track), { target: { value: 'track-1' } });
     fireEvent.change(screen.getByLabelText(cs.lessonTopic), { target: { value: 'topic-1' } });
     const items = screen.getAllByTestId('skill-item');
     const skillB = items.find(li => li.textContent?.includes('Dovednost B'))!;
     expect(skillB.querySelector('button')).toBeDisabled();
     expect(skillB.textContent).toContain(cs.skillLocked);
+  });
+
+  it('shows English track/topic/skill titles when the locale is English, not Czech', () => {
+    render(<CoursesPanel catalog={catalog} mastery={{}} t={en} locale="en" onStartLesson={vi.fn()} activeSkillId={null} />);
+    expect(screen.getByText('Test track')).toBeInTheDocument();
+    expect(screen.queryByText('Testovací kurz')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(en.track), { target: { value: 'track-1' } });
+    expect(screen.getByText('Description')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(en.lessonTopic), { target: { value: 'topic-1' } });
+    expect(screen.getByText('Skill A')).toBeInTheDocument();
+    expect(screen.queryByText('Dovednost A')).not.toBeInTheDocument();
+  });
+
+  it('labels a locked skill honestly instead of the contradictory "practice again"', () => {
+    render(<CoursesPanel catalog={catalog} mastery={{}} t={cs} locale="cs" onStartLesson={vi.fn()} activeSkillId={null} />);
+    fireEvent.change(screen.getByLabelText(cs.track), { target: { value: 'track-1' } });
+    fireEvent.change(screen.getByLabelText(cs.lessonTopic), { target: { value: 'topic-1' } });
+    const items = screen.getAllByTestId('skill-item');
+    const skillB = items.find(li => li.textContent?.includes('Dovednost B'))!;
+    expect(skillB.querySelector('button')).toHaveTextContent(cs.skillLocked);
+    expect(skillB.querySelector('button')).not.toHaveTextContent(cs.practiceSkill);
   });
 });
