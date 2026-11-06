@@ -27,11 +27,16 @@ describe.skipIf(!process.env.RUN_CLI_SMOKE_TESTS)('real installed CLI smoke chec
   }, 30_000);
 });
 
-describe.skipIf(!process.env.RUN_PROVIDER_INTEGRATION_TESTS)('requires credentials: real Claude bare text invocation', () => {
-  it('exercises the real documented text-only CLI; does not bypass bare-mode OAuth restriction', async () => {
-    // On CLI 2.1.310 with subscription OAuth only this must report not_authenticated,
-    // not pretend that a logged-in subscription can power --bare. No API key is passed.
-    await expect(new ClaudeProvider().continueLesson(lesson, new AbortController().signal))
-      .rejects.toMatchObject({ code: 'not_authenticated' });
+describe.skipIf(!process.env.RUN_PROVIDER_INTEGRATION_TESTS)('requires credentials: real Claude non-bare text invocation', () => {
+  it('continues a text lesson using the official CLI login with tools disabled', async () => {
+    // Opt-in: makes a real model request. No API key is passed and no response is mocked.
+    const provider = new ClaudeProvider();
+    expect(await provider.authStatus()).toMatchObject({ authenticated: true });
+    const result = await provider.continueLesson(lesson, new AbortController().signal);
+    expect(result).toMatchObject({
+      requestId: lesson.requestId, boardRevision: lesson.boardRevision,
+      pedagogicalResponse: expect.any(String),
+    });
+    console.info('Claude continueLesson succeeded: real CLI login and validated structured_output; no image input.');
   }, 100_000);
 });
