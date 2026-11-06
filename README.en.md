@@ -1,6 +1,10 @@
+<p align="center"><a href="https://jirkapelikan.cz"><img src="docs/brand/pelikan-logo.png" alt="Jiří Pelikán logo" width="96"></a></p>
+
 # OpenMathTutor
 
 *Česká verze: [README.md](README.md)*
+
+> Created and copyrighted by **[Jiří Pelikán](https://jirkapelikan.cz)**. A source-available project for **non-commercial** use ([PolyForm Noncommercial 1.0.0](LICENSE)); credit to the author must be kept when sharing or modifying it. Details in [Rights and license](#rights-and-license).
 
 An interactive math tutor with a digital whiteboard. The student writes a
 solution by hand (finger/stylus/mouse), the app recognizes the individual
@@ -8,7 +12,7 @@ steps, finds the **first** causal error in the work, explains it (text and
 voice), and **writes the hint directly onto the board itself** — not just in
 a chat bubble.
 
-Working project name, open source, MIT.
+Working project name, source-available, non-commercial license.
 
 ## Bring your own subscription
 
@@ -98,11 +102,30 @@ own login.
   geometry/quadratics/radicals (the verifier currently covers arithmetic,
   fractions, percentages, parentheses, and linear equations only).
 
-## License
+## Rights and license
 
-MIT for this project's own code. Licenses of the components it uses
-(Excalidraw, SymPy, KaTeX, Electron, the providers' official CLIs) are
-documented in [ARCHITECTURE.md](ARCHITECTURE.md) and `NOTICE.md`.
+**Author:** Jiří Pelikán, <https://jirkapelikan.cz>. Copyright © 2026 Jiří Pelikán. All rights not expressly granted by the license are reserved.
+
+**License for code and text:** [PolyForm Noncommercial License 1.0.0](LICENSE). In plain words (only the license text is binding):
+
+- **You may:** use, study, copy and modify the project for **non-commercial** purposes: personal learning, teaching, research, hobby work, schools, non-profits and public institutions.
+- **You may not:** use the project or parts of it **commercially**: sell it, offer it as a paid service, build it into a paid product, use it in a for-profit business or otherwise monetize it.
+- **You must:** when redistributing, pass on the license text and the `Required Notice` lines (author name Jiří Pelikán and the link <https://jirkapelikan.cz>). The attribution may not be removed or passed off as your own.
+- **Changes and derivative works** are allowed only under the same terms and without commercial use.
+- **Commercial license** on request: contact via <https://jirkapelikan.cz>.
+- The software is provided "as is", without warranty. The author is not liable for teaching errors or AI output (see the unverified-answer notices in the app).
+
+**Important:** earlier versions of this repository were published under the MIT license. Anyone who lawfully obtained those specific versions may keep them under MIT. From this commit on, all new versions are under PolyForm Noncommercial. The license is no longer "open source" in the OSI sense; it is "source-available".
+
+**Logo and name:** the pelican logo ([`docs/brand/pelikan-logo.png`](docs/brand/pelikan-logo.png)) and the name Jiří Pelikán are **not covered by the code license**. All rights reserved; use outside this repository requires the author's permission.
+
+**Contributions:** by submitting a contribution (pull request) you agree it may be distributed under this license and that the project author may change the license or add a commercial license in the future.
+
+**Third parties:** the components used (Excalidraw, SymPy, KaTeX, Electron, pdf.js, React, Vite) keep their own licenses, listed in [NOTICE.md](NOTICE.md) and [ARCHITECTURE.md](ARCHITECTURE.md). The `codex` and `claude` tools are installed by the user and governed by their providers' terms. "Claude", "Claude Code", "Codex" and "OpenAI" are trademarks of their owners; the project is not affiliated with them.
+
+**AI use disclosure:** part of the code was written with AI tools (OpenAI Codex, Anthropic Claude) and reviewed and tested; see [ai-disclosure.md](ai-disclosure.md). The logo, the author texts and the licensing provisions are the author's own human work.
+
+This overview is not legal advice.
 
 
 ## Mentor mode (how the app teaches)

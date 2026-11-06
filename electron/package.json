@@ -2,7 +2,7 @@
   "name": "openmathtutor-desktop",
   "version": "0.1.0",
   "private": true,
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "main": "out/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",

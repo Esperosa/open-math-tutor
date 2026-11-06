@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "dev": "node scripts/assets.mjs && vite --host 127.0.0.1",
     "build": "node scripts/assets.mjs && tsc --noEmit && vite build",

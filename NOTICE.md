@@ -1,6 +1,6 @@
 # Third-party notices
 
-This project's own code is MIT-licensed (see `LICENSE`). It uses or depends
+This project's own code is licensed under the PolyForm Noncommercial License 1.0.0 (see `LICENSE`), Copyright (c) 2026 Jiří Pelikán, https://jirkapelikan.cz. Earlier versions were published under MIT. The pelican logo in `docs/brand/` is not covered by that license (all rights reserved). It uses or depends
 on the following third-party components, each under its own license:
 
 | Component | License | Role |

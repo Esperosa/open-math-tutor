@@ -1,13 +1,17 @@
+<p align="center"><a href="https://jirkapelikan.cz"><img src="docs/brand/pelikan-logo.png" alt="Logo Jiřího Pelikána" width="96"></a></p>
+
 # OpenMathTutor
 
 *English version: [README.en.md](README.en.md)*
+
+> Vytvořil a autorsky vlastní **[Jiří Pelikán](https://jirkapelikan.cz)**. Zdrojově dostupný projekt pro **nekomerční** užití ([PolyForm Noncommercial 1.0.0](LICENSE)); při sdílení nebo úpravě musí zůstat uvedeno autorství. Podrobnosti v sekci [Práva a licence](#práva-a-licence).
 
 Interaktivní matematický doučovatel s digitální tabulí. Žák píše postup
 rukou (prst/pero/myš), aplikace rozpozná jednotlivé kroky, najde **první**
 chybu v postupu, vysvětlí ji česky textem i hlasem a **sama napíše
 nápovědu přímo na tabuli** — ne jen do chatové bubliny.
 
-Pracovní název projektu, open-source, MIT.
+Pracovní název projektu, zdrojově dostupný, nekomerční licence.
 
 ## Bring your own subscription
 
@@ -96,11 +100,30 @@ UI pro cokoliv, co vyžaduje vaše vlastní přihlášení.
   (verifikátor zatím podporuje jen aritmetiku, zlomky, procenta, závorky
   a lineární rovnice).
 
-## Licence
+## Práva a licence
 
-MIT pro vlastní kód tohoto projektu. Licence použitých komponent (Excalidraw,
-SymPy, KaTeX, Electron, oficiální CLI nástroje poskytovatelů) jsou
-zdokumentované v [ARCHITECTURE.md](ARCHITECTURE.md) a `NOTICE.md`.
+**Autor:** Jiří Pelikán, <https://jirkapelikan.cz>. Copyright © 2026 Jiří Pelikán. Všechna práva, která tato licence výslovně neuděluje, jsou vyhrazena.
+
+**Licence kódu a textů:** [PolyForm Noncommercial License 1.0.0](LICENSE). Zjednodušeně (závazný je pouze text licence):
+
+- **Smíte:** používat, studovat, kopírovat a upravovat projekt pro **nekomerční** účely: osobní učení, výuka, výzkum, hobby, školy, neziskové organizace a veřejné instituce.
+- **Nesmíte:** použít projekt nebo jeho části **komerčně**: prodávat ho, nabízet jako placenou službu, zabudovat do placeného produktu, používat pro výdělečnou firmu nebo ho jinak monetizovat.
+- **Musíte:** při dalším šíření předat text licence a řádky `Required Notice` (jméno autora Jiří Pelikán a odkaz na <https://jirkapelikan.cz>). Autorství nelze odstranit ani vydávat za vlastní.
+- **Úpravy a odvozeniny** smějí vzniknout jen pod stejnými podmínkami a bez komerčního užití.
+- **Komerční licence** na vyžádání: kontakt přes <https://jirkapelikan.cz>.
+- Software je poskytován „tak, jak je“, bez záruky. Autor neodpovídá za chyby ve výuce ani za výsledky AI (viz upozornění o neověřených odpovědích v aplikaci).
+
+**Důležité upřesnění:** dřívější verze tohoto repozitáře byly zveřejněny pod licencí MIT. Kdo je v té době legálně získal, smí si tyto konkrétní verze ponechat pod MIT. Od tohoto commitu platí pro všechny nové verze PolyForm Noncommercial. Licence už není „open source“ ve smyslu definice OSI, ale „zdrojově dostupná“.
+
+**Logo a značka:** logo pelikána ([`docs/brand/pelikan-logo.png`](docs/brand/pelikan-logo.png)) a jméno Jiří Pelikán **nespadají pod licenci kódu**. Všechna práva vyhrazena; použití mimo tento repozitář vyžaduje svolení autora.
+
+**Příspěvky:** zasláním příspěvku (pull request) souhlasíte, že je možné ho šířit pod touto licencí a že autor projektu smí licenci v budoucnu změnit nebo doplnit komerční licencí.
+
+**Třetí strany:** použité komponenty (Excalidraw, SymPy, KaTeX, Electron, pdf.js, React, Vite) mají vlastní licence uvedené v [NOTICE.md](NOTICE.md) a [ARCHITECTURE.md](ARCHITECTURE.md); jejich podmínky platí dál. Nástroje `codex` a `claude` si uživatel instaluje sám a řídí se podmínkami jejich poskytovatelů. „Claude“, „Claude Code“, „Codex“ a „OpenAI“ jsou ochranné známky svých vlastníků; projekt s nimi není nijak spojen.
+
+**Evidence použití AI:** část kódu vznikla s pomocí AI nástrojů (OpenAI Codex, Anthropic Claude) a prošla kontrolou a testy; podrobnosti v [ai-disclosure.md](ai-disclosure.md). Logo, texty o autorovi a licenční ustanovení jsou lidskou prací autora.
+
+Tento přehled není právní poradenství.
 
 
 ## Mentor mode (jak appka učí)

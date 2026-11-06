@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "OpenMathTutor - interactive math whiteboard tutor (bring-your-own AI subscription)",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "workspaces": [
     "packages/*"
   ],

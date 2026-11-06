@@ -29,3 +29,6 @@
    `requires credentials`, not as a green test.
 6. Never commit commercial fonts. Record any third-party visual reference in
    `SOURCES.md`.
+
+7. Licence: příspěvky jsou šířeny pod PolyForm Noncommercial 1.0.0 (viz `LICENSE`); odesláním PR souhlasíte, že autor může licenci změnit nebo doplnit komerční licencí.
+8. (EN) Licensing: contributions are distributed under PolyForm Noncommercial 1.0.0 (see `LICENSE`); by submitting a PR you agree the author may change the license or add a commercial license.
