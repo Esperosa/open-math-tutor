@@ -24,6 +24,9 @@ Pointa celé aplikace: student píše a kreslí na tabuli (pero, prst, myš) a a
 | 0.9 | Každý rozpoznaný symbol je přiřazený ke konkrétním tahům na tabuli (kde přesně je napsán) a nese kandidáty a jistotu | 🟡 |
 | 0.10 | Nejistý rukopis jde AI i jako obrázek spolu s lokálním přepisem, polohou a nejistými symboly, aby AI mohla opravit čtení | 🟡 |
 | 0.11 | Tabule je interaktivní pro korektury: student i AI dopisují, podtrhávají, škrtají, mažou části; přeškrtnutý symbol se ignoruje, přepsaný se čte znovu, přepočet jen změněných tahů | 🟡 |
+| 0.12 | AI tutor **píše přímo do tabule jako učitel, který opravuje a vysvětluje**: ručně vypadajícím písmem a barvou odlišenou od studenta dopíše opravu vedle chybného místa, zakroužkuje/podtrhne/přeškrtne chybu, nakreslí šipku a krátké vysvětlení, rozepíše správný další krok pod řádek; nejen text v bublině | 🟡 |
+| 0.13 | Zápis AI se objevuje postupně (jako psaný), je v samostatné vrstvě, student ho může smazat/skrýt; AI se na místa odkazuje přes řádek/symbol (ne odhadnuté souřadnice) | 🟡 |
+| 0.14 | Bublina maskota je jen stručný komentář; podstatné opravy a vysvětlení jsou na tabuli | 🟡 |
 | 0.7 | Úspěšnost čtení se měří a zapisuje do dokumentace (číslice, operátory, celé řádky); pod stanovenou hranicí se nic netvrdí | 🟡 |
 
 ---
