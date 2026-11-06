@@ -10,10 +10,11 @@ import { catalog } from '@openmathtutor/content';
 import type { BinaryFiles } from '@excalidraw/excalidraw/types';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { Board, type BoardHandle } from './Board';
-import { applyResponse, commitStudent, editTask, fingerprint, newBoard, removeAnnotation, stableMathCandidate, type BoardState } from './boardState';
+import { applyResponse, commitStudent, correctInk, editTask, fingerprint, newBoard, removeAnnotation, stableMathCandidate, type BoardState } from './boardState';
+import { createHandwritingRecognizer } from './handwriting';
 import { bridge, BridgeError, type ProviderEntry } from './api';
 import { messages, errorKeys, type MessageKey } from './i18n';
-import { BOARD_PATTERNS, load, save, type Saved, type Settings } from './storage';
+import { BOARD_PATTERNS, DEFAULT_TOOLS, load, save, type Saved, type Settings } from './storage';
 import { StrokeSettler } from './settle';
 import { useMic, useVoice } from './useVoice';
 import { loadProfile, saveProfile } from './profileStorage';
@@ -48,6 +49,18 @@ import { loadSources, saveSources, addSource, removeSource, allChunks } from './
 type Mode = ContinueLessonRequest['mode'];
 type ContinueLessonExtra = Pick<ContinueLessonRequest, 'studentMessage' | 'curriculumContext' | 'retrievedContext' | 'learnerContext' | 'conversation'>;
 const hashKey = (key: string) => [...key].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7);
+/** Bounded, untrusted local recognizer hints; the image crop stays the primary source. */
+function inkHints(steps: readonly BoardState['steps'][number][]) {
+  return steps.filter(step => step.origin === 'ink' && step.latexGuess.trim() && step.symbols?.length)
+    .slice(-40).map(step => ({
+      stepId: step.stepId, text: step.latexGuess, confidence: step.confidence ?? 0, bbox: step.box,
+      symbols: (step.symbols ?? []).slice(0, 300).map((symbol, index) => ({
+        index, label: symbol.label ?? symbol.candidates[0]?.label ?? '?',
+        candidates: symbol.candidates.slice(0, 5).map(candidate => ({ label: candidate.label, probability: candidate.probability })),
+        strokeOrder: symbol.strokeOrder.slice(0, 300), bbox: symbol.bbox, uncertain: symbol.uncertain,
+      })),
+    }));
+}
 const STYLE_MODE: Record<ExplainStyle, Mode> = { hint: 'hint', worked: 'next_step', analogy: 'explain_differently', visual: 'explain_differently' };
 interface Pending { id: string; controller: AbortController; provider: ProviderId; boardId: string; revision: number; /** A chat answer: the student writing on the board does not make it obsolete. */ keep: boolean }
 function providerStatusLabel(p: ProviderEntry, t: Record<MessageKey, string>): string {
@@ -67,6 +80,15 @@ export function App() {
   const settings = saved.settings;
   const t = messages[settings.locale];
   const editor = useRef<BoardHandle>(null);
+  const recognizers = useRef(new Map<string, ReturnType<typeof createHandwritingRecognizer>>());
+  const recognizerFor = (boardId: string) => {
+    const existing = recognizers.current.get(boardId);
+    if (existing) return existing;
+    const created = createHandwritingRecognizer();
+    recognizers.current.set(boardId, created);
+    if (recognizers.current.size > 20) recognizers.current.delete(recognizers.current.keys().next().value!);
+    return created;
+  };
   const pending = useRef<Pending | null>(null);
   const busy = useRef(false);
   const [running, setRunning] = useState(false);
@@ -211,16 +233,22 @@ export function App() {
     pending.current = request; setRunning(true); setStatus(mode === 'ask' ? 'thinkingAnswer' : 'thinking'); setRejected(false);
     const timer = setTimeout(() => { controller.abort(); void bridge.cancel(request.provider, id, AbortSignal.timeout(5000)).catch(() => {}); }, REQUEST_TIMEOUT_MS);
     const slowTimer = setTimeout(() => { if (pending.current === request) setSlow(true); }, REQUEST_SLOW_MS);
+    const hints = inkHints(snapshot.steps);
     const base = { requestId: id, boardRevision: snapshot.revision,
       // Keep the request inside the bridge's limits: no empty lines, bounded lengths and counts.
       task: { statementText: snapshot.statement.slice(0, 2000), topic: snapshot.topic.slice(0, 100) },
       stepHistory: [...writtenLines(snapshot.steps), ...snapshot.steps.filter(s => !s.latexGuess.trim()).map(s => ({ stepId: s.stepId, latexGuess: '?' }))].slice(-100)
         .map(({ stepId, latexGuess }) => ({ stepId, latexGuess: latexGuess.trim().slice(0, 300), boardRevision: snapshot.revision })),
-      locale: settings.locale, model: settings.model };
+      locale: settings.locale, model: settings.model, ...(hints.length ? { handwriting: hints } : {}) };
     try {
-      const imageCrop = imageOverride ?? (!mode ? await editor.current?.crop(snapshot) : undefined);
+      let imageCrop: { dataUrl: string; width: number; height: number } | undefined;
+      try {
+        imageCrop = imageOverride ?? (model?.supportsImageInput
+          ? await editor.current?.crop(snapshot, snapshot.activeStepId ?? undefined) : undefined);
+      } catch { imageCrop = undefined; }
       if (pending.current !== request || controller.signal.aborted) return;
-      const response = mode ? await bridge.continue(request.provider, { ...base, mode, ...extra }, controller.signal)
+      const response = mode ? await bridge.continue(request.provider, { ...base, mode, ...extra,
+        ...(imageCrop && model?.supportsImageInput ? { imageCrop } : {}) }, controller.signal)
         : await bridge.analyze(request.provider, { ...base, imageCrop: imageCrop! }, controller.signal);
       if (pending.current !== request) return;
       const current = live.current.boards.find(b => b.id === request.boardId);
@@ -261,7 +289,8 @@ export function App() {
   }
   function commit(elements: readonly ExcalidrawElement[], files: BinaryFiles) {
     const current = live.current.boards.find(b => b.id === live.current.activeId)!;
-    const next = commitStudent(current, elements, files);
+    const recognizer = recognizerFor(current.id);
+    const next = commitStudent(current, elements, files, els => recognizer.recognize(els));
     if (next.revision === current.revision) { if (next !== current) updateBoard(next); return; }
     boardEdited(); setStatus('waiting'); updateBoard(next); schedule(next);
   }
@@ -276,6 +305,12 @@ export function App() {
       setMessage(m => m?.id === 'welcome' ? null : m);
     }
     else { schedule(live.current.boards.find(b => b.id === live.current.activeId)!); setCoachTick(n => n + 1); }
+  }
+  function inkCorrection(key: string, label: string) {
+    const current = live.current.boards.find(b => b.id === live.current.activeId)!;
+    const next = correctInk(current, key, label);
+    if (next === current) return;
+    stop(false); setStatus('waiting'); updateBoard(next); schedule(next);
   }
   function switchExercise(id: string) {
     stop(false); setMessage(null); setTutorMenu(false);
@@ -488,6 +523,9 @@ export function App() {
     const ls = writtenLines(current.steps);
     const task = effectiveStatement(current.statement, ls);
     const expected: ExpectedAnswer | undefined = current.expected ?? expectedAnswerFor(task);
+    // A low-confidence handwriting reading is a question, never a wrong answer.
+    const newest = ls.filter(line => line.latexGuess.trim()).at(-1);
+    if (newest?.uncertain) { applyCoachEvent(current, ls, { kind: 'unclear', key: stepKey(newest), n: ls.indexOf(newest) + 1 }); return; }
     const handled = new Set(current.handled ?? []);
     const event = nextCoachEvent({ mode, statement: task, steps: ls, expected, handled });
     if (event.kind === 'idle') return;
@@ -529,8 +567,14 @@ export function App() {
         updateBoard(marked); say('check_in'); break;
       case 'unclear': {
         updateBoard(marked);
-        const text = ls.find(l => stepKey(l) === event.key)?.latexGuess ?? '';
+        const line = ls.find(l => stepKey(l) === event.key);
+        const text = line?.latexGuess ?? '';
         const task = effectiveStatement(current.statement, ls);
+        if (line?.uncertain) {
+          setMessage({ id: event.key, kind: 'info', text: messages[locale].uncertainReading, stepId: line.stepId });
+          voice.speak(messages[locale].uncertainReading);
+          break;
+        }
         if (current.expected || expectedAnswerFor(task) || !looksLikeFinalLine(text, statementHasSymbols(task))) break; // data line or intermediate result: stay quiet
         if (cur.settings.auto && canRequest) void request('check', { learnerContext: learnerContext() });
         else say('unclear');
@@ -648,7 +692,7 @@ export function App() {
   const chips = running ? [] : quickReplies({ kind: message?.kind ?? null, canRequest, lessonActive: !!lessonSkillId || !!board.skillId, answeredByAi, hasLines: lines.length > 0 });
   const shownMessage: TutorMessage | null = running ? { id: 'thinking', kind: 'thinking', text: t.tutorThinking } : message;
   return <div className="app-shell">
-    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} verdicts={shownVerdicts} onRemoveAnnotation={id => { stop(false); const current = live.current.boards.find(b => b.id === live.current.activeId)!; updateBoard(removeAnnotation(current, id)); }} onAskHere={() => { setPanel('ask'); setPinned(true); }} /></div>
+    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} onInkCorrection={inkCorrection} verdicts={shownVerdicts} onRemoveAnnotation={id => { stop(false); const current = live.current.boards.find(b => b.id === live.current.activeId)!; updateBoard(removeAnnotation(current, id)); }} onAskHere={() => { setPanel('ask'); setPinned(true); }} /></div>
     <div className={`hud${openPanel ? ' drawer-open' : ''}${settingsOpen ? ' settings-open' : ''}`} data-testid="hud">
       <div className="hud-top-left">
         <span className="sr"><output data-testid="revision">{board.revision}</output></span>
@@ -668,6 +712,10 @@ export function App() {
       </div>
       <div className="hud-top-right">
         <div className="hud-icons">
+        <span className="ai-status" data-testid="ai-status" data-state={canRequest ? 'connected' : 'offline'}
+          title={canRequest ? t.aiConnected : t.aiNotConnected} aria-label={canRequest ? t.aiConnected : t.aiNotConnected}>
+          <span className={`status-dot ${canRequest ? 'ok' : 'idle'}`} aria-hidden="true" />
+          <span className="ai-status-label" aria-hidden="true">{canRequest ? t.aiConnected : t.aiOffline}</span></span>
         {calcPolicy !== 'none' && <button className="icon-btn" title={`${t.calcOpen} — ${t.hintCalc}`} aria-label={t.calcOpen} aria-pressed={calcOpen} onClick={() => openOnly('calc')}><Icon name="calc" /></button>}
         <button className="icon-btn" title={`${t.settings} — ${t.hintSettings}`} aria-label={t.settings} aria-expanded={settingsOpen} onClick={() => openOnly('settings')}>
           <span className={`status-dot ${canRequest ? 'ok' : 'idle'}`} aria-hidden="true" /><Icon name="settings" /></button>
@@ -681,6 +729,9 @@ export function App() {
         <div role="radiogroup" aria-label={t.boardPaper}><span className="muted">{t.boardPaper}</span>
           <div className="pattern-picker">{BOARD_PATTERNS.map(pattern => <button key={pattern} role="radio" aria-checked={settings.boardPattern === pattern} data-pattern={pattern}
             onClick={() => configure({ boardPattern: pattern })}><span>{t[({ plain: 'patternPlain', grid: 'patternGrid', lines: 'patternLines', dots: 'patternDots', school: 'patternSchool' } as const)[pattern]]}</span></button>)}</div></div>
+        <div role="radiogroup" aria-label={t.defaultTool}><span className="muted">{t.defaultTool}</span>
+          <div className="pattern-picker">{DEFAULT_TOOLS.map(tool => <button key={tool} role="radio" aria-checked={settings.defaultTool === tool} data-tool={tool}
+            onClick={() => configure({ defaultTool: tool })}><span>{tool === 'freedraw' ? t.toolPen : t.toolText}</span></button>)}</div></div>
         {connected && <>
           <label>{t.provider}<select value={settings.provider} onChange={e => {
             const id = e.target.value as ProviderId | '';

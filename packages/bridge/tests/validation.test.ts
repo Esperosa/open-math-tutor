@@ -41,6 +41,27 @@ describe('untrusted request validation', () => {
   ])('rejects malformed or oversized optional lesson context %#', fields => {
     expect(validRequest({ ...lesson, ...fields }, false)).toBe(false);
   });
+  it('accepts bounded handwriting hints on text requests and optional continuation crops', () => {
+    const bbox = { x: 0, y: 0, width: 40, height: 40 };
+    const symbol = { index: 0, label: '1', candidates: [{ label: '1', probability: 0.9 }, { label: '7', probability: 0.1 }],
+      strokeOrder: [3, 4], bbox, uncertain: false };
+    expect(validRequest({ ...lesson, handwriting: [{ stepId: 's1', text: '12+7=19', confidence: 0.9, bbox, symbols: [symbol] }] }, false)).toBe(true);
+    expect(validRequest({ ...lesson, handwriting: [], imageCrop: analysis.imageCrop }, false)).toBe(true);
+    expect(validRequest({ ...analysis, handwriting: [{ stepId: 's1', text: '12+7=19', confidence: 0.9, bbox, symbols: [symbol] }] }, true)).toBe(true);
+  });
+  it.each([
+    null, {}, [{ stepId: 's1' }], [{ stepId: 's1', text: 'x', confidence: 2, bbox: { x: 0, y: 0, width: 1, height: 1 }, symbols: [] }],
+    Array(41).fill({ stepId: 's1', text: 'x', confidence: 0.5, bbox: { x: 0, y: 0, width: 1, height: 1 }, symbols: [] }),
+  ])('rejects malformed handwriting lines %#', handwriting => expect(validRequest({ ...lesson, handwriting }, false)).toBe(false));
+  it('rejects malformed handwriting symbols and continuation crops', () => {
+    const bbox = { x: 0, y: 0, width: 40, height: 40 };
+    const line = { stepId: 's1', text: '12', confidence: 0.9, bbox, symbols: [{ index: 0, label: '1',
+      candidates: [{ label: '1', probability: 0.9 }], strokeOrder: [0], bbox, uncertain: false }] };
+    expect(validRequest({ ...lesson, handwriting: [{ ...line, symbols: [{ ...line.symbols[0], strokeOrder: [0.5] }] }] }, false)).toBe(false);
+    expect(validRequest({ ...lesson, handwriting: [{ ...line, symbols: [{ ...line.symbols[0], candidates: [{ label: '1', probability: 2 }] }] }] }, false)).toBe(false);
+    expect(validRequest({ ...lesson, handwriting: [{ ...line, symbols: Array(301).fill(line.symbols[0]) }] }, false)).toBe(false);
+    expect(validRequest({ ...lesson, imageCrop: { ...analysis.imageCrop, dataUrl: 'data:image/png;base64,***' } }, false)).toBe(false);
+  });
   it.each([
     null, {}, { ...lesson, boardRevision: -1 }, { ...lesson, boardRevision: 1.1 },
     { ...lesson, locale: 'xx' }, { ...lesson, model: '--system-prompt=bad' },

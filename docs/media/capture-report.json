@@ -1,0 +1,167 @@
+{
+  "baseURL": "http://localhost:5173",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "runs": {
+    "01": {
+      "name": "01-first-lesson",
+      "attempts": [
+        {
+          "attempt": 1,
+          "outcome": "ok",
+          "durationSeconds": 15.24,
+          "shortenedAIWait": false,
+          "evidence": {
+            "localOnly": true
+          },
+          "sourceSegmentsSeconds": [
+            [
+              0.369,
+              15.608
+            ]
+          ]
+        }
+      ],
+      "outcome": "ok"
+    },
+    "02": {
+      "name": "02-local-coach",
+      "attempts": [
+        {
+          "attempt": 1,
+          "outcome": "ok",
+          "durationSeconds": 16.2,
+          "shortenedAIWait": false,
+          "evidence": {
+            "localOnly": true
+          },
+          "sourceSegmentsSeconds": [
+            [
+              3.915,
+              20.102
+            ]
+          ]
+        }
+      ],
+      "outcome": "ok"
+    },
+    "03": {
+      "name": "03-real-ai-hint",
+      "attempts": [
+        {
+          "attempt": 1,
+          "outcome": "failed",
+          "reason": "ui_error",
+          "evidence": {
+            "provider": "claude",
+            "model": "sonnet",
+            "status": 200,
+            "boardActionTypes": [
+              "circle"
+            ],
+            "responseSeconds": 7.75
+          }
+        },
+        {
+          "attempt": 2,
+          "outcome": "failed",
+          "reason": "ui_error",
+          "evidence": {
+            "provider": "claude",
+            "model": "sonnet",
+            "status": 200,
+            "boardActionTypes": [],
+            "responseSeconds": 6.5
+          }
+        }
+      ],
+      "outcome": "omitted",
+      "omissionReason": "Current bridge RESPONSE_SCHEMA permits only underline/circle/highlight, not written hints. Both completed real responses lacked write_math/show_hint."
+    },
+    "04": {
+      "name": "04-plan-progress",
+      "attempts": [
+        {
+          "attempt": 1,
+          "outcome": "ok",
+          "durationSeconds": 19.8,
+          "shortenedAIWait": false,
+          "evidence": {
+            "percentages": [
+              "0 %",
+              "1 %",
+              "1 %"
+            ],
+            "topicPercentages": [
+              "0 %",
+              "5 %",
+              "10 %"
+            ],
+            "localOnly": true
+          },
+          "sourceSegmentsSeconds": [
+            [
+              4.765,
+              24.569
+            ]
+          ]
+        }
+      ],
+      "outcome": "ok"
+    },
+    "05": {
+      "name": "05-physics-units",
+      "attempts": [
+        {
+          "attempt": 1,
+          "outcome": "ok",
+          "durationSeconds": 16.52,
+          "shortenedAIWait": false,
+          "evidence": {
+            "localOnly": true
+          },
+          "sourceSegmentsSeconds": [
+            [
+              5.278,
+              21.769
+            ]
+          ]
+        }
+      ],
+      "outcome": "ok"
+    },
+    "06": {
+      "name": "06-test-and-export",
+      "attempts": [
+        {
+          "attempt": 1,
+          "outcome": "ok",
+          "durationSeconds": 11.56,
+          "shortenedAIWait": false,
+          "evidence": {
+            "downloads": [
+              "test.html",
+              "zapisky.md",
+              "tabule.png"
+            ],
+            "testHasAnswerKey": true
+          },
+          "sourceSegmentsSeconds": [
+            [
+              8.038,
+              19.595
+            ]
+          ]
+        }
+      ],
+      "outcome": "ok"
+    }
+  },
+  "preliminaryCapture": {
+    "interruptedAIRequests": 1,
+    "reason": "capture_script_error_after_request",
+    "note": "Fixed before two completed Claude requests. No additional AI requests were sent."
+  }
+}

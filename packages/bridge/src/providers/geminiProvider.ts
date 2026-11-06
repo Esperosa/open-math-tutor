@@ -95,8 +95,8 @@ export class GeminiProvider extends BaseProvider {
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
         generationConfig: { responseMimeType: 'application/json', responseSchema: RESPONSE_SCHEMA },
       };
-      if ('imageCrop' in req) {
-        const crop = req.imageCrop;
+      const crop = req.imageCrop;
+      if (crop) {
         const base64 = crop.dataUrl.slice(crop.dataUrl.indexOf(',') + 1);
         const mimeType = crop.dataUrl.slice(5, crop.dataUrl.indexOf(';')) || 'image/png';
         requestBody.contents = [{ role: 'user', parts: [{ text: userPrompt(req) }, { inlineData: { mimeType, data: base64 } }] }];

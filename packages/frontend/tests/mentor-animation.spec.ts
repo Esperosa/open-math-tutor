@@ -16,6 +16,7 @@ async function start(page: Page, task?: string) {
   }
 }
 async function writeLine(page: Page, text: string, y = 360) {
+  await page.locator('label:has([data-testid="toolbar-text"])').click();
   await page.mouse.click(560, y);
   await expect(page.locator('textarea.excalidraw-wysiwyg')).toBeFocused();
   await page.keyboard.type(text); await page.keyboard.press('Escape');

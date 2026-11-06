@@ -10,12 +10,12 @@ to the DOM change, taken inside the page with `performance.now()`. Target: the l
 <!-- measured:start -->
 | Measurement | Runs | Median ms | Best ms | Worst ms |
 |---|---|---|---|---|
-| typed line: Escape → ✗ mark | 4 | 22 | 20 | 22 |
-| typed line: Escape → tutor bubble | 4 | 232 | 225 | 237 |
-| AI request: click → "thinking" bubble | 3 | 6 | 6 | 7 |
-| AI request: click → mascot thinks | 3 | 6 | 6 | 7 |
-| AI request: click → answer in bubble (mock answers after 1500 ms) | 3 | 1524 | 1518 | 1527 |
-| pen-up → mascot looks at the line (checking) | 3 | 4 | 3 | 7 |
+| typed line: Escape → ✗ mark | 4 | 18 | 17 | 22 |
+| typed line: Escape → tutor bubble | 4 | 228 | 224 | 232 |
+| AI request: click → "thinking" bubble | 3 | 5 | 5 | 7 |
+| AI request: click → mascot thinks | 3 | 5 | 5 | 6 |
+| AI request: click → answer in bubble (mock answers after 1500 ms) | 3 | 1521 | 1519 | 1525 |
+| pen-up → mascot looks at the line (checking) | 3 | 3 | 3 | 6 |
 <!-- measured:end -->
 
 The "answer in bubble" row includes the 1500 ms the mock bridge waits on purpose; the overhead of the app on top of it is the difference.

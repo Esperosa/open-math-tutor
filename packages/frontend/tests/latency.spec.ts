@@ -92,6 +92,7 @@ test('a finished typed line gets its mark and the tutor comment almost at once',
   await instrument(page);
   for (let i = 0; i < 4; i++) {
     await page.evaluate(() => window.__arm('key'));
+    await page.locator('label:has([data-testid="toolbar-text"])').click();
     await page.mouse.click(560, 330 + i * 90);
     await expect(page.locator('textarea.excalidraw-wysiwyg')).toBeFocused();
     await page.keyboard.type(`5+1=${8 + i}`);

@@ -28,4 +28,9 @@ describe('written lines', () => {
     expect(markPerStep({ 'a#0': { status: 'ok' }, 'a#1': { status: 'wrong', reason: 'arithmetic' } }, lines).a?.status).toBe('wrong');
     expect(markPerStep({ 'a#0': { status: 'unknown' }, 'a#1': { status: 'ok' } }, lines).a?.status).toBe('ok');
   });
+  it('never marks a low-confidence handwriting reading wrong', () => {
+    const lines = writtenLines([{ ...step('ink', '5+1=8'), origin: 'ink', uncertain: true }]);
+    const expected = { value: 6, tolerance: 0.01, wordProblem: false, givens: [] };
+    expect(computeLineVerdicts('5+1', lines, expected).ink?.status).toBe('unknown');
+  });
 });

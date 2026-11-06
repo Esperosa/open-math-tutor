@@ -26,6 +26,12 @@ export function textStepLocator(steps: readonly Step[], elements: readonly Excal
   return (id, symbol) => {
     const step = steps.find(s => s.stepId === id || id.startsWith(`${s.stepId}#`));
     if (!step) return null;
+    // Ink keeps the recognizer's per-symbol scene boxes; no font measuring needed.
+    if (step.origin === 'ink') {
+      if (symbol === undefined) return step.box;
+      const glyph = step.symbols?.[symbol];
+      return glyph && glyph.bbox.width > 0 && glyph.bbox.height > 0 ? glyph.bbox : null;
+    }
     const ink = elements.filter(e => !e.isDeleted && step.elementIds.includes(e.id));
     if (!ink.length || ink.some(e => e.angle !== 0)) return null;
     const box = { x: Math.min(...ink.map(e => e.x)), y: Math.min(...ink.map(e => e.y)),

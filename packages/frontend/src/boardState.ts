@@ -1,10 +1,19 @@
 import type { ExpectedAnswer } from '@openmathtutor/shared';
-import { validateBoardActions, type BoardAction, type AnalyzeBoardResponse, type RecognizedStep } from '@openmathtutor/shared';
+import { parseMathStatement, validateBoardActions, type BoardAction, type AnalyzeBoardResponse, type RecognizedStep } from '@openmathtutor/shared';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import type { BinaryFiles } from '@excalidraw/excalidraw/types';
+import { parseLine, recognizeBoardLines, type RecognizedLine, type RecognizedSymbol } from './handwriting';
 
 export interface Box { x: number; y: number; width: number; height: number }
-export interface Step extends RecognizedStep { box: Box; elementIds: string[] }
+export interface Step extends RecognizedStep {
+  box: Box; elementIds: string[];
+  /** 'ink' means the line came from the local handwriting recognizer. */
+  origin?: 'text' | 'ink';
+  confidence?: number;
+  uncertain?: boolean;
+  parserCompatible?: boolean;
+  symbols?: RecognizedSymbol[];
+}
 export interface Explanation {
   id: string; revision: number; text: string; ttsText: string;
   status: AnalyzeBoardResponse['verifierStatus']; firstErrorStepId: string | null; clarification: string | null;
@@ -23,6 +32,8 @@ export interface BoardState {
   handled?: string[];
   /** Exact line keys explicitly submitted as final; edits invalidate the corresponding mark. */
   confirmedFinals?: string[];
+  /** One-tap symbol corrections keyed by stroke signature (IDs plus versions). */
+  inkEdits?: Record<string, string>;
 }
 export function newBoard(): BoardState {
   return { id: crypto.randomUUID(), revision: 0, statement: '', topic: '', elements: [], files: {},
@@ -61,18 +72,90 @@ function rows(elements: readonly ExcalidrawElement[], previous: Step[], revision
     return { stepId, boardRevision: revision, latexGuess: typed || (same ? old.latexGuess : ''), box: g.box, elementIds: g.elements.map(e => e.id) };
   });
 }
-export function commitStudent(state: BoardState, incoming: readonly ExcalidrawElement[], files = state.files): BoardState {
+/** Stable key for one recognised symbol. Versions are part of the key so a
+ * re-drawn stroke cannot silently inherit an old correction. */
+export function inkSymbolKey(strokeIds: readonly string[], elements: readonly ExcalidrawElement[]): string {
+  const byId = new Map(elements.map(e => [e.id, e]));
+  return [...strokeIds].sort().map(id => {
+    const e = byId.get(id);
+    return `${id}@${e?.version ?? 0}:${e?.versionNonce ?? 0}`;
+  }).join('|');
+}
+
+/** The same safe parser decides whether a composed line is a usable statement. */
+function parserCompatible(text: string): boolean {
+  try { parseMathStatement(text); return true; } catch { return false; }
+}
+
+/** Apply one-tap symbol edits, then let the same spatial parser recompose the line. */
+export function correctedInkLine(line: RecognizedLine, edits: Record<string, string>, elements: readonly ExcalidrawElement[]) {
+  const choices = line.symbols.map(symbol => {
+    const label = edits[inkSymbolKey(symbol.strokeIds, elements)];
+    return label ? symbol.candidates.findIndex(candidate => candidate.label === label) : -1;
+  });
+  if (!choices.some(choice => choice >= 0)) return line;
+  const parsed = parseLine(line.symbols, choices);
+  return { ...line, text: parsed.text, confidence: parsed.confidence, parserCompatible: parserCompatible(parsed.text) };
+}
+
+export type InkRecognizer = (elements: readonly ExcalidrawElement[]) => RecognizedLine[];
+
+export function commitStudent(state: BoardState, incoming: readonly ExcalidrawElement[], files = state.files,
+  recognize: InkRecognizer = elements => recognizeBoardLines(elements)): BoardState {
   const elements = incoming.filter(isStudent);
   if (fingerprint(elements) === fingerprint(state.elements) && files === state.files) return state;
   if (fingerprint(elements) === fingerprint(state.elements)) return { ...state, files };
   const revision = state.revision + 1;
   const changedIds = new Set(elements.filter(e => !state.elements.some(p => p.id === e.id && p.version === e.version && p.versionNonce === e.versionNonce)).map(e => e.id));
-  const steps = rows(elements, state.steps, revision).map(s => ({ ...s,
+  // The local recognizer is authoritative for ink. A drawing/unsupported shape
+  // falls back to the old geometric row grouping rather than disappearing.
+  let recognized: RecognizedLine[] = [];
+  try { recognized = recognize(elements); } catch { recognized = []; }
+  const edits = state.inkEdits ?? {};
+  const used = new Set<string>();
+  const inkSteps: Step[] = recognized.flatMap(line => {
+    const corrected = correctedInkLine(line, edits, elements);
+    if (!corrected.text.trim()) return [];
+    const old = state.steps.find(s => s.origin === 'ink' && !used.has(s.stepId)
+      && s.elementIds.some(id => line.strokeIds.includes(id)));
+    const stepId = old?.stepId ?? line.id;
+    used.add(stepId);
+    return [{
+      stepId, boardRevision: revision, latexGuess: corrected.text, box: { ...line.bbox }, elementIds: [...line.strokeIds],
+      origin: 'ink' as const, confidence: corrected.confidence, uncertain: !corrected.parserCompatible || corrected.confidence < .5,
+      parserCompatible: corrected.parserCompatible, symbols: line.symbols,
+    }];
+  });
+  const covered = new Set(recognized.flatMap(line => line.strokeIds));
+  const rest = elements.filter(e => e.type !== 'freedraw' || !covered.has(e.id));
+  const textSteps = rows(rest, state.steps.filter(s => s.origin !== 'ink'), revision).map(s => ({ ...s,
     latexGuess: s.elementIds.some(id => changedIds.has(id)) && !elements.some(e => s.elementIds.includes(e.id) && e.type === 'text') ? '' : s.latexGuess,
   }));
+  const steps = [...textSteps, ...inkSteps].sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
   const activeStepId = steps.find(s => s.elementIds.some(id => changedIds.has(id)))?.stepId ?? steps.at(-1)?.stepId ?? null;
+  const currentKeys = new Set(recognized.flatMap(line => line.symbols.map(symbol => inkSymbolKey(symbol.strokeIds, elements))));
+  const inkEdits = Object.fromEntries(Object.entries(edits).filter(([key]) => currentKeys.has(key)));
   // Outdated annotations are deliberately removed when the student changes the mathematical surface.
-  return { ...state, elements: structuredClone(elements), files, steps, revision, activeStepId, annotations: [] };
+  return { ...state, elements: structuredClone(elements), files, steps, revision, activeStepId, annotations: [],
+    ...(Object.keys(inkEdits).length ? { inkEdits } : { inkEdits: undefined }) };
+}
+/** One-tap correction of a single recognised symbol; recomposes only its line. */
+export function correctInk(state: BoardState, key: string, label: string): BoardState {
+  if (state.inkEdits?.[key] === label) return state;
+  const revision = state.revision + 1;
+  const edits = { ...state.inkEdits, [key]: label };
+  const steps = state.steps.map(step => {
+    if (step.origin !== 'ink' || !step.symbols) return { ...step, boardRevision: revision };
+    const choices = step.symbols.map(symbol => {
+      const choice = edits[inkSymbolKey(symbol.strokeIds, state.elements)];
+      return choice ? symbol.candidates.findIndex(candidate => candidate.label === choice) : -1;
+    });
+    const parsed = parseLine(step.symbols, choices);
+    const compatible = parserCompatible(parsed.text);
+    return { ...step, boardRevision: revision, latexGuess: parsed.text, confidence: parsed.confidence,
+      uncertain: !compatible || parsed.confidence < .5, parserCompatible: compatible };
+  });
+  return { ...state, revision, steps, inkEdits: edits, annotations: [] };
 }
 export function editTask(state: BoardState, field: 'statement' | 'topic', value: string): BoardState {
   if (state[field] === value) return state;
@@ -98,7 +181,10 @@ export function removeAnnotation(state: BoardState, id: string): BoardState {
 export function applyResponse(state: BoardState, response: AnalyzeBoardResponse, requestId: string) {
   if (response.boardRevision !== state.revision || response.requestId !== requestId) return { state, stale: true, rejected: false };
   const result = validateBoardActions(response.boardActions, state.revision, boardBounds(state));
-  const steps = state.steps.map(s => ({ ...s, latexGuess: response.recognizedSteps.find(r => r.stepId === s.stepId)?.latexGuess ?? s.latexGuess }));
+  // The local recognizer (and explicit student corrections) own ink text; the
+  // provider may only restate typed lines.
+  const steps = state.steps.map(s => ({ ...s,
+    latexGuess: s.origin === 'ink' ? s.latexGuess : response.recognizedSteps.find(r => r.stepId === s.stepId)?.latexGuess ?? s.latexGuess }));
   const known = new Set(steps.flatMap(s => [s.stepId, ...s.latexGuess.split(/\n+/).filter(p => p.trim()).map((_, i) => `${s.stepId}#${i}`)]));
   let rejected = result.errors.length > 0;
   let annotations = renderableActions(state);

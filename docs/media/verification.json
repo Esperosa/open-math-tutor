@@ -1,0 +1,266 @@
+{
+  "mp4Count": 5,
+  "screenshotCount": 10,
+  "maximumFileBytes": 228538,
+  "files": [
+    {
+      "file": "01-first-lesson.mp4",
+      "bytes": 123859,
+      "sha256": "9b086cbcf59cbce9f0b90d4439301786749575349a5cc50a3b686090a17151c2",
+      "media": {
+        "width": 1280,
+        "height": 720,
+        "durationSeconds": 15.24,
+        "codec": "h264",
+        "audio": false,
+        "decoded": true
+      }
+    },
+    {
+      "file": "01-first-lesson.webm",
+      "bytes": 148214,
+      "sha256": "d4c6a0563933d33be82106bbb3c7ef4cc4c72c5e300ae840d67883d64a4c3b65",
+      "media": {
+        "width": 1280,
+        "height": 720,
+        "durationSeconds": 15.24,
+        "codec": "vp9",
+        "audio": false,
+        "decoded": true
+      }
+    },
+    {
+      "file": "01-onboarding.png",
+      "bytes": 36624,
+      "sha256": "2a21e18096b7c0ad83be86db3da733602b9034e934c22cee496c2c144982bfd3",
+      "image": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "file": "02-courses.png",
+      "bytes": 49570,
+      "sha256": "3ffa6e507c427d81d85b3b18402adf63995cc07693eced2119aedfaaf36bbdfd",
+      "image": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "file": "02-local-coach.mp4",
+      "bytes": 65505,
+      "sha256": "768d99aa4dc85347ee863c526c5846f3bfc0594e202bac32591924c87fbb5a72",
+      "media": {
+        "width": 1280,
+        "height": 720,
+        "durationSeconds": 16.2,
+        "codec": "h264",
+        "audio": false,
+        "decoded": true
+      }
+    },
+    {
+      "file": "02-local-coach.webm",
+      "bytes": 98835,
+      "sha256": "73c40175fe413a12e1f9265422113a0d0277b856a8371655e241aa495421d840",
+      "media": {
+        "width": 1280,
+        "height": 720,
+        "durationSeconds": 16.2,
+        "codec": "vp9",
+        "audio": false,
+        "decoded": true
+      }
+    },
+    {
+      "file": "03-lesson-light.png",
+      "bytes": 53214,
+      "sha256": "60dcd382884199b671f22c5b8957d3b7ba1d687c84fb63608fc205bb7d040e8a",
+      "image": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "file": "04-local-coach.png",
+      "bytes": 50560,
+      "sha256": "3b1ee402af8d0f3c612b1ac496be4e4163ee594cbf8fb204c06e6f52898a0771",
+      "image": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "file": "04-plan-progress.mp4",
+      "bytes": 201672,
+      "sha256": "160b40945b558cbf283ec3261d3e2945316676e68f0d92cb38f14b1e1b567908",
+      "media": {
+        "width": 1280,
+        "height": 720,
+        "durationSeconds": 19.8,
+        "codec": "h264",
+        "audio": false,
+        "decoded": true
+      }
+    },
+    {
+      "file": "04-plan-progress.webm",
+      "bytes": 228538,
+      "sha256": "199b3b816ccb0ec00fc538d28ee50ba6c894e3de38fb4817664efc473e9434b1",
+      "media": {
+        "width": 1280,
+        "height": 720,
+        "durationSeconds": 19.8,
+        "codec": "vp9",
+        "audio": false,
+        "decoded": true
+      }
+    },
+    {
+      "file": "05-physics-units.mp4",
+      "bytes": 77663,
+      "sha256": "da40bf53560f344f320334ac75d86d65638a057e686f86f0376a196c185cfbfe",
+      "media": {
+        "width": 1280,
+        "height": 720,
+        "durationSeconds": 16.52,
+        "codec": "h264",
+        "audio": false,
+        "decoded": true
+      }
+    },
+    {
+      "file": "05-physics-units.webm",
+      "bytes": 127724,
+      "sha256": "080f4edf7bb2d002aa55c08ff11b93cb525c9a1999dda1c0c52c7a29bad02072",
+      "media": {
+        "width": 1280,
+        "height": 720,
+        "durationSeconds": 16.52,
+        "codec": "vp9",
+        "audio": false,
+        "decoded": true
+      }
+    },
+    {
+      "file": "06-plan.png",
+      "bytes": 59518,
+      "sha256": "4028e7a39264f51162e33f98d64d11efc5398b1e63e984798988962105711770",
+      "image": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "file": "06-test-and-export.mp4",
+      "bytes": 130436,
+      "sha256": "c7e27c44cbcbc121dc5bfb954095c30b92e9f54c0579643e11548825ed19d31b",
+      "media": {
+        "width": 1280,
+        "height": 720,
+        "durationSeconds": 11.56,
+        "codec": "h264",
+        "audio": false,
+        "decoded": true
+      }
+    },
+    {
+      "file": "06-test-and-export.webm",
+      "bytes": 144048,
+      "sha256": "f722792048e94424f8f7a805f0ad5815436301745ebc4295d9cfc712de73dab1",
+      "media": {
+        "width": 1280,
+        "height": 720,
+        "durationSeconds": 11.56,
+        "codec": "vp9",
+        "audio": false,
+        "decoded": true
+      }
+    },
+    {
+      "file": "07-physics.png",
+      "bytes": 54802,
+      "sha256": "726d49e224ea792ef953f6adeca17a55056fc644fe973549b1f583bdad8d1d7c",
+      "image": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "file": "08-tutor-menu.png",
+      "bytes": 52976,
+      "sha256": "ddfb1462214de0af6a4a10c0a750c64cb12c544e2f0c921a783742362cd64c4c",
+      "image": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "file": "09-board-dark.png",
+      "bytes": 50539,
+      "sha256": "0adcaf5fdd2cd9c80ea4a92d7dc7ad7317455cc1b51f18e76d19387262c4bcb2",
+      "image": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    {
+      "file": "10-phone-dark.png",
+      "bytes": 44171,
+      "sha256": "c2645c6cb22d320ff61cf836b0c228c07bb2455c71037321df14007d614be0ed",
+      "image": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "11-phone-light.png",
+      "bytes": 43919,
+      "sha256": "eaac9e8d5aa0e0d8f97f2973a90013f3795d0f6633ab47c737e71d960b9b3bda",
+      "image": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "README.md",
+      "bytes": 9178,
+      "sha256": "b11e100f7310d5576cc5e9f1fa5758c932e189bffb32458ed7b88d1a9eb97e41"
+    },
+    {
+      "file": "capture-report.json",
+      "bytes": 3771,
+      "sha256": "84c53507d456bc0143c07e29724a8e625cf95efe3afc0c6cfcca15da493afd5c"
+    },
+    {
+      "file": "exports/tabule.png",
+      "bytes": 2025,
+      "sha256": "fdba955dfc460f694693994e0bb05c915dac6d184629b8262d9c54dcef4c0d48",
+      "image": {
+        "width": 128,
+        "height": 89
+      }
+    },
+    {
+      "file": "exports/test.html",
+      "bytes": 7618,
+      "sha256": "3179c63b2778cec5b707e3fc2e61793fe68b51bacc84e76e27b500766465bda8"
+    },
+    {
+      "file": "exports/zapisky.md",
+      "bytes": 155,
+      "sha256": "07893e7117dac56c336eb9c61361a75555b2f14d5346a03d4de41937dec194ea"
+    },
+    {
+      "file": "scripts/capture.mjs",
+      "bytes": 17651,
+      "sha256": "ee0fe9b84c7ff934b558b28b1071cd33da28c134c5cf595f6b2546856df256cb"
+    },
+    {
+      "file": "scripts/verify.mjs",
+      "bytes": 4306,
+      "sha256": "d355cff58eb1e3ea1a67376ff9de330c7b001e3df3b9e10519106383187f1536"
+    }
+  ]
+}

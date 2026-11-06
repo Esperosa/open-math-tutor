@@ -50,6 +50,7 @@ async function setup(page: Page) {
   await page.getByRole('button', { name: 'Nastavení', exact: true }).click();
   const canvas = page.locator('.excalidraw__canvas.interactive');
   const rect = await canvas.boundingBox(); if (!rect) throw new Error('Canvas missing');
+  await page.locator('label:has([data-testid="toolbar-text"])').click();
   await page.mouse.click(rect.x + 560, rect.y + 340);
   await expect(page.locator('textarea.excalidraw-wysiwyg')).toBeFocused();
   await page.keyboard.type('2x + 3 = 7');
@@ -62,6 +63,7 @@ interface Box { x: number; y: number; width: number; height: number }
 const overlap = (a: Box, b: Box) => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 
 test('tutor writes every action type on the board: progressive, exported, deletable and never over the student text', async ({ page }) => {
+  test.slow();
   const exceptions: string[] = []; page.on('pageerror', e => exceptions.push(e.message));
   await setup(page);
   await expect(notes(page)).toHaveCount(TYPES.length);
@@ -145,6 +147,7 @@ test('without AI the local coach circles the wrong line, writes a short correcti
   const canvas = page.locator('.excalidraw__canvas.interactive');
   const rect = await canvas.boundingBox(); if (!rect) throw new Error('Canvas missing');
   for (const [row, text] of [[0, '2 + 3 = 5'], [1, '4 + 5 = 10']] as const) {
+    await page.locator('label:has([data-testid="toolbar-text"])').click();
     await page.mouse.click(rect.x + 560, rect.y + 270 + row * 90);
     await expect(page.locator('textarea.excalidraw-wysiwyg')).toBeFocused();
     await page.keyboard.type(text);

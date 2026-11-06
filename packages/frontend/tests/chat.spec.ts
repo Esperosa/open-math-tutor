@@ -91,6 +91,7 @@ test.describe('without an AI', () => {
     await page.getByRole('button', { name: 'Upravit zadání' }).click();
     await page.getByRole('textbox', { name: 'Zadání', exact: true }).fill('5+1');
     await page.getByRole('button', { name: 'Hotovo', exact: true }).click();
+    await page.locator('label:has([data-testid="toolbar-text"])').click();
     await page.mouse.click(560, 360);
     await page.keyboard.type('5+1=8'); await page.keyboard.press('Escape');
     await expect(page.getByTestId('tutor-bubble')).toHaveAttribute('data-kind', 'wrong');
