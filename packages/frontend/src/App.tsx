@@ -271,7 +271,7 @@ export function App() {
   const alertChip = !connected ? <span role="alert">{t.bridgeUnavailable} <button onClick={() => setRetry(r => r + 1)}>{t.retry}</button></span>
     : !canRequest ? <span>{provider && !provider.models.length ? t.noModels : t.selectProvider}</span> : null;
   return <div className="app-shell">
-    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} /></div>
+    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} onAskHere={() => { setPanel('ask'); setPinned(true); }} /></div>
     <div className="hud" data-testid="hud">
       <div className="hud-top-left">
         {settings.activeTrackId && <TrackBreadcrumb catalog={catalog} trackId={settings.activeTrackId} mastery={mastery} t={t} locale={settings.locale} onChangeTrack={changeTrack} />}
@@ -313,6 +313,7 @@ export function App() {
           <option value="">{t.choose}</option>{voice.voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</select></label>
         <label>{t.rate} ({settings.rate})<input type="range" min="0.5" max="1.5" step="0.1" value={settings.rate} onChange={e => configure({ rate: Number(e.target.value) })} /></label>
         {voice.warning && <p className="warning" role="alert">{t[voice.warning]}</p>}
+        <p className="muted">{t.controlsHelp}</p>
         <p className="privacy">{t.privacy}</p>
       </aside>
       <Rail items={[{ id: 'courses', label: t.courses }, { id: 'ask', label: t.askLabel }, { id: 'materials', label: t.customSources },

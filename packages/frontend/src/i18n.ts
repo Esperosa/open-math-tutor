@@ -46,6 +46,8 @@ export const cs = {
   addSource: 'Nahrát materiál', sourceProcessing: 'Zpracovávám…', removeSource: 'Odstranit',
   sourceEmpty: 'Soubor je prázdný nebo z něj nelze získat text.', sourceExtractFailed: 'Text se z tohoto souboru nepodařilo získat.',
   onboardingTitle: 'Na co se připravuješ?', onboardingSubtitle: 'Vyber si kurz a appka tě bude provázet od první úlohy.',
+  ctxText: 'Text sem', ctxEraser: 'Guma', ctxAsk: 'Zeptat se na tohle', ctxZoomHere: 'Přiblížit sem', ctxFit: 'Zobrazit vše', ctxDelete: 'Smazat výběr', ctxMenu: 'Nabídka tabule',
+  controlsHelp: 'Posun: kolečko, mezerník + tah nebo šipky. Zoom: Ctrl + kolečko nebo + / −. Podržení na tabuli otevře nabídku. Shift + 1 zobrazí vše.',
   onboardingSkip: 'Přeskočit, chci jen volnou tabuli', trackComplete: 'vše zvládnuto', changeTrack: 'Změnit kurz',
 } as const;
 export type MessageKey = keyof typeof cs;
@@ -95,6 +97,8 @@ export const en: Record<MessageKey, string> = {
   addSource: 'Upload material', sourceProcessing: 'Processing…', removeSource: 'Remove',
   sourceEmpty: 'The file is empty or no text could be extracted.', sourceExtractFailed: 'Text could not be extracted from this file.',
   onboardingTitle: 'What are you studying for?', onboardingSubtitle: 'Pick a track and the app will guide you starting from your first problem.',
+  ctxText: 'Text here', ctxEraser: 'Eraser', ctxAsk: 'Ask about this', ctxZoomHere: 'Zoom in here', ctxFit: 'Show everything', ctxDelete: 'Delete selection', ctxMenu: 'Board menu',
+  controlsHelp: 'Pan: scroll wheel, Space + drag or arrow keys. Zoom: Ctrl + wheel or + / −. Press and hold on the board for a menu. Shift + 1 shows everything.',
   onboardingSkip: 'Skip, I just want the free board', trackComplete: 'all done', changeTrack: 'Change track',
 };
 export const messages: Record<Locale, Record<MessageKey, string>> = { cs, en };

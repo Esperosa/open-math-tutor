@@ -183,3 +183,39 @@ test('real unavailable-bridge state remains usable, persistent, bilingual and re
   await page.screenshot({ path: 'test-results/unavailable-dark-mobile.png', fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
+
+test('canvas controls: pressing and holding on empty board opens a menu, a short click does not', async ({ page }) => {
+  await page.goto('/');
+  await skipOnboarding(page);
+  const canvas = page.locator('.excalidraw__canvas.interactive');
+  await expect(canvas).toBeVisible();
+  const rect = await canvas.boundingBox(); if (!rect) throw new Error('Canvas missing');
+  await page.mouse.click(rect.x + 600, rect.y + 450);
+  await page.waitForTimeout(700);
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await page.mouse.move(rect.x + 600, rect.y + 450);
+  await page.mouse.down();
+  await page.waitForTimeout(700);
+  await page.mouse.up();
+  await expect(page.getByRole('menu')).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Zeptat se na tohle' }).click();
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: 'Zeptej se na cokoli' })).toBeVisible();
+});
+
+test('canvas controls: arrow keys pan the board when nothing is selected', async ({ page }) => {
+  await page.goto('/');
+  await skipOnboarding(page);
+  await page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true }).fill('2x + 3 = 7');
+  await page.getByRole('button', { name: 'Přidat řádek', exact: true }).click();
+  const canvas = page.locator('.excalidraw__canvas.interactive');
+  const rect = await canvas.boundingBox(); if (!rect) throw new Error('Canvas missing');
+  await page.mouse.click(rect.x + 900, rect.y + 500);
+  const clip = { x: rect.x + 100, y: rect.y + 100, width: 600, height: 300 };
+  const before = await page.screenshot({ clip });
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(200);
+  const after = await page.screenshot({ clip });
+  expect(Buffer.compare(before, after)).not.toBe(0);
+});
