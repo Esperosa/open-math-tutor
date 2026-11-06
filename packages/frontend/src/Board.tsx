@@ -15,6 +15,7 @@ import type { TutorRect } from './tutorPosition';
 export interface BoardHandle {
   registerStepLocator(locator: StepLocator): () => void;
   stepViewportRect(stepId: string): TutorRect | null;
+  contentViewportRects(): TutorRect[];
   addLine(text: string, stepId: string | null): void;
   /** Remove the student's own ink of one written line (one row of a multiline text keeps its siblings). */
   removeStepLine(stepId: string): boolean;
@@ -158,6 +159,24 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
       return { x: rect.left + (x + state.scrollX) * state.zoom.value, y: rect.top + (lineY + state.scrollY) * state.zoom.value,
         width: width * state.zoom.value, height: height * state.zoom.value };
     },
+    contentViewportRects() {
+      if (!api || !surface.current) return [];
+      const state = api.getAppState(), rect = surface.current.getBoundingClientRect();
+      const student = api.getSceneElementsIncludingDeleted().filter(e => !e.isDeleted && isStudent(e));
+      const elementRects: TutorRect[] = student.map(e => {
+        const w = Math.abs(e.width), h = Math.abs(e.height), c = Math.abs(Math.cos(e.angle)), s = Math.abs(Math.sin(e.angle));
+        const width = (w * c + h * s) * state.zoom.value;
+        const height = (w * s + h * c) * state.zoom.value;
+        const x = rect.left + (e.x + w / 2 - (w * c + h * s) / 2 + state.scrollX) * state.zoom.value;
+        const y = rect.top + (e.y + h / 2 - (w * s + h * c) / 2 + state.scrollY) * state.zoom.value;
+        return { x, y, width, height };
+      });
+      const markRects: TutorRect[] = [...document.querySelectorAll<HTMLElement>('.step-mark')].map(m => {
+        const r = m.getBoundingClientRect();
+        return { x: r.left, y: r.top, width: r.width, height: r.height };
+      });
+      return [...elementRects, ...markRects];
+    },
     addLine(text, stepId) {
       if (!api) return;
       const step = board.steps.find(s => s.stepId === stepId);
@@ -270,7 +289,7 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
         aria-label={`${t.eraseTeacherNote}: ${note.text || note.action.type}`} title={t.eraseTeacherNote}
         onClick={() => onRemoveAnnotation?.(note.action.id)}
         style={{ left: (note.deleteBox.x + view.x) * view.zoom, top: (note.deleteBox.y + view.y) * view.zoom }}>
-        <span aria-hidden="true">×</span><span className="sr">{note.text}</span>
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" /></svg><span className="sr">{note.text}</span>
       </button>)}
     </div>
     <div className="graph-layer" aria-live="polite">
@@ -325,3 +344,4 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
     {settings.showAI && actions.length > 0 && <span className="layer-badge">{t.aiBadge} · {t.annotations}</span>}
   </div>;
 });
+

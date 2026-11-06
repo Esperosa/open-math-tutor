@@ -28,6 +28,8 @@ interface Props {
   speaking: boolean;
   message: TutorMessage | null;
   locateStep?(id: string): TutorRect | null;
+  locateObstacles?(): TutorRect[];
+  writing?: boolean;
   menuOpen: boolean;
   /** A settings panel or drawer is open: only the mascot stays, bubble and menu wait. */
   quiet?: boolean;
@@ -73,7 +75,7 @@ export function TutorHud(p: Props) {
   const reduced = useReducedMotion();
   const cm = chatMessages[p.locale ?? 'cs'];
   const chatOpen = !!p.chat?.open && !p.quiet && !p.menuOpen;
-  const visit = useTutorVisit(message?.id, message?.text ?? '', message?.stepId, !!p.quiet || p.menuOpen || chatOpen, reduced, p.locateStep);
+  const visit = useTutorVisit(message?.id, message?.text ?? '', message?.stepId, !!p.quiet || p.menuOpen || chatOpen, reduced, p.locateStep, p.locateObstacles, p.writing);
   const buttonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!p.activity || !buttonRef.current || reduced) return;
@@ -121,13 +123,9 @@ export function TutorHud(p: Props) {
         <button onClick={() => p.onChoice('confirm_final')}>{t.checkInFinal}</button>
         <button onClick={() => p.onChoice('dismiss')}>{t.offerDismiss}</button>
       </div>}
-      {message.kind === 'wrong' && message.stepId && <div className="row">
-        <button onClick={() => p.onChoice('local_hint')}>{t.offerLocalHint}</button>
-        <button onClick={() => p.onChoice('retry_line')}>{t.offerRetryLine}</button>
-      </div>}
       {message.kind === 'wrong' && <div className="row">
-        <button className="primary" disabled={p.running} onClick={() => p.onChoice('explain')}>{t.offerExplain}</button>
-        <button disabled={p.running} onClick={() => p.onChoice('hint')}>{t.offerHint}</button>
+        <button className="primary" disabled={p.running} onClick={() => p.onChoice(p.canRequest ? 'hint' : 'local_hint')}>{t.offerHint}</button>
+        <button disabled={p.running} onClick={() => p.onChoice('explain')}>{t.offerExplain}</button>
         <button onClick={() => p.onChoice('dismiss')}>{t.offerDismiss}</button>
       </div>}
       {message.kind === 'solved' && <div className="row">
@@ -193,3 +191,6 @@ function BubbleText({ id, text, count, away, more, less }: { id: string; text: s
     {text.length > LIMIT && <button className="link-btn" disabled={away} onClick={() => setOpen(open === id ? null : id)}>{open === id ? less : more}</button>}
   </>;
 }
+
+
+

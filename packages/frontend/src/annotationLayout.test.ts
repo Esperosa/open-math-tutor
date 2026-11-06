@@ -42,14 +42,17 @@ describe('relative annotation layout', () => {
   });
 });
 describe('local teacher uses the same declarative layer', () => {
-  it('circles wrong arithmetic and writes an independently computed correction', () => {
-    const actions = localTeacherActions({ stepId: 's#1', parentId: 's', latexGuess: '5+2=15' }, 4, 'cs');
-    expect(actions[0]).toMatchObject({ type: 'circle', targetStepId: 's#1', boardRevision: 4 });
-    expect(actions[1]).toMatchObject({ type: 'write_text', text: '5+2=7', placement: { relativeToStepId: 's#1' } });
+  it('circles wrong arithmetic and asks a guiding question on first mistake, gives correction on hint', () => {
+    const firstAttempt = localTeacherActions({ stepId: 's#1', parentId: 's', latexGuess: '5+2=15' }, 4, 'cs');
+    expect(firstAttempt[0]).toMatchObject({ type: 'circle', targetStepId: 's#1', boardRevision: 4 });
+    expect(firstAttempt[1]).toMatchObject({ type: 'write_text', text: 'Zkus ten řádek přepočítat po operacích.', placement: { relativeToStepId: 's#1' } });
+
+    const hintAttempt = localTeacherActions({ stepId: 's#1', parentId: 's', latexGuess: '5+2=15' }, 4, 'cs', { revealSolution: true });
+    expect(hintAttempt[1]).toMatchObject({ type: 'write_text', text: '5+2=7', placement: { relativeToStepId: 's#1' } });
   });
   it('does not invent algebra or exact values for repeating decimals', () => {
     for (const latexGuess of ['x+2=15', '1/3=5', '<script>x</script>']) {
-      expect(localTeacherActions({ stepId: 's', parentId: 's', latexGuess }, 1, 'en')[1]).toMatchObject({ text: 'Check this step.' });
+      expect(localTeacherActions({ stepId: 's', parentId: 's', latexGuess }, 1, 'en', { revealSolution: true })[1]).toMatchObject({ text: 'Check this step.' });
     }
   });
 });

@@ -24,8 +24,26 @@ describe('safe tutor destination', () => {
     const safe = tutorDestination(home, row, viewport, [routeOnly]);
     expect(safe).toBeNull();
   });
-  it('can use the space below a row on a narrow phone', () => {
+  it('can use the space below a row on a narrow phone when unobstructed', () => {
     expect(tutorDestination({ x: 110, y: 500, width: 268, height: 180 }, { x: 100, y: 250, width: 240, height: 32 }, { width: 390, height: 844 }, [])).not.toBeNull();
+  });
+  it('never stops over student strokes or marks (✓/✗)', () => {
+    // When a mark ✓/✗ is directly to the right of the row
+    const mark: TutorRect = { x: 730, y: 350, width: 24, height: 24 };
+    // And student stroke below the row
+    const strokeBelow: TutorRect = { x: 560, y: 400, width: 200, height: 40 };
+    const dest = tutorDestination(home, row, viewport, [mark, strokeBelow]);
+    if (dest) {
+      expect(overlaps(dest, mark)).toBe(false);
+      expect(overlaps(dest, strokeBelow)).toBe(false);
+      expect(overlaps(dest, row)).toBe(false);
+    }
+  });
+  it('stays home if all candidate spots are blocked by student strokes or marks', () => {
+    const mark: TutorRect = { x: 730, y: 350, width: 300, height: 300 };
+    const leftObstacle: TutorRect = { x: 200, y: 300, width: 400, height: 300 };
+    const bottomObstacle: TutorRect = { x: 500, y: 380, width: 400, height: 300 };
+    expect(tutorDestination(home, row, viewport, [mark, leftObstacle, bottomObstacle])).toBeNull();
   });
   it('checks retargeting from the rendered position, not the original home', () => {
     const from = { ...home, x: 200, y: 200 };

@@ -107,13 +107,13 @@ const skills: Skill[] = [
 ];
 
 const problemTemplates: ProblemTemplate[] = [
-  // --- Integers ---
+  // --- Integers (D8: always has negative numbers, non-zero terms so no degenerate "5" or "-4") ---
   { id: "integers-1", skillId: SKILL_INTEGERS, difficultyLevel: 1, topic: TOPIC_NUMBERS,
-    statementTemplate: "{a}+{b}", generatorRanges: { a: [-9, 9], b: [-9, 9] } },
+    statementTemplate: "{a}+{b}", generatorRanges: { a: [-9, -1], b: [1, 9] } },
   { id: "integers-2", skillId: SKILL_INTEGERS, difficultyLevel: 2, topic: TOPIC_NUMBERS,
-    statementTemplate: "{a}-{b}+{c}", generatorRanges: { a: [-9, 9], b: [-9, 9], c: [-9, 9] } },
+    statementTemplate: "{a}-{b}+{c}", generatorRanges: { a: [-9, -1], b: [1, 9], c: [1, 9] } },
   { id: "integers-3", skillId: SKILL_INTEGERS, difficultyLevel: 3, topic: TOPIC_NUMBERS,
-    statementTemplate: "{a}*{b}-{c}", generatorRanges: { a: [-9, 9], b: [-9, 9], c: [-20, 20] } },
+    statementTemplate: "{a}*{b}-{c}", generatorRanges: { a: [-9, -1], b: [2, 9], c: [1, 9] } },
 
   // --- Order of operations ---
   { id: "order-1", skillId: SKILL_ORDER_OF_OPERATIONS, difficultyLevel: 2, topic: TOPIC_NUMBERS,
@@ -155,11 +155,11 @@ const problemTemplates: ProblemTemplate[] = [
   { id: "percent-applied-3", skillId: SKILL_PERCENTAGES_APPLIED, difficultyLevel: 4, topic: TOPIC_FRACTIONS,
     statementTemplate: "{n}*{p}/100-{m}", generatorRanges: { p: [5, 95], n: [20, 300], m: [1, 50] } },
 
-  // --- Linear equations, basic ---
+  // --- Linear equations, basic (D8: a in [2, 9] with derived b so never degenerates to "x=29") ---
   { id: "linear-basic-1", skillId: SKILL_LINEAR_BASIC, difficultyLevel: 1, topic: TOPIC_LINEAR,
-    statementTemplate: "{a}x={b}", generatorRanges: { a: [1, 9], b: [-50, 50] } },
+    statementTemplate: "{a}x={b}", generatorRanges: { a: [2, 9], b: [-50, 50] } },
   { id: "linear-basic-2", skillId: SKILL_LINEAR_BASIC, difficultyLevel: 2, topic: TOPIC_LINEAR,
-    statementTemplate: "{a}x+{b}={c}", generatorRanges: { a: [1, 9], b: [-20, 20], c: [-50, 50] } },
+    statementTemplate: "{a}x+{b}={c}", generatorRanges: { a: [2, 9], b: [-20, 20], c: [-50, 50] } },
   { id: "linear-basic-3", skillId: SKILL_LINEAR_BASIC, difficultyLevel: 3, topic: TOPIC_LINEAR,
     statementTemplate: "x/{a}+{b}={c}", generatorRanges: { a: [2, 9], b: [-20, 20], c: [-50, 50] } },
 
@@ -171,9 +171,9 @@ const problemTemplates: ProblemTemplate[] = [
   { id: "linear-dist-3", skillId: SKILL_LINEAR_DISTRIBUTION, difficultyLevel: 4, topic: TOPIC_LINEAR,
     statementTemplate: "{a}(x+{b})+{c}={d}", generatorRanges: { a: [2, 9], b: [-9, 9], c: [-20, 20], d: [-50, 50] } },
 
-  // --- Linear equations, advanced (variable on both sides) ---
+  // --- Linear equations, advanced (variable on both sides, guaranteed unique coefficients) ---
   { id: "linear-adv-1", skillId: SKILL_LINEAR_ADVANCED, difficultyLevel: 3, topic: TOPIC_LINEAR_ADVANCED,
-    statementTemplate: "{a}x+{b}={c}x+{d}", generatorRanges: { a: [1, 9], b: [-20, 20], c: [1, 9], d: [-20, 20] } },
+    statementTemplate: "{a}x+{b}={c}x+{d}", generatorRanges: { a: [2, 9], b: [-20, 20], c: [2, 9], d: [-20, 20] } },
   { id: "linear-adv-2", skillId: SKILL_LINEAR_ADVANCED, difficultyLevel: 4, topic: TOPIC_LINEAR_ADVANCED,
     statementTemplate: "{a}(x+{b})={c}(x-{d})", generatorRanges: { a: [2, 9], b: [-9, 9], c: [2, 9], d: [-9, 9] } },
   { id: "linear-adv-3", skillId: SKILL_LINEAR_ADVANCED, difficultyLevel: 5, topic: TOPIC_LINEAR_ADVANCED,
@@ -192,7 +192,7 @@ const tracks: Track[] = [
       en: "The Czech unified entrance exam in mathematics: numbers, powers, equations, systems, relations and data, geometry and non-standard problems. Calculators are not allowed at the exam.",
     },
     examFamily: "ss-prijimacky", calculator: "none", sourceUrl: CERMAT_JPZ,
-    topicIds: [TOPIC_NUMBERS, TOPIC_FRACTIONS, "mocniny-a-vyrazy", TOPIC_LINEAR, "soustavy-rovnic", "zavislosti-a-data", "geometrie", "nestandardni-ulohy"],
+    topicIds: [TOPIC_NUMBERS, TOPIC_FRACTIONS, "mocniny-a-vyrazy", TOPIC_LINEAR, TOPIC_LINEAR_ADVANCED, "soustavy-rovnic", "zavislosti-a-data", "geometrie", "nestandardni-ulohy"],
   },
   {
     id: "vs-prijimacky",
@@ -202,7 +202,7 @@ const tracks: Track[] = [
       en: "Preparation for written university entrance tests in mathematics: equations and inequalities, functions, trigonometry, combinatorics. The syllabus is indicative; check your faculty's requirements.",
     },
     examFamily: "vs-prijimacky", calculator: "scientific", unofficial: true,
-    topicIds: [TOPIC_NUMBERS, TOPIC_FRACTIONS, "mocniny-a-vyrazy", TOPIC_LINEAR, TOPIC_LINEAR_ADVANCED, "soustavy-rovnic", "funkce", "geometrie", "goniometrie", "nestandardni-ulohy", "kombinatorika-pravdepodobnost"],
+    topicIds: ["funkce", "goniometrie", "kombinatorika-pravdepodobnost", "soustavy-rovnic", "mocniny-a-vyrazy", "geometrie", "nestandardni-ulohy"],
   },
   {
     id: "maturita",
@@ -212,8 +212,7 @@ const tracks: Track[] = [
       en: "Review for the maturita: algebra, equations and inequalities, functions, sequences and finance, trigonometry, combinatorics and probability. A calculator without graphing or equation solving is allowed at the exam.",
     },
     examFamily: "maturita", calculator: "scientific", sourceUrl: CERMAT_MZ,
-    // Every skill in fractions/linear is gated behind SKILL_INTEGERS (TOPIC_NUMBERS).
-    topicIds: [TOPIC_NUMBERS, TOPIC_FRACTIONS, "mocniny-a-vyrazy", TOPIC_LINEAR, TOPIC_LINEAR_ADVANCED, "funkce", "posloupnosti-a-finance", "geometrie", "goniometrie", "nestandardni-ulohy", "kombinatorika-pravdepodobnost"],
+    topicIds: ["funkce", "posloupnosti-a-finance", "goniometrie", "kombinatorika-pravdepodobnost", "soustavy-rovnic", "mocniny-a-vyrazy", "geometrie", "nestandardni-ulohy"],
   },
   {
     id: "vysoka-skola",
@@ -223,7 +222,7 @@ const tracks: Track[] = [
       en: "A quick refresher of school algebra before the first semester: numbers, fractions, powers, equations and systems.",
     },
     examFamily: "vysoka-skola", unofficial: true,
-    topicIds: [TOPIC_NUMBERS, TOPIC_LINEAR, TOPIC_LINEAR_ADVANCED, TOPIC_FRACTIONS, "mocniny-a-vyrazy", "soustavy-rovnic"],
+    topicIds: ["soustavy-rovnic", "mocniny-a-vyrazy", "funkce", "geometrie"],
   },
   {
     id: "fyzika",

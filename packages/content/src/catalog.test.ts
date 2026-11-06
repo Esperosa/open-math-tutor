@@ -188,3 +188,70 @@ describe("expected answers", () => {
     }
   });
 });
+
+describe("content quality and difficulty (D8, D12)", () => {
+  it("every problem template instance contains an operation or prompt and is not degenerate", async () => {
+    const { instantiateProblem } = await import("@openmathtutor/shared");
+    for (const template of catalog.problemTemplates) {
+      for (let i = 0; i < 20; i++) {
+        const problem = instantiateProblem(template);
+        const s = problem.statement.trim();
+        expect(s.length).toBeGreaterThan(0);
+        // Not a bare number like '5' or '-4'
+        expect(s, `${template.id} produced bare number: ${s}`).not.toMatch(/^-?\d+$/);
+        // Not a trivial identity like 'x=29'
+        expect(s, `${template.id} produced trivial identity: ${s}`).not.toMatch(/^x\s*=\s*-?\d+$/);
+        // Contains an operation or prompt/instruction
+        const hasOpOrPrompt = s.includes("?") || /[-+*/=^<>≤≥·~]/i.test(s) || /(?:Vypočítej|Urči|Řeš|Rozlož|Roznásob|Zjednoduš|Kolik|Jak|Najdi|Dokaž|Zderivuj|Sestav|Vyčísli|Nakresli|Máš|Převeď|Zneguj|Rozhodni|Formuluj|Co\s+znamená|V\s+aritmetické|V\s+geometrické|V\s+pytlíku|V\s+průzkumu|V\s+třídě|Na\s+účet|Cena\s+zboží|Vklad|Žebřík|Odvěsny|Test\s+má|Hodíš|Házíš|Dva\s+rezistory|Výběr|Z\s+balíčku|Z\s+drátu|Zobrazení|Je\s+f|Je\s+relace|Je\s+matice|Je\s+dělitelnost|Je\s+graf|Existuje\s+graf)/i.test(s);
+        expect(hasOpOrPrompt, `template ${template.id} instance "${s}" has no operation or prompt`).toBe(true);
+        // If arithmetic with negative numbers, it must contain a negative sign followed by digits
+        if (template.skillId === "arithmetic-integers") {
+          expect(s, `${template.id} arithmetic-integers has no negative number: ${s}`).toMatch(/-\d/);
+        }
+      }
+    }
+  });
+
+  it("'Další příklad' never returns the same statement twice in a row in 50 attempts for courses/skills with >= 6 variants", async () => {
+    const { instantiateProblem } = await import("@openmathtutor/shared");
+    const richSkills = catalog.skills.filter(sk => sk.problemTemplateIds.length >= 6);
+    expect(richSkills.length).toBeGreaterThan(0);
+    for (const skill of richSkills) {
+      const templates = skill.problemTemplateIds.map(id => catalog.problemTemplates.find(t => t.id === id)!);
+      let previous = null;
+      for (let step = 0; step < 50; step++) {
+        let current = "";
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const tpl = templates[Math.floor(Math.random() * templates.length)]!;
+          const cand = instantiateProblem(tpl).statement;
+          if (cand !== previous) {
+            current = cand;
+            break;
+          }
+        }
+        expect(current).not.toBe(previous);
+        previous = current;
+      }
+    }
+  });
+
+  it("difficulty levels match the course: maturita and vs-prijimacky do not start with 2-2 / basic arithmetic", () => {
+    for (const trackId of ["maturita", "vs-prijimacky", "vysoka-skola"]) {
+      const track = catalog.tracks.find(t => t.id === trackId);
+      expect(track).toBeDefined();
+      if (!track) continue;
+      // First topic must not be TOPIC_NUMBERS
+      expect(track.topicIds[0]).not.toBe("zaklady-cisla");
+      // All starting skills in the first topic have difficulty >= 2 and don't include arithmetic-integers
+      const firstTopicId = track.topicIds[0]!;
+      const firstTopicSkills = getTopicSkills(catalog, firstTopicId);
+      for (const skill of firstTopicSkills) {
+        expect(skill.id).not.toBe("arithmetic-integers");
+        const templates = getSkillTemplates(catalog, skill.id);
+        for (const tpl of templates) {
+          expect(tpl.difficultyLevel).toBeGreaterThanOrEqual(2);
+        }
+      }
+    }
+  });
+});

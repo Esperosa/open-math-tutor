@@ -141,12 +141,16 @@ body { overflow: hidden; }
   position: absolute; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); overflow: auto;
   visibility: hidden; opacity: 0; transition: transform var(--duration-base) var(--ease-standard), opacity var(--duration-base) var(--ease-standard), visibility 0s linear var(--duration-base);
 }
-.settings-pop { top: 64px; right: 12px; width: 320px; max-height: calc(100vh - 160px); transform: translateY(-8px); }
+.settings-pop { top: 64px; right: 12px; width: 320px; max-height: calc(100vh - 160px); transform: translateY(-8px); z-index: 25; }
+.settings-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2); }
+.settings-header h2 { margin: 0; font-size: 18px; }
+.settings-header .close-btn { min-height: 28px; width: 28px; padding: 0; display: grid; place-items: center; border-color: transparent; background: transparent; font-size: 18px; cursor: pointer; }
 .drawer { top: 12px; bottom: 12px; left: 68px; width: 340px; transform: translateX(-16px); }
 .settings-pop.open, .drawer.open { visibility: visible; opacity: 1; transform: none; transition-delay: 0s; }
 .drawer section[hidden] { display: none; }
 .drawer .history { max-height: none; }
-.rail { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1); }
+.rail { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1); pointer-events: none; }
+.rail > * { pointer-events: auto; }
 .rail-btn { width: 44px; padding: 0; display: grid; place-items: center; border-color: transparent; background: transparent; }
 .rail-btn.active { background: var(--accent); color: var(--paper); border-color: var(--accent); }
     .row { display: flex; gap: var(--space-2); margin-top: var(--space-3); flex-wrap: wrap; }
@@ -189,7 +193,7 @@ body { overflow: hidden; }
 .ai-status { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 8px; border-radius: 999px; color: var(--muted); font-size: 11px; }
 .ai-status[data-state="offline"] { color: var(--warning); }
 .ai-status .status-dot { margin-right: 0; }
-@media (max-width: 720px) { .ai-status .ai-status-label { display: none; } }
+@media (max-width: 720px) { .ai-status .ai-status-label { font-size: 11px; } }
 
 .search-results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .search-results button { width: 100%; text-align: left; min-height: 36px; font-size: 13px; }
@@ -317,44 +321,107 @@ body { overflow: hidden; }
 @media (max-width: 900px) { .calculator { right: 12px; top: 72px; } .drawer { width: calc(100vw - 80px); } }
 
 /* round 3 geometry: settings never reach the mascot's corner; on phones the icons and cards sit below the toolbar */
-.settings-pop { max-height: calc(100vh - 64px - 160px); }
-.search-results { margin-top: var(--space-2); }
-@media (max-width: 700px) {
-  .hud-top-right { top: 70px; }
-  .hud-top-left { top: 70px; width: calc(100vw - 150px); }
-  .settings-pop { top: 124px; max-height: calc(100vh - 124px - 160px); }
-  .calculator { top: 124px; }
-  .drawer { top: 124px; }
-}
-
 .notice { color: var(--accent); font-weight: 600; margin: var(--space-2) 0 0; }
-@media (max-width: 700px) {
-  .hud-top-right { top: auto; bottom: 164px; right: 12px; align-items: flex-end; }
-  .hud-icons { flex-direction: column; }
-  .hud-top-left { top: 64px; width: calc(100vw - 170px); }
-  .settings-pop { top: auto; bottom: 164px; right: 70px; width: min(300px, calc(100vw - 90px)); max-height: calc(100vh - 230px); }
-  .calculator { top: auto; bottom: 164px; right: 70px; }
-  .drawer { top: 64px; bottom: 64px; width: calc(100vw - 80px); }
-  .hud.drawer-open .tutor-button { display: none; }
-  .tutor-bubble { max-height: 30vh; }
-}
 
-/* round 5 geometry */
-.calculator { right: 340px; max-height: calc(100vh - 100px); overflow: auto; }
-.hud.settings-open .hud-chip { display: none; }
 @media (max-width: 700px) {
-  .hud-top-right { top: auto; bottom: 76px; left: 12px; right: auto; align-items: flex-start; }
-  .settings-pop { top: auto; bottom: 130px; left: 12px; right: auto; width: min(300px, calc(100vw - 24px)); max-height: calc(100vh - 200px); }
-  .calculator { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; max-height: 78vh; z-index: 30; }
-}
-
-/* round 6 geometry: on phones the rail starts under the task card and the mascot spans the width without covering cards */
-@media (max-width: 700px) {
-  .rail { top: 170px; transform: none; }
-  .rail-btn { width: 38px; min-height: 38px; }
-  .tutor-hud { left: 12px; right: 12px; width: auto; bottom: 64px; }
-  .tutor-bubble { max-height: 24vh; }
-  .tutor-menu { max-height: 42vh; overflow: auto; }
+  .hud-chip { display: none; }
+  .hud-top-right {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    bottom: auto;
+    left: auto;
+    align-items: center;
+    pointer-events: none;
+  }
+  .hud-icons {
+    display: flex;
+    flex-direction: row;
+    gap: var(--space-2);
+    align-items: center;
+  }
+  .hud-top-left {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: auto;
+    max-width: calc(100vw - 160px);
+    min-width: 0;
+    pointer-events: none;
+  }
+  .settings-pop {
+    top: 48px;
+    right: 8px;
+    left: 8px;
+    bottom: auto;
+    width: auto;
+    max-height: calc(100dvh - 110px);
+    z-index: 25;
+  }
+  .calculator {
+    left: 8px;
+    right: 8px;
+    top: 48px;
+    bottom: 60px;
+    width: auto;
+    max-height: calc(100dvh - 110px);
+    z-index: 30;
+    transform: none !important;
+  }
+  .calculator .calc-grid { gap: 4px; }
+  .calculator button { padding: 6px; }
+  .drawer {
+    top: 48px;
+    bottom: 60px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+  }
+  .rail {
+    position: absolute;
+    top: auto;
+    bottom: 8px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    transform: none;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    padding: 4px;
+    z-index: 15;
+    background: var(--glass-surface);
+    pointer-events: none;
+  }
+  .rail > * {
+    pointer-events: auto;
+  }
+  .rail-btn {
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
+    pointer-events: auto;
+  }
+  .tutor-hud {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    bottom: 60px;
+    pointer-events: none;
+  }
+  .tutor-bubble {
+    width: max-content;
+    max-width: calc(100% - 16px);
+    max-height: 22vh;
+    font-size: 13px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+  }
+  .tutor-menu {
+    max-height: 42vh;
+    overflow: auto;
+  }
 }
 
 /* A live teacher, drawn locally: small gestures, not a distracting looping dance. */
@@ -383,11 +450,10 @@ body { overflow: hidden; }
 .tutor-handwriting > span { grid-area: 1 / 1; }
 .tutor-text-space { visibility: hidden; }
 .tutor-hud.tutor-visiting, .tutor-hud.tutor-visiting * { pointer-events: none !important; }
-.tutor-visiting .tutor-bubble .row, .tutor-visiting .link-btn { visibility: hidden; }
+.tutor-visiting .tutor-choices, .tutor-visiting .tutor-bubble .row, .tutor-visiting .link-btn { display: none !important; }
+.tutor-visiting .tutor-bubble { width: max-content; max-width: min(320px, calc(100vw - 32px)); min-height: 0; }
 .tutor-visiting .tutor-button { background: transparent; border-color: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
-@media (max-width: 700px) {
-  .tutor-hud { left: auto; right: 12px; width: calc(100vw - 112px); max-width: 320px; }
-}
+
 @media (prefers-reduced-motion: reduce) {
   .tutor, .tutor *, .tutor-hud { animation: none !important; transition: none !important; }
 }
@@ -397,20 +463,11 @@ body { overflow: hidden; }
 /* Reserve the rail's left column and Excalidraw's footer at every size. */
 .tutor-hud { bottom: 88px; }
 .settings-pop { top: 80px; max-height: calc(100dvh - 240px); }
-@media (max-width: 700px) {
-  .settings-pop { top: auto; }
-  .calculator { left: 76px; right: 12px; bottom: 88px; width: auto; max-height: calc(100dvh - 164px); transform: none !important; }
-  .calculator .calc-grid { gap: 4px; }
-  .calculator button { padding: 6px; }
-}
+
 .tutor-hud:not(.tutor-visiting) .tutor-bubble { pointer-events: auto; }
 .tutor-visiting .tutor-button:disabled { opacity: 1; }
 .tutor-menu { max-height: calc(100dvh - 164px); overflow: auto; }
-@media (max-width: 700px) {
-  /* Excalidraw's compact footer is taller than its desktop zoom strip. */
-  .tutor-hud { bottom: 88px; }
-  .tutor-menu { max-height: calc(100dvh - 188px); }
-}
+
 
 /* Speech bubble: a rounded balloon with a tail toward the teacher, no coloured edge bar */
 .tutor-bubble { position: relative; overflow: visible; border-left: 1px solid var(--glass-border); border-radius: 22px; padding: var(--space-3) var(--space-4); margin-bottom: 12px; background: var(--paper); }
@@ -424,7 +481,7 @@ body { overflow: hidden; }
 
 /* Speech bubble, stronger: clear outline, solid fill, lift */
 .tutor-bubble { border: 2px solid color-mix(in srgb, var(--ink) 62%, transparent); border-radius: 24px; background: #fff; box-shadow: 0 10px 28px rgba(20, 30, 30, .22), 0 2px 0 rgba(20, 30, 30, .06);
-  padding: var(--space-3) var(--space-4); margin-bottom: 16px; }
+  padding: var(--space-3) var(--space-4); margin-bottom: 16px; width: max-content; max-width: 100%; min-height: 0; box-sizing: border-box; }
 .tutor-bubble::after { right: 28px; bottom: -13px; width: 20px; height: 20px; background: #fff; border-right: 2px solid color-mix(in srgb, var(--ink) 62%, transparent);
   border-bottom: 2px solid color-mix(in srgb, var(--ink) 62%, transparent); border-bottom-right-radius: 5px; }
 .tutor-bubble-wrong, .tutor-bubble-wrong::after { background: #fff3f1; }
@@ -486,9 +543,9 @@ body:has(.excalidraw .dropdown-menu) .hud-top-left { opacity: 0; pointer-events:
 /* Teacher ink lives in Excalidraw; these are only small, keyboard-accessible
    deletion handles. They never intercept the student's text or pen strokes. */
 .teacher-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
-.teacher-note-delete { position: absolute; pointer-events: auto; width: 28px; height: 28px; padding: 0; border: 1px solid transparent; background: transparent; color: #087f8c; opacity: 0.5; border-radius: 50%; line-height: 1; }
-.teacher-note-delete:hover, .teacher-note-delete:focus-visible { opacity: 1; border-color: currentColor; background: var(--surface, #fff); }
-[data-theme="dark"] .teacher-note-delete { color: #79d5df; }
+.teacher-note-delete { position: absolute; pointer-events: auto; width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(8, 127, 140, 0.35); background: var(--surface, #fff); color: #087f8c; opacity: 0.85; border-radius: 50%; line-height: 1; box-shadow: 0 1px 3px rgba(0,0,0,0.15); cursor: pointer; transition: opacity 0.15s, transform 0.15s, border-color 0.15s; }
+.teacher-note-delete:hover, .teacher-note-delete:focus-visible { opacity: 1; border-color: #087f8c; background: var(--surface, #fff); transform: scale(1.1); }
+[data-theme="dark"] .teacher-note-delete { background: #1f2a2a; color: #79d5df; border-color: rgba(121, 213, 223, 0.4); }
 
 /* ---- live mentor: gaze, states, micro-animations, conversation ---- */
 .tutor-track { transform: translate(calc(var(--gaze-x, 0) * 2.4px), calc(var(--gaze-y, 0) * 1.6px)); transition: transform 140ms ease-out; }
@@ -569,3 +626,4 @@ body:has(.excalidraw .dropdown-menu) .hud-top-left { opacity: 0; pointer-events:
 .chat-form button { min-height: 38px; padding: 0 12px; }
 .chat-mic { width: 40px; min-height: 40px; padding: 0; border-radius: 50%; display: grid; place-items: center; }
 @media (max-width: 700px) { .chat { max-height: 52vh; } .chat-log { max-height: 26vh; } }
+

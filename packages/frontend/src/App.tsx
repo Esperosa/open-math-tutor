@@ -1,3 +1,4 @@
+import katex from 'katex';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BoardAction, ContinueLessonRequest, ExpectedAnswer, ProviderId } from '@openmathtutor/shared';
 import {
@@ -76,6 +77,48 @@ function providerStatusLabel(p: ProviderEntry, t: Record<MessageKey, string>): s
   return "";
 }
 
+
+function renderMathStatement(raw: string): string | null {
+  if (!raw) return null;
+  if (!/[/^=<>≤≥·]/.test(raw) && !/lim/i.test(raw)) return null;
+
+  let prefix = '';
+  let math = raw;
+
+  const colonIdx = raw.indexOf(':');
+  if (colonIdx !== -1 && /[a-zA-Z\u00C0-\u024F]/.test(raw.slice(0, colonIdx))) {
+    prefix = raw.slice(0, colonIdx + 1) + ' ';
+    math = raw.slice(colonIdx + 1).trim();
+  } else {
+    const wordPrefixMatch = /^([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽa-záčďéěíňóřšťúůýž\s]+?)\s+([0-9a-zA-Z(].*)$/.exec(raw);
+    if (wordPrefixMatch && !/[=<>+\-*/^]/.test(wordPrefixMatch[1])) {
+      prefix = wordPrefixMatch[1] + ' ';
+      math = wordPrefixMatch[2];
+    }
+  }
+
+  let suffix = '';
+  if (math.endsWith('.')) {
+    suffix = '.';
+    math = math.slice(0, -1);
+  }
+
+  let latex = math.trim();
+  latex = latex.replace(/lim\s*\(([a-z]+)\s*(?:→|->)\s*(?:∞|\\infty)\)/gi, '\\lim_{$1 \\to \\infty}');
+  latex = latex.replace(/\(([^)]+)\)\/\(([^)]+)\)/g, '\\frac{$1}{$2}');
+  latex = latex.replace(/\(([^)]+)\)\/([0-9a-zA-Z]+)/g, '\\frac{$1}{$2}');
+  latex = latex.replace(/([0-9a-zA-Z]+)\/\(([^)]+)\)/g, '\\frac{$1}{$2}');
+  latex = latex.replace(/(\b[0-9a-zA-Z]+)\/(\b[0-9a-zA-Z]+)/g, '\\frac{$1}{$2}');
+  latex = latex.replace(/\*/g, ' \\cdot ');
+
+  try {
+    const rendered = katex.renderToString(latex, { throwOnError: false, displayMode: false, strict: 'ignore' });
+    return (prefix ? `${prefix}` : '') + rendered + suffix;
+  } catch {
+    return null;
+  }
+}
+
 export function App() {
   const [saved, setSaved] = useState<Saved>(load);
   const live = useRef(saved); live.current = saved;
@@ -108,6 +151,7 @@ export function App() {
   const [calcOpen, setCalcOpen] = useState(false);
   const [message, setMessage] = useState<TutorMessage | null>(() => ({ id: 'welcome', kind: 'info', text: t.taskEmpty }));
   const [tutorMenu, setTutorMenu] = useState(false);
+
   const [bridgeChecked, setBridgeChecked] = useState(false);
   const [testNotice, setTestNotice] = useState('');
   const [editingTask, setEditingTask] = useState(false);
@@ -121,12 +165,20 @@ export function App() {
   const chat = useChat(saved.activeId, saved.boards.map(b => b.id));
   const [profile, setProfileState] = useState<LearnerProfile>(loadProfile);
   const profileRef = useRef(profile); profileRef.current = profile;
+  const stepErrors = useRef<Map<string, number>>(new Map());
   const resetting = useRef(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => () => { clearTimeout(hoverTimer.current); clearTimeout(leaveTimer.current); }, []);
   const leaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const lines = useMemo(() => writtenLines(board.steps), [board.steps]);
   const statement = useMemo(() => effectiveStatement(board.statement, lines), [board.statement, lines]);
+  const formattedTaskHtml = useMemo(() => renderMathStatement(statement), [statement]);
+  const displayTopic = useMemo(() => {
+    const tp = (board.skillId ? catalog.topics.find(t => t.skillIds.includes(board.skillId!)) : undefined)
+      ?? catalog.topics.find(t => t.id === board.topic || t.title.cs === board.topic || t.title.en === board.topic);
+    return tp ? tp.title[settings.locale] : board.topic;
+  }, [board.skillId, board.topic, settings.locale]);
+
   const verdicts = useMemo(() => {
     if (settings.coachMode === 'off') return {};
     const symbols = statementHasSymbols(statement);
@@ -159,6 +211,7 @@ export function App() {
   const [lessonSkillId, setLessonSkillId] = useState<string | null>(null);
   const [sources, setSources] = useState(loadSources);
   const locateStep = useCallback((id: string) => editor.current?.stepViewportRect(id) ?? null, []);
+  const locateObstacles = useCallback(() => editor.current?.contentViewportRects() ?? [], []);
   const provider = providers.find(p => p.id === settings.provider);
   const model = provider?.models.find(m => m.id === settings.model);
   const canRequest = connected && !!provider?.detect.installed && !!provider.authStatus.authenticated && !!model;
@@ -554,8 +607,11 @@ export function App() {
       case 'wrong_step': case 'wrong_final': {
         const reason = event.kind === 'wrong_step' ? event.reason : 'wrong_final';
         if (event.kind === 'wrong_step' || !marked.outcome) updateProfile(p => resolveStyleOutcome(recordError(p, marked.skillId ?? null, reason, Date.now()), false));
+        const wrongLine = ls[event.n - 1];
+        const attempts = (stepErrors.current.get(wrongLine?.stepId ?? '') ?? 0) + 1;
+        if (wrongLine?.stepId) stepErrors.current.set(wrongLine.stepId, attempts);
         let next = event.kind === 'wrong_step' ? { ...marked, annotations: [...marked.annotations,
-          ...localTeacherActions(ls[event.n - 1], marked.revision, locale)].slice(-64) } : marked;
+          ...localTeacherActions(wrongLine, marked.revision, locale, { attemptCount: attempts })].slice(-64) } : marked;
         if (event.kind === 'wrong_final' && !next.outcome) { if (next.skillId) recordMastery(next.skillId, false); next = { ...next, outcome: 'failed' }; }
         updateBoard(next); say('wrong'); break;
       }
@@ -616,7 +672,8 @@ export function App() {
       const hint = messages[cur.settings.locale][message.reason === 'arithmetic' ? 'hintArithmetic' : 'hintStep'];
       const action: BoardAction = { id: `hint-${stepId}`, type: 'show_hint', boardRevision: current.revision, text: hint,
         placement: { relativeToStepId: stepId, side: 'below', offsetEm: 0.4 } };
-      updateBoard({ ...current, annotations: [...current.annotations.filter(n => n.id !== action.id), action].slice(-64) });
+      const teacherSol = localTeacherActions(lines.find(l => l.stepId === stepId), current.revision, cur.settings.locale, { revealSolution: true });
+      updateBoard({ ...current, annotations: [...current.annotations.filter(n => n.id !== action.id && !teacherSol.some(ts => ts.id === n.id)), action, ...teacherSol].slice(-64) });
       setMessage({ ...message, text: hint });
       return;
     }
@@ -706,8 +763,12 @@ export function App() {
             ? <><label>{t.task}<textarea rows={2} maxLength={4000} value={board.statement} placeholder={t.taskPlaceholder} autoFocus
                 onChange={e => { stop(false); updateBoard(editTask(board, 'statement', e.target.value)); }} /></label>
                 <button onClick={() => setEditingTask(false)}>{t.taskDone}</button></>
-            : <><p className="task-text" data-testid="task-text">{statement || t.taskEmpty}</p>
-                {board.topic && <small>{board.topic}</small>}
+            : <><p className="task-text" data-testid="task-text">
+                {formattedTaskHtml
+                  ? <><span className="sr">{statement}</span><span aria-hidden="true" dangerouslySetInnerHTML={{ __html: formattedTaskHtml }} /></>
+                  : (statement || t.taskEmpty)}
+              </p>
+                {displayTopic && <small>{displayTopic}</small>}
                 <button className="task-edit" aria-label={t.taskEdit} title={t.taskEdit} onClick={() => setEditingTask(true)}>✎</button></>}
         </div>
       </div>
@@ -719,11 +780,12 @@ export function App() {
           <span className="ai-status-label" aria-hidden="true">{canRequest ? t.aiConnected : t.aiOffline}</span></span>
         {calcPolicy !== 'none' && <button className="icon-btn" title={`${t.calcOpen} — ${t.hintCalc}`} aria-label={t.calcOpen} aria-pressed={calcOpen} onClick={() => openOnly('calc')}><Icon name="calc" /></button>}
         <button className="icon-btn" title={`${t.settings} — ${t.hintSettings}`} aria-label={t.settings} aria-expanded={settingsOpen} onClick={() => openOnly('settings')}>
-          <span className={`status-dot ${canRequest ? 'ok' : 'idle'}`} aria-hidden="true" /><Icon name="settings" /></button>
+          <Icon name="settings" /></button>
         </div>
         {alertChip && <div className="hud-chip" aria-live="polite">{alertChip}</div>}
       </div>
       <aside className={`settings-pop${settingsOpen ? ' open' : ''}`} aria-label={t.settings}>
+        <div className="settings-header"><h2>{t.settings}</h2><button className="close-btn" aria-label={t.close} onClick={() => setSettingsOpen(false)}>×</button></div>
         <label>{t.language}<select value={settings.locale} onChange={e => configure({ locale: e.target.value as Settings['locale'], voiceURI: '' })}>
           <option value="cs">Čeština</option><option value="en">English</option></select></label>
         <button onClick={() => configure({ theme: settings.theme === 'light' ? 'dark' : 'light' })}>{settings.theme === 'light' ? t.dark : t.light}</button>
@@ -734,7 +796,7 @@ export function App() {
           <div className="pattern-picker">{DEFAULT_TOOLS.map(tool => <button key={tool} role="radio" aria-checked={settings.defaultTool === tool} data-tool={tool}
             onClick={() => configure({ defaultTool: tool })}><span>{tool === 'freedraw' ? t.toolPen : t.toolText}</span></button>)}</div></div>
         {connected && <>
-          <label>{t.provider}<select value={settings.provider} onChange={e => {
+          <label><span>{t.aiProvider}</span><select aria-label={t.provider} value={settings.provider} onChange={e => {
             const id = e.target.value as ProviderId | '';
             // Picking a provider should also pick a usable model, not leave
             // every action silently disabled until the person notices.
@@ -742,7 +804,8 @@ export function App() {
             configure({ provider: id, model: match?.models[0]?.id ?? '' });
           }}>
           <option value="">{t.choose}</option>{providers.map(p => <option key={p.id} value={p.id}>{p.id === "google" ? t.googleProvider : p.id}{providerStatusLabel(p, t)}</option>)}</select></label>
-          <label>{t.model}<select value={settings.model} onChange={e => configure({ model: e.target.value })}><option value="">{t.choose}</option>
+          <small className="muted">{t.aiRunsLocally}</small>
+          <label><span>{t.aiModel}</span><select aria-label={t.model} value={settings.model} onChange={e => configure({ model: e.target.value })}><option value="">{t.choose}</option>
             {provider?.models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
           {provider && provider.id === "google" && !provider.authStatus.authenticated && provider.authStatus.keyPresent === false &&
             <p className="muted" role="alert">{t.googleKeyMissing}</p>}
@@ -819,7 +882,7 @@ export function App() {
           <h2 className="h2-muted">{t.annotations}</h2><p className="muted">{t.annotationReveal}</p><ul className="annotations-list">{board.annotations.map((a, i) => <li key={a.id} data-testid="annotation-item">
             <span>{t.aiBadge} {i + 1}</span><button onClick={() => { stop(false); updateBoard(removeAnnotation(board, a.id)); }}>{t.undoAnnotation} {i + 1}</button></li>)}</ul></section>
       </aside>
-      <TutorHud key={board.id} locateStep={locateStep} t={t} locale={settings.locale} activity={activity} slow={slow} celebrate={message?.kind === 'solved'}
+      <TutorHud key={board.id} locateStep={locateStep} locateObstacles={locateObstacles} writing={phase === 'writing'} t={t} locale={settings.locale} activity={activity} slow={slow} celebrate={message?.kind === 'solved'}
         quiet={settingsOpen || calcOpen || !!openPanel} mood={mood} speaking={voice.speaking} message={shownMessage} menuOpen={tutorMenu} running={running} canRequest={canRequest}
         answerChips={answeredByAi ? ['understand', 'lost'] : undefined} onChip={chatChip}
         chat={{ open: chatOpen, onToggle: toggleChat, locale: settings.locale, thread: chat.thread, chips, busy: running, slow, large: chatLarge,
@@ -838,3 +901,4 @@ export function App() {
     </div>
   </div>;
 }
+
