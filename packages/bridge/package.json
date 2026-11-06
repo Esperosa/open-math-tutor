@@ -7,6 +7,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx src/index.ts",
+    "set-gemini-key": "node scripts/set-gemini-key.mjs",
     "start": "node dist/index.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p ../../electron/tsconfig.json --noEmit",
