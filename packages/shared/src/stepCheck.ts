@@ -69,7 +69,7 @@ function checkChain(text: string): StepVerdict | null {
   });
   for (let i = 0; i + 1 < values.length; i++) {
     const a = values[i], b = values[i + 1];
-    if (a !== null && b !== null && !close(a, b)) return { status: "wrong", reason: "arithmetic" };
+    if (a !== null && a !== undefined && b !== null && b !== undefined && !close(a, b)) return { status: "wrong", reason: "arithmetic" };
   }
   return null;
 }
