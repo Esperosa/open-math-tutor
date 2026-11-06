@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { CoachMode } from '@openmathtutor/shared';
 import type { MessageKey } from './i18n';
 import { Tutor, type TutorMood } from './Tutor';
@@ -7,7 +8,7 @@ export interface TutorMessage {
   kind: 'wrong' | 'solved' | 'unclear' | 'info' | 'thinking' | 'error';
   text: string;
 }
-export type TutorAction = 'check' | 'hint' | 'next_step' | 'explain_differently' | 'next_problem' | 'stop';
+export type TutorAction = 'check' | 'hint' | 'next_step' | 'explain_differently' | 'next_problem' | 'free' | 'stop';
 export type TutorChoice = 'explain' | 'hint' | 'dismiss' | 'next' | 'ask_ai';
 
 interface Props {
@@ -39,7 +40,7 @@ export function TutorHud(p: Props) {
   const { t, message } = p;
   return <div className="tutor-hud">
     {message && <div className={`tutor-bubble tutor-bubble-${message.kind}`} role="group" aria-live="polite" data-testid="tutor-bubble" data-kind={message.kind}>
-      <p>{message.text}</p>
+      <BubbleText id={message.id} text={message.text} more={t.moreText} less={t.lessText} />
       {message.kind === 'wrong' && <div className="row">
         <button className="primary" disabled={!p.canRequest || p.running} onClick={() => p.onChoice('explain')}>{t.offerExplain}</button>
         <button disabled={!p.canRequest || p.running} onClick={() => p.onChoice('hint')}>{t.offerHint}</button>
@@ -63,6 +64,7 @@ export function TutorHud(p: Props) {
         {(['check', 'hint', 'next_step', 'explain_differently'] as const).map(action =>
           <button key={action} role="menuitem" disabled={!p.canRequest || p.running} onClick={() => p.onAction(action)}>{t[action]}</button>)}
         {p.lessonActive && <button role="menuitem" onClick={() => p.onAction('next_problem')}>{t.nextProblem}</button>}
+        <button role="menuitem" onClick={() => p.onAction('free')}>{t.freeProblem}</button>
         <button role="menuitem" className="stop" disabled={!p.running} onClick={() => p.onAction('stop')}>{t.stop}</button>
       </div>
       <label className="check-label"><input type="checkbox" checked={p.voiceOn} onChange={e => p.onVoice(e.target.checked)} />{t.tutorSpeaks}</label>
@@ -72,4 +74,13 @@ export function TutorHud(p: Props) {
       <Tutor mood={p.mood} speaking={p.speaking} />
     </button>
   </div>;
+}
+
+const LIMIT = 220;
+/** A tutor speaks briefly: long answers show the first sentences and expand on request. */
+function BubbleText({ id, text, more, less }: { id: string; text: string; more: string; less: string }) {
+  const [open, setOpen] = useState<string | null>(null);
+  if (text.length <= LIMIT || open === id) return <p>{text}{open === id && <button className="link-btn" onClick={() => setOpen(null)}>{less}</button>}</p>;
+  const cut = text.slice(0, LIMIT).replace(/[^.!?…]*$/, '') || text.slice(0, LIMIT);
+  return <p>{cut.trim()}… <button className="link-btn" onClick={() => setOpen(id)}>{more}</button></p>;
 }

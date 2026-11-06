@@ -35,6 +35,23 @@ const ANSWERS: Record<string, [formula: string, unit?: string]> = {
   "probability-basic-2": ["{a}/({a}+{b})"],
 };
 
+/** Ranges and derived values for tasks whose answer is a division: the numbers are built so the result comes out even. */
+const OVERRIDES: Record<string, { ranges: Ranges; derived: Record<string, string> }> = {
+  "fy-velocity-1": { ranges: { v: [5, 30], b: [2, 12] }, derived: { a: "{v}*{b}" } },
+  "fy-velocity-3": { ranges: { w: [4, 12], k: [2, 10] }, derived: { v: "10*{w}", b: "6*{k}", a: "{v}*{b}/60" } },
+  "fy-force-2": { ranges: { m: [2, 12], b: [2, 5] }, derived: { a: "{m}*{b}" } },
+  "fy-work-2": { ranges: { p: [20, 90], b: [2, 10] }, derived: { a: "{p}*{b}" } },
+  "fy-density-1": { ranges: { r: [2, 9], b: [2, 10] }, derived: { a: "{r}*{b}" } },
+  "fy-density-2": { ranges: { p: [50, 400], b: [2, 10] }, derived: { a: "{p}*{b}" } },
+  "fy-ohm-1": { ranges: { i: [1, 5], a: [5, 50] }, derived: { b: "{i}*{a}" } },
+  "fy-ohm-2": { ranges: { a: [2, 10], r: [5, 30] }, derived: { b: "{a}*{r}" } },
+  "ch-mole-1": { ranges: { k: [2, 10] }, derived: { a: "18*{k}" } },
+  "ch-concentration-1": { ranges: { c: [1, 5], b: [2, 4] }, derived: { a: "{c}*{b}" } },
+  "ch-concentration-3": { ranges: { a: [10, 40] }, derived: { b: "100-{a}" } },
+  "proportion-1": { ranges: { a: [2, 5], c: [6, 10], p: [10, 30] }, derived: { b: "{p}*{a}" } },
+  "proportion-2": { ranges: { a: [2, 6], c: [3, 12], k: [2, 6] }, derived: { b: "{c}*{k}" } },
+};
+
 export const extraTopics: Topic[] = [];
 export const extraSkills: Skill[] = [];
 export const extraTemplates: ProblemTemplate[] = [];
@@ -50,7 +67,7 @@ function topic(id: string, cs: string, en: string, specs: SkillSpec[]) {
     });
     s.templates.forEach(([statementTemplate, generatorRanges], i) => extraTemplates.push({
       id: ids[i]!, skillId: s.id, difficultyLevel: levels[i]!, topic: id, statementTemplate,
-      ...(generatorRanges ? { generatorRanges } : {}), ...(s.free === false ? {} : s.auto === false ? { freeText: true } : {}),
+      ...(OVERRIDES[ids[i]!] ? { generatorRanges: OVERRIDES[ids[i]!]!.ranges, derived: OVERRIDES[ids[i]!]!.derived } : generatorRanges ? { generatorRanges } : {}), ...(s.free === false ? {} : s.auto === false ? { freeText: true } : {}),
       ...(ANSWERS[ids[i]!] ? { answerTemplate: ANSWERS[ids[i]!]![0], ...(ANSWERS[ids[i]!]![1] ? { answerUnit: ANSWERS[ids[i]!]![1] } : {}) } : {}),
       ...(s.answers?.[i] ? { answerTemplate: s.answers[i]![0], ...(s.answers[i]![1] ? { answerUnit: s.answers[i]![1] } : {}) } : {}),
     }));
@@ -97,7 +114,7 @@ topic("geometrie", "Geometrie", "Geometry", [
       ["Kruhová zahrada má průměr {a} m. Kolik metrů plotu je potřeba na její obvod (v násobcích π)?", { a: [6, 30] }]] },
   { id: "solids-volume", cs: "Objem a povrch těles", en: "Volume and surface area of solids", prereq: ["circle-area"], topic: "geometrie", ...NOAUTO,
     kw: [["krychle", "kvádr", "válec", "jehlan", "objem", "povrch"], ["cube", "cylinder", "pyramid", "volume", "surface"]],
-    templates: [["Krychle má hranu {a} cm. Urči její objem a povrch.", { a: [2, 9] }],
+    templates: [["Krychle má hranu {a} cm. Urči její objem.", { a: [2, 9] }],
       ["Kvádr má rozměry {a} cm, {b} cm a {c} cm. Urči jeho objem a povrch.", { a: [2, 9], b: [3, 10], c: [4, 12] }],
       ["Válec má poloměr podstavy {a} cm a výšku {b} cm. Urči jeho objem (v násobcích π).", { a: [2, 8], b: [3, 12] }]] },
 ]);

@@ -70,7 +70,7 @@ UI pro cokoliv, co vyžaduje vaše vlastní přihlášení.
 - **Hotovo a reálně otestováno**: bezpečný matematický AST parser
   (`packages/shared/src/mathAst.ts`) a jeho Python port ve verifikátoru,
   validace `board_actions` (schéma, meze, revize), frontend s Excalidraw
-  tabulí, lokální bridge s adaptéry Codex/Claude, 4 předpřipravené kurzy
+  tabulí, lokální bridge s adaptéry Codex/Claude, 10 předpřipravených kurzů (matematika, vysokoškolské předměty, fyzika, chemie)
   s původními úlohami (`packages/content`), adaptivní obtížnost per
   dovednost (`packages/shared/src/mastery.ts`), volný dotaz ("Zeptej se"),
   interaktivní vykreslování funkcí (`plot_function`, bezpečný numerický

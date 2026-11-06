@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  getTopicSkills, getTrackTopics, isMastered, nextUnlockedSkill, skillCheckLevel, skillProgress, topicPercent, trackPercent,
+  dayKey as dayKeyAt, getTopicSkills, getTrackTopics, isMastered, nextUnlockedSkill, skillCheckLevel, skillProgress, topicPercent, trackPercent,
   type CourseCatalog, type LearnerProfile, type Locale, type Skill,
 } from '@openmathtutor/shared';
 import type { MessageKey } from './i18n';
@@ -18,7 +18,7 @@ interface Props {
   onBuildTest(scope: { topicId?: string }, mode: 'print' | 'download'): void;
 }
 
-const dayKey = (offset: number) => new Date(Date.now() - offset * 86400000).toISOString().slice(0, 10);
+const dayKey = (offset: number) => dayKeyAt(Date.now() - offset * 86400000);
 
 function streak(profile: LearnerProfile): number {
   let i = (profile.days[dayKey(0)]?.solved ?? 0) > 0 ? 0 : 1, n = 0;

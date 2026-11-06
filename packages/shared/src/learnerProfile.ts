@@ -22,7 +22,11 @@ export function emptyProfile(): LearnerProfile {
     errors: {}, skillErrors: {}, days: {} };
 }
 
-export const dayKey = (now: number) => new Date(now).toISOString().slice(0, 10);
+/** Calendar day in the student's own time zone (the streak must not flip at 1 a.m. Czech time). */
+export const dayKey = (now: number) => {
+  const d = new Date(now);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 export function recordError(profile: LearnerProfile, skillId: string | null, reason: string, now: number): LearnerProfile {
   const day = profile.days[dayKey(now)] ?? { solved: 0, wrong: 0 };
@@ -71,14 +75,16 @@ const STYLE_TEXT: Record<ExplainStyle, { cs: string; en: string }> = {
 export const styleDescription = (style: ExplainStyle, locale: "cs" | "en") => STYLE_TEXT[style][locale];
 
 /** Short, plain-text summary handed to the AI so it explains the way this student learns best. */
-export function profileSummary(profile: LearnerProfile, locale: "cs" | "en", preferred?: ExplainStyle): string {
+export function profileSummary(profile: LearnerProfile, locale: "cs" | "en", preferred?: ExplainStyle, skillTitles: Record<string, string> = {}): string {
+  const weakSkills = Object.entries(profile.skillErrors).map(([id, errs]) => [id, Object.values(errs).reduce((a, b) => a + b, 0)] as const)
+    .sort((a, b) => b[1] - a[1]).slice(0, 2).filter(([id]) => skillTitles[id]).map(([id]) => skillTitles[id]);
   const topErrors = Object.entries(profile.errors).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, v]) => `${k} (${v}x)`);
   const tried = EXPLAIN_STYLES.filter(s => profile.styles[s].shown >= 2)
     .map(s => `${styleDescription(s, locale)}: ${Math.round(100 * profile.styles[s].helped / profile.styles[s].shown)} %`);
   const parts = locale === "cs"
-    ? [topErrors.length ? `Časté chyby studenta: ${topErrors.join(", ")}.` : "", tried.length ? `Co mu pomáhá: ${tried.join("; ")}.` : "",
+    ? [topErrors.length ? `Časté chyby studenta: ${topErrors.join(", ")}.` : "", weakSkills.length ? `Nejvíc chyb dělá v: ${weakSkills.join("; ")}.` : "", tried.length ? `Co mu pomáhá: ${tried.join("; ")}.` : "",
        preferred ? `Teď použij: ${styleDescription(preferred, locale)}.` : "", "Buď vřelý, stručný a jasný."]
-    : [topErrors.length ? `Frequent mistakes: ${topErrors.join(", ")}.` : "", tried.length ? `What helps: ${tried.join("; ")}.` : "",
+    : [topErrors.length ? `Frequent mistakes: ${topErrors.join(", ")}.` : "", weakSkills.length ? `Most mistakes in: ${weakSkills.join("; ")}.` : "", tried.length ? `What helps: ${tried.join("; ")}.` : "",
        preferred ? `Use now: ${styleDescription(preferred, locale)}.` : "", "Be warm, brief and clear."];
   return parts.filter(Boolean).join(" ").slice(0, 700);
 }

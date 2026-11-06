@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answerFromLine, checkAnswerLine, expectedAnswerFor, formatExpected, instantiateProblem, looksLikeFinalLine } from "./answers.js";
+import { prettySigns, unitFromLine, answerFromLine, checkAnswerLine, expectedAnswerFor, formatExpected, instantiateProblem, looksLikeFinalLine } from "./answers.js";
 import type { ProblemTemplate } from "./curriculum.js";
 
 describe("expectedAnswerFor", () => {
@@ -48,11 +48,51 @@ describe("instantiateProblem", () => {
   it("computes the expected answer from answerTemplate", () => {
     const problem = instantiateProblem(velocity, () => 0);
     expect(problem.statement).toBe("Auto ujede 120 m za 8 s. Urči rychlost.");
-    expect(problem.expected).toEqual({ value: 15, unit: "m/s", tolerance: 0.01 });
+    expect(problem.expected).toEqual({ value: 15, unit: "m/s", tolerance: 1e-9 });
   });
   it("derives the answer for plain arithmetic templates and gives none for free text without a formula", () => {
     const arithmetic: ProblemTemplate = { id: "a", skillId: "s", difficultyLevel: 1, topic: "t", statementTemplate: "{a}+{b}", generatorRanges: { a: [2, 2], b: [3, 3] } };
     expect(instantiateProblem(arithmetic, () => 0).expected?.value).toBe(5);
     expect(instantiateProblem({ ...velocity, answerTemplate: undefined }).expected).toBeUndefined();
+  });
+});
+
+describe("audit regressions", () => {
+  it("whole-number answers are exact, rounded ones keep a 1 % tolerance", () => {
+    const whole = instantiateProblem({ id: "w", skillId: "s", difficultyLevel: 1, topic: "t", freeText: true, statementTemplate: "x", answerTemplate: "3024" }).expected!;
+    expect(checkAnswerLine(whole, "3000")).toBe("wrong");
+    expect(checkAnswerLine(whole, "3024")).toBe("correct");
+    const rounded = instantiateProblem({ id: "r", skillId: "s", difficultyLevel: 1, topic: "t", freeText: true, statementTemplate: "x", answerTemplate: "10/3" }).expected!;
+    expect(checkAnswerLine(rounded, "3,33")).toBe("correct");
+  });
+  it("catches a wrong unit but tolerates a missing one and notation variants", () => {
+    const e = { value: 100, unit: "m/s", tolerance: 1e-9 };
+    expect(checkAnswerLine(e, "v = 100 km/h")).toBe("unit");
+    expect(checkAnswerLine(e, "v = 100 m/s")).toBe("correct");
+    expect(checkAnswerLine(e, "v = 100")).toBe("correct");
+    expect(checkAnswerLine({ value: 9, unit: "π cm²", tolerance: 1e-9 }, "S = 9π cm2")).toBe("correct");
+    expect(unitFromLine("v = 15 m/s")).toBe("m/s");
+  });
+  it("understands an answer introduced by a word and prints signs the way a person writes them", () => {
+    expect(answerFromLine("Odpověď: 66 N")).toBe(66);
+    expect(looksLikeFinalLine("Výsledek: 66 N", true)).toBe(true);
+    expect(prettySigns("5+-6")).toBe("5-6");
+    expect(prettySigns("6--1")).toBe("6+1");
+    expect(prettySigns("5*-3")).toBe("5*(-3)");
+  });
+  it("derived values make division tasks come out even and degenerate equations are re-sampled", () => {
+    const t = { id: "d", skillId: "s", difficultyLevel: 1, topic: "t", freeText: true, statementTemplate: "{s} m za {t} s", generatorRanges: { v: [5, 30], t: [2, 12] },
+      derived: { s: "{v}*{t}" }, answerTemplate: "{s}/{t}" } as const;
+    for (let i = 0; i < 20; i++) {
+      const p = instantiateProblem(t);
+      const [s, tt] = /(\d+) m za (\d+) s/.exec(p.statement)!.slice(1).map(Number);
+      expect(s! % tt!).toBe(0);
+      expect(p.expected!.value).toBe(s! / tt!);
+    }
+    const degenerate = { id: "g", skillId: "s", difficultyLevel: 1, topic: "t", statementTemplate: "{a}x+1={c}x+2", generatorRanges: { a: [1, 3], c: [1, 3] } };
+    for (let i = 0; i < 50; i++) expect(instantiateProblem(degenerate).expected).toBeDefined();
+  });
+  it("formats very large answers as a power of ten", () => {
+    expect(formatExpected({ value: 1.204e24, tolerance: 0.01 }, "cs")).toBe("1,204·10^24");
   });
 });

@@ -76,7 +76,7 @@ test('deterministic replay: stroke → settled crop → first error annotations 
   await page.goto('/');
   await skipOnboarding(page);
   await selectProvider(page);
-  await page.getByLabel(/Povolit automatickou kontrolu/).check();
+  await page.getByLabel(/Číst ruční zápis automaticky/).check();
   await writeOnBoard(page, '2x + 3 = 7', 0);
   // A real pointer stroke on the real Excalidraw canvas, not an application test hook.
   const canvas = page.locator('.excalidraw__canvas.interactive');
@@ -389,4 +389,44 @@ test('plan: solving a problem moves the percentage, and a printable test with an
   let html = ''; for await (const chunk of stream) html += chunk;
   expect(html).toContain('Klíč správných odpovědí');
   expect(html).toContain('Počítání se zápornými čísly');
+});
+
+test('popovers: settings, calculator and the teacher menu never stack, Escape closes them all', async ({ page }) => {
+  await page.goto('/');
+  await skipOnboarding(page);
+  await page.getByRole('button', { name: 'Nastavení', exact: true }).click();
+  await expect(page.locator('.settings-pop')).toHaveClass(/open/);
+  await page.getByRole('button', { name: 'Kalkulačka', exact: true }).click();
+  await expect(page.locator('.settings-pop')).not.toHaveClass(/open/);
+  await expect(page.getByRole('dialog', { name: 'Kalkulačka' })).toBeVisible();
+  await page.getByRole('button', { name: 'Učitel', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Kalkulačka' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Kalkulačka' })).toHaveCount(0);
+  await expect(page.getByRole('menu', { name: 'Učitel' })).toHaveCount(0);
+});
+
+test('lesson started from the course drawer adopts its course: breadcrumb, plan and percentage work', async ({ page }) => {
+  await page.goto('/');
+  await skipOnboarding(page);
+  await expect(page.getByTestId('track-breadcrumb')).toHaveCount(0);
+  await page.keyboard.press('Control+k');
+  await page.getByRole('searchbox', { name: 'Hledat v kurzech' }).fill('zlomky');
+  await page.getByTestId('search-results').getByRole('button').first().click();
+  await expect(page.getByTestId('track-breadcrumb')).toBeVisible();
+  await openPanel(page, 'Plán a cesta');
+  await expect(page.getByTestId('plan-percent')).toBeVisible();
+});
+
+test('coach "off" really is off: no marks, no bubble', async ({ page }) => {
+  await page.goto('/');
+  await skipOnboarding(page);
+  await setTask(page, '5+1');
+  await openTutorMenu(page);
+  await page.getByRole('radio', { name: 'Vypnuto' }).click();
+  await page.keyboard.press('Escape');
+  await writeOnBoard(page, '5+1=8', 0);
+  await page.waitForTimeout(2500);
+  await expect(page.getByTestId('step-mark-wrong')).toHaveCount(0);
+  await expect(bubble(page)).toHaveCount(0);
 });

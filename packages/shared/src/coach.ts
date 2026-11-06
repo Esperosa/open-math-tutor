@@ -14,7 +14,7 @@ export type CoachEvent =
   | { kind: "ok_step"; key: string; n: number }
   | { kind: "wrong_step"; key: string; n: number; reason: WrongReason }
   | { kind: "solved"; key: string; n: number }
-  | { kind: "wrong_final"; key: string; n: number }
+  | { kind: "wrong_final"; key: string; n: number; reason?: "unit" }
   | { kind: "unclear"; key: string; n: number };
 
 export interface CoachInput {
@@ -47,6 +47,7 @@ export function nextCoachEvent(input: CoachInput): CoachEvent {
       const answer = checkAnswerLine(input.expected, newest.latexGuess);
       if (answer === "correct") return { kind: "solved", key, n: newest.n };
       if (answer === "wrong") return { kind: "wrong_final", key, n: newest.n };
+      if (answer === "unit") return { kind: "wrong_final", key, n: newest.n, reason: "unit" };
     }
     return { kind: "unclear", key, n: newest.n };
   }
@@ -59,6 +60,7 @@ export function nextCoachEvent(input: CoachInput): CoachEvent {
     const answer = checkAnswerLine(input.expected, newest.latexGuess);
     if (answer === "correct" && (final || verdict.status === "ok")) return { kind: "solved", key, n: newest.n };
     if (answer === "wrong" && final) return { kind: "wrong_final", key, n: newest.n };
+    if (answer === "unit") return { kind: "wrong_final", key, n: newest.n, reason: "unit" };
   }
   if (verdict.status === "ok") return { kind: "ok_step", key, n: newest.n };
   return { kind: "unclear", key, n: newest.n };
@@ -78,6 +80,10 @@ const LINES: Record<string, Record<Locale, string[]>> = {
     cs: ["Tahle hodnota nesouhlasí se zadáním.", "Počítáš to správně, ale něco jiného, než se ptá zadání."],
     en: ["This value does not match the task.", "The calculation is fine, but it answers something other than the task."],
   },
+  wrong_unit: {
+    cs: ["Číslo sedí, ale jednotka ne. Podívej se na ni ještě jednou."],
+    en: ["The number is right, but the unit is not. Take another look at it."],
+  },
   wrong_final: {
     cs: ["Výsledek zatím nesedí. Hledáme chybu spolu?", "Skoro. Výsledek ještě není ono, chceš nápovědu?"],
     en: ["The result is not right yet. Shall we look for the slip together?", "Close. The result is not quite it, want a hint?"],
@@ -94,7 +100,7 @@ const LINES: Record<string, Record<Locale, string[]>> = {
 };
 
 export function coachLine(event: CoachEvent, locale: Locale, variant = 0): string {
-  const group = event.kind === "wrong_step" ? event.reason : event.kind;
+  const group = event.kind === "wrong_step" ? event.reason : event.kind === "wrong_final" && event.reason ? "wrong_unit" : event.kind;
   const options = LINES[group]?.[locale];
   if (!options?.length) return "";
   const text = options[Math.abs(variant) % options.length]!;

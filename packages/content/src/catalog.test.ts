@@ -158,14 +158,25 @@ describe("catalog walkability per track", () => {
 });
 
 describe("expected answers", () => {
-  it("every answerTemplate evaluates to a finite number at min, mid and max of the generator ranges", async () => {
-    const { calcEvaluate } = await import("@openmathtutor/shared");
+  it("every template with an answerTemplate yields a finite expected answer for 200 random instantiations", async () => {
+    const { instantiateProblem } = await import("@openmathtutor/shared");
     for (const template of catalog.problemTemplates.filter(t => t.answerTemplate)) {
-      for (const pick of [(min: number) => min, (min: number, max: number) => Math.round((min + max) / 2), (_min: number, max: number) => max]) {
-        let formula = template.answerTemplate!;
-        for (const [name, [min, max]] of Object.entries(template.generatorRanges ?? {})) formula = formula.split(`{${name}}`).join(`(${pick(min, max)})`);
-        expect(Number.isFinite(calcEvaluate(formula)), `${template.id}: ${formula}`).toBe(true);
+      for (let i = 0; i < 200; i++) {
+        const problem = instantiateProblem(template);
+        expect(problem.expected && Number.isFinite(problem.expected.value), `${template.id}: ${problem.statement}`).toBe(true);
+        expect(problem.statement, template.id).not.toMatch(/\{[a-z]+\}/);
       }
+    }
+  });
+  it("division tasks come out even and every checkable statement has a single answer", async () => {
+    const { instantiateProblem } = await import("@openmathtutor/shared");
+    for (const id of ["fy-velocity-1", "fy-force-2", "fy-ohm-1", "ch-mole-1", "proportion-2"]) {
+      const template = catalog.problemTemplates.find(t => t.id === id)!;
+      for (let i = 0; i < 100; i++) expect(Number.isInteger(instantiateProblem(template).expected!.value), id).toBe(true);
+    }
+    const checked = new Set(catalog.skills.filter(sk => sk.autoCheck !== false).map(sk => sk.id));
+    for (const template of catalog.problemTemplates.filter(t => checked.has(t.skillId) && !t.freeText && !t.answerTemplate)) {
+      for (let i = 0; i < 100; i++) expect(instantiateProblem(template).expected, `${template.id} (never ends without an answer)`).toBeDefined();
     }
   });
   it("physics and chemistry tracks are mostly answer-checked and say which skills are drawings", async () => {

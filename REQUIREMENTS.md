@@ -27,7 +27,7 @@ Značky: ✅ hotovo a ověřeno · 🟡 částečně / probíhá · ❌ zatím n
 | 1.13 | Odstupňované nápovědy, ne rovnou celé řešení | ✅ prompt přepsán: u Zkontrolovat/Poradit jen nápověda a naváděcí otázka, celé řešení až na "Ukaž další krok" nebo výslovnou žádost |
 | 1.14 | Hlas (speechSynthesis, cs-CZ) | ✅ |
 | 1.15 | MVP matematický rozsah (aritmetika, zlomky, procenta, závorky, lineární rovnice) | ✅ |
-| 1.16 | Testy (unit/integration/e2e) | ✅ 159+50+161 testů, e2e scénáře |
+| 1.16 | Testy (unit/integration/e2e) | ✅ shared 71, content 34, bridge 161, frontend 61, verifier 161, e2e 17 |
 | 1.17 | Bezpečnost (žádný shell z LLM, CSP, origin kontrola) | ✅ |
 | 1.18 | Dokumentace, licence, README cz/en | ✅ |
 
@@ -79,11 +79,25 @@ Značky: ✅ hotovo a ověřeno · 🟡 částečně / probíhá · ❌ zatím n
 | 4.18 | Živá kontrola při psaní: špatný řádek (např. 5+1=8) se označí ✗ a appka nabídne vysvětlení, ne rovnou řešení | ✅ lokální kontrola v prohlížeči (číselné rovnice, ekvivalence lineárních rovnic), značka u řádku, bublina "Vysvětli / Nápověda / Zkusím sám"; AI se volá až po kliknutí. Co kontrola neumí, označí "neznámé", nikdy "správně" |
 | 4.19 | Ovládání plátna: scroll/zoom, šipky, podržení = nabídka | ✅ kolečko/pinch/mezerník (Excalidraw), šipky posouvají, podržení 500 ms otevře nabídku (text, guma, zeptat se, přiblížit sem, zobrazit vše, smazat výběr) |
 | 4.20 | Vyhledání konkrétního tématu, jak ho student nazývá | ✅ Ctrl+K / pole v zásuvce Kurzy, bez diakritiky, klíčová slova; bez shody nabídne "Zeptat se AI" |
-| 4.21 | Úplnější obsah (např. proč VŠ jen základy algebry) | ✅ 8 kurzů, ~60 dovedností: SŠ přijímačky, VŠ přijímačky, maturita, VŠ algebra, analýza, lineární algebra, diskrétní matematika, statistika. Dovednosti bez možnosti strojové kontroly jsou označené, VŠ osnovy jako "neoficiální" |
+| 4.21 | Úplnější obsah (např. proč VŠ jen základy algebry) | ✅ 10 kurzů, 71 dovedností (matematika, VŠ předměty, fyzika, chemie): SŠ přijímačky, VŠ přijímačky, maturita, VŠ algebra, analýza, lineární algebra, diskrétní matematika, statistika. Dovednosti bez možnosti strojové kontroly jsou označené, VŠ osnovy jako "neoficiální" |
 | 4.22 | Export a studijní materiály | ✅ zápisky (.md), tisk/PDF, tabule PNG/SVG, "Studijní text pro mě" (AI text označený jako neověřený) |
 | 4.23 | Tooltipy: krátký text hned, delší při delším podržení | ✅ rail ikony (hover → název, po 1,2 s vysvětlení) |
 
-## 5. Vědomě mimo rozsah (ne zapomenuté, ale explicitně odložené)
+## 4b. Druhá vlna: mentor (PLAN2.md)
+
+| # | Požadavek | Stav |
+|---|---|---|
+| 5.1 | Student píše jen na tabuli, žádná povinná pole | ✅ text se píše přímo na plátno (výchozí nástroj), zadání je karta jen ke čtení (✎ jen pro úpravu), akce jsou v nabídce maskota |
+| 5.2 | Appka sama sleduje psaní, kontroluje, vede a komentuje; jde vypnout, "po řádcích", "až na konec" | ✅ lokální trenér `coach.ts`; tři režimy v nabídce maskota; vypnutý trenér nemá značky ani bubliny; AI se bez souhlasu (Nastavení) nevolá automaticky |
+| 5.3 | Správný výsledek poznat bez AI, i s jednotkou | ✅ `answers.ts`: očekávaná odpověď z výrazu / lineární rovnice / `answerTemplate`, celá čísla přesně, zaokrouhlená s 1 %, jednotky se kontrolují |
+| 5.4 | Maskot-učitel mluví, má bublinu a mikrofon | ✅ SVG maskot (nálada, pusa při řeči), řeč přes speechSynthesis, bublina stručná s "Více", push-to-talk přes Web Speech API (jen kde ho prohlížeč má; lokální Whisper vědomě ne) |
+| 5.5 | Paměť o studentovi a styl vysvětlování | ✅ `learnerProfile.ts` (chyby podle typu a dovednosti, úspěšnost stylů, dny); souhrn jde AI jako `learnerContext`; student se na nic neptá |
+| 5.6 | Plán s procenty, co mě čeká | ✅ zásuvka "Plán a cesta" + procenta v horní liště; mění se podle mastery; lekce z Kurzů přebírá svůj kurz |
+| 5.7 | Test na doma jako PDF s klíčem | ✅ `testGen.ts` + `testSheet.ts`: tisk/PDF a HTML, klíč odpovědí na poslední stránce; vyfocené řešení vyhodnotí jen model s obrázky (řečeno v UI) |
+| 5.8 | Fyzika a chemie, kreslení | ✅ kurzy Fyzika a Chemie s číselnými úlohami kontrolovanými bez AI; úlohy s kresbou jsou označené, AI kresby zatím nevidí |
+| 5.9 | HUD bez překryvů | ✅ jedna zásuvka vlevo, jeden vyskakovací panel (nastavení / kalkulačka / učitel) naráz, vlastnosti Excalidrawu skryté, karty pod lištou nástrojů; měřeno e2e a testery |
+
+## 6. Vědomě mimo rozsah (ne zapomenuté, ale explicitně odložené)
 
 - Android/Capacitor obálka, iOS build
 - "Sign in with ChatGPT" režim
@@ -92,7 +106,7 @@ Značky: ✅ hotovo a ověřeno · 🟡 částečně / probíhá · ❌ zatím n
 - Codex tutoring (fail-closed, dokud OpenAI nezveřejní způsob, jak mu bezpečně zakázat shell nástroje)
 - Claude OCR/obrázkový vstup (žádný dokumentovaný způsob v neinteraktivním režimu)
 - Rozšíření SymPy verifikátoru o mocniny, soustavy, kvadratické rovnice a funkce (dovednosti bez něj jsou označené)
-- Duolingo-styl série/odměny a plán podle data zkoušky
+- Odměny a hry (jen série dní a dnešní počet v plánu), plán podle data zkoušky
 - Oficiální procentní váhy témat a aktuální katalog požadavků k maturitě (nepodařilo se ověřit)
 
 ---

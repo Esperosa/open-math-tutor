@@ -30,6 +30,8 @@ export interface ProblemTemplate {
   topic: string;
   /** Word problem / notation that is not in the safe math grammar: statement is shown as text and never parsed. */
   freeText?: boolean;
+  /** Values computed from the sampled ones, e.g. { s: "{v}*{t}" } so that a division task comes out even. */
+  derived?: Record<string, string>;
   /** Formula over the generator names ({a}, {b}) giving the expected numeric answer, evaluated with the calculator grammar. */
   answerTemplate?: string;
   /** Unit shown with the expected answer, for example m/s. */

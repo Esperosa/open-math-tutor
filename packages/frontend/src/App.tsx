@@ -3,7 +3,7 @@ import type { ContinueLessonRequest, ExpectedAnswer, ProviderId } from '@openmat
 import {
   recordAttempt, retrieveTopChunks, checkSteps, isMastered, instantiateProblem, expectedAnswerFor, statementHasSymbols,
   looksLikeFinalLine, nextCoachEvent, coachLine, stepKey, recordError, recordSolved, chooseStyle, recordStyleShown,
-  resolveStyleOutcome, profileSummary, generateTest, topicMastered, getTopicSkills, nextUnlockedTopic, nextUnlockedSkill, pickTemplateForDifficulty,
+  resolveStyleOutcome, profileSummary, generateTest, topicMastered, checkAnswerLine, getTopicSkills, nextUnlockedTopic, nextUnlockedSkill, pickTemplateForDifficulty,
   type ExplainStyle, type LearnerProfile,
 } from '@openmathtutor/shared';
 import { catalog } from '@openmathtutor/content';
@@ -71,21 +71,35 @@ export function App() {
   const leaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const lines = useMemo(() => writtenLines(board.steps), [board.steps]);
   const statement = useMemo(() => effectiveStatement(board.statement, lines), [board.statement, lines]);
-  const verdicts = useMemo(() => markPerStep(checkSteps(statement, lines), lines), [statement, lines]);
+  const verdicts = useMemo(() => {
+    if (settings.coachMode === 'off') return {};
+    const byLine = checkSteps(statement, lines);
+    const expected = board.expected ?? expectedAnswerFor(statement);
+    if (expected) {
+      const symbols = statementHasSymbols(statement);
+      for (const line of lines) {
+        if (byLine[line.stepId]?.status === 'wrong' || !looksLikeFinalLine(line.latexGuess, symbols)) continue;
+        const answer = checkAnswerLine(expected, line.latexGuess);
+        if (answer === 'correct') byLine[line.stepId] = { status: 'ok' };
+        else if (answer === 'wrong' || answer === 'unit') byLine[line.stepId] = { status: 'wrong', reason: 'wrong_value' };
+      }
+    }
+    return markPerStep(byLine, lines);
+  }, [statement, lines, board.expected, settings.coachMode]);
   useEffect(() => {
     const away = (e: PointerEvent) => {
       if ((e.target as Element | null)?.closest('.rail, .drawer, .settings-pop, .icon-btn, .tutor-hud, .calculator')) return;
       setPanel(null); setPinned(false); setSettingsOpen(false); setTutorMenu(false);
     };
     const esc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setPanel(null); setPinned(false); setSettingsOpen(false); }
+      if (e.key === 'Escape') { setPanel(null); setPinned(false); setSettingsOpen(false); setCalcOpen(false); setTutorMenu(false); }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault(); setPanel('courses'); setPinned(true);
         setTimeout(() => document.getElementById('course-search')?.focus(), 50);
       }
     };
-    document.addEventListener('pointerdown', away); document.addEventListener('keydown', esc);
-    return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc); };
+    document.addEventListener('pointerdown', away); document.addEventListener('keydown', esc, true);
+    return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc, true); };
   }, []);
   const voice = useVoice(settings);
   const mic = useMic(settings.locale);
@@ -184,9 +198,9 @@ export function App() {
       const applied = applyResponse(current, response, id);
       if (applied.state !== current) updateBoard(applied.state);
       setStatus(applied.stale ? 'waiting' : 'ready'); setRejected(applied.rejected);
-      if (!applied.stale && mode === 'check' && lessonSkillId && !current.outcome) {
+      if (!applied.stale && mode === 'check' && current.skillId && !current.outcome && (response.verifierStatus === 'correct' || response.verifierStatus === 'incorrect')) {
         const wasCorrect = response.verifierStatus === 'correct';
-        recordMastery(lessonSkillId, wasCorrect);
+        recordMastery(current.skillId, wasCorrect);
         updateBoard({ ...applied.state, outcome: wasCorrect ? 'solved' : 'failed' });
       }
       if (!applied.stale) {
@@ -237,7 +251,7 @@ export function App() {
     if (!pinned) leaveTimer.current = setTimeout(() => setPanel(null), 450);
   }
   function createExercise() {
-    stop(false); const next = newBoard();
+    stop(false); setLessonSkillId(null); setMessage(null); const next = newBoard();
     const value = { ...live.current, boards: [...live.current.boards, next], activeId: next.id };
     live.current = value; setSaved(value); setStatus('idle');
   }
@@ -250,6 +264,7 @@ export function App() {
     setMessage(null);
     const value = { ...live.current, boards: [...live.current.boards, next], activeId: next.id };
     live.current = value; setSaved(value);
+    if (lesson.curriculumContext.trackId && lesson.curriculumContext.trackId !== live.current.settings.activeTrackId) configure({ activeTrackId: lesson.curriculumContext.trackId, onboardingDismissed: true });
     setLessonSkillId(lesson.skillId);
     setStatus('idle');
     void request('next_problem', { curriculumContext: lesson.curriculumContext });
@@ -330,7 +345,10 @@ export function App() {
     const next = change(profileRef.current);
     profileRef.current = next; setProfileState(next); saveProfile(next);
   }
-  function learnerContext(style?: ExplainStyle) { return profileSummary(profileRef.current, live.current.settings.locale, style); }
+  function learnerContext(style?: ExplainStyle) {
+    const locale = live.current.settings.locale;
+    return profileSummary(profileRef.current, locale, style, Object.fromEntries(catalog.skills.map(s => [s.id, s.title[locale]])));
+  }
   function flashHappy() { setHappy(true); setTimeout(() => setHappy(false), 2500); }
   /** One pass of the local coach: judge the newest unhandled line and react (speak, mark, offer, record). */
   function runCoach() {
@@ -344,7 +362,8 @@ export function App() {
     const handled = new Set(current.handled ?? []);
     const event = nextCoachEvent({ mode, statement: task, steps: ls, expected, handled });
     if (event.kind === 'idle') return;
-    const marked: BoardState = { ...current, handled: [...(current.handled ?? []), event.key].slice(-300) };
+    // Everything written so far counts as seen once the newest line is judged: no late comments on lines the student has moved past.
+    const marked: BoardState = { ...current, handled: [...new Set([...(current.handled ?? []), ...ls.map(stepKey), event.key])].slice(-300) };
     const locale = cur.settings.locale;
     const say = (kind: TutorMessage['kind']) => {
       let text = coachLine(event, locale, hashKey(event.key));
@@ -374,7 +393,9 @@ export function App() {
       case 'unclear': {
         updateBoard(marked);
         const text = ls.find(l => stepKey(l) === event.key)?.latexGuess ?? '';
-        if (looksLikeFinalLine(text, statementHasSymbols(task)) && canRequest) void request('check', { learnerContext: learnerContext() });
+        if (!looksLikeFinalLine(text, statementHasSymbols(task))) break; // an intermediate line nobody can check locally: stay quiet
+        if (cur.settings.auto && canRequest) void request('check', { learnerContext: learnerContext() });
+        else say('unclear');
         break;
       }
     }
@@ -465,8 +486,8 @@ export function App() {
           {!verifierOK && <span role="alert">{t.healthVerifier}</span>}
         </>}
         <label className="check-label"><input type="checkbox" checked={settings.showAI} onChange={e => configure({ showAI: e.target.checked })} />{t.aiLayer}</label>
-        <label className="check-label"><input type="checkbox" checked={settings.auto} onChange={e => configure({ auto: e.target.checked })} />{t.consent}</label>
-        {model && !model.supportsImageInput && <p className="warning">{t.imageUnsupported}</p>}
+        {model?.supportsImageInput && <label className="check-label"><input type="checkbox" checked={settings.auto} onChange={e => configure({ auto: e.target.checked })} />{t.consent}</label>}
+        <button onClick={() => { configure({ activeTrackId: '', onboardingDismissed: false }); setSettingsOpen(false); }}>{t.pickCourseAgain}</button>
         <label>{t.voiceChoice}<select value={voice.voices.some(v => v.voiceURI === settings.voiceURI) ? settings.voiceURI : ''} onChange={e => configure({ voiceURI: e.target.value })}>
           <option value="">{t.choose}</option>{voice.voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</select></label>
         <label>{t.rate} ({settings.rate})<input type="range" min="0.5" max="1.5" step="0.1" value={settings.rate} onChange={e => configure({ rate: Number(e.target.value) })} /></label>
@@ -499,7 +520,7 @@ export function App() {
           <CustomSourcesPanel t={t} sources={sources} onAdd={addCustomSource} onRemove={removeCustomSource} />
         </section>
         <section hidden={openPanel !== 'exercises'}><h2>{t.exercise}</h2><label>{t.exercise}<select value={saved.activeId} onChange={e => switchExercise(e.target.value)}>
-          {saved.boards.map((b, i) => <option key={b.id} value={b.id}>{i + 1}. {b.statement.slice(0, 40) || '…'}</option>)}</select></label>
+          {saved.boards.map((b, i) => <option key={b.id} value={b.id}>{i + 1}. {(b.statement || b.steps[0]?.latexGuess || t.emptyExercise).slice(0, 40)}</option>)}</select></label>
           <div className="row"><button onClick={createExercise}>{t.newExercise}</button><button onClick={deleteExercise}>{t.deleteExercise}</button></div></section>
         <section hidden={openPanel !== 'notes'}>
           <NotesPanel t={t} strengths={strengths} canAsk={canRequest && !running}
@@ -523,7 +544,7 @@ export function App() {
         onToggleMenu={() => { setTutorMenu(o => !o); setSettingsOpen(false); }}
         onMode={mode => configure({ coachMode: mode })} onVoice={on => { if (!on) voice.cancel(); configure({ tutorVoice: on }); }}
         onMic={() => mic.toggle(text => ask(text))}
-        onAction={action => { setTutorMenu(false); if (action === 'stop') stop(); else if (action === 'next_problem') nextProblem(); else void request(action, { learnerContext: learnerContext() }); }}
+        onAction={action => { setTutorMenu(false); if (action === 'stop') stop(); else if (action === 'next_problem') nextProblem(); else if (action === 'free') createExercise(); else void request(action, { learnerContext: learnerContext() }); }}
         onChoice={choice => void tutorChoice(choice)} />
     </div>
   </div>;

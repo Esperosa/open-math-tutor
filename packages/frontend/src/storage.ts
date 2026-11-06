@@ -21,6 +21,16 @@ export const defaultSettings: Settings = {
   activeTrackId: '', onboardingDismissed: false, startLevel: 1,
   coachMode: 'live', tutorVoice: true,
 };
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
+const isBox = (v: unknown) => isObj(v) && ['x', 'y', 'width', 'height'].every(k => Number.isFinite(v[k]));
+/** Drops damaged entries (a null step, a history item without text) instead of letting render crash on every reload. */
+function sanitizeBoard(board: BoardState): BoardState {
+  return { ...board,
+    steps: board.steps.filter(s => isObj(s) && typeof s.stepId === 'string' && typeof s.latexGuess === 'string' && isBox(s.box) && Array.isArray(s.elementIds)),
+    history: board.history.filter(h => isObj(h) && typeof h.id === 'string' && typeof h.text === 'string' && typeof h.ttsText === 'string'),
+    elements: board.elements.filter(e => isObj(e)),
+    ...(board.handled && !Array.isArray(board.handled) ? { handled: [] } : {}) };
+}
 export function load(): Saved {
   try {
     const raw = localStorage.getItem(KEY);
@@ -31,7 +41,7 @@ export function load(): Saved {
           && Array.isArray(b.elements) && Array.isArray(b.steps) && Array.isArray(b.annotations) && Array.isArray(b.history)
           && typeof b.statement === 'string' && typeof b.topic === 'string')
         && saved.settings && ['cs', 'en'].includes(saved.settings.locale)) {
-        saved.boards = saved.boards.map(b => ({ ...b, annotations: renderableActions(b) }));
+        saved.boards = saved.boards.map(sanitizeBoard).map(b => ({ ...b, annotations: renderableActions(b) }));
         saved.settings = { ...defaultSettings, ...saved.settings };
         if (!saved.boards.some(b => b.id === saved.activeId)) saved.activeId = saved.boards[0].id;
         return saved;

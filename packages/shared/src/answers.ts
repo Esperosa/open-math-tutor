@@ -36,26 +36,44 @@ export function expectedAnswerFor(statementText: string): ExpectedAnswer | undef
   return value !== null && Number.isFinite(value) ? { value, tolerance: 1e-9 } : undefined;
 }
 
-/** Instantiates a template (random values) and computes its expected answer, if one can be computed. */
+/** "1+-8" reads badly on a task card: write the sign the way a person would. */
+export function prettySigns(statement: string): string {
+  return statement.replace(/\+-/g, "-").replace(/--/g, "+").replace(/([*/^])-(\d+(?:[.,]\d+)?)/g, "$1(-$2)");
+}
+
+function substitute(text: string, values: Record<string, number>): string {
+  let out = text;
+  for (const [name, value] of Object.entries(values)) out = out.split(`{${name}}`).join(value < 0 ? `(${value})` : String(value));
+  return out;
+}
+
+/**
+ * Instantiates a template with random values and computes its expected answer. `derived` values are computed
+ * from the sampled ones (so a division task can be built to come out even); templates whose answer cannot be
+ * computed (for example an equation with no single root) are re-sampled a few times.
+ */
 export function instantiateProblem(template: ProblemTemplate, random: () => number = Math.random): InstantiatedProblem {
-  const values: Record<string, number> = {};
-  let statement = template.statementTemplate;
-  for (const [name, [min, max]] of Object.entries(template.generatorRanges ?? {})) {
-    const value = min + Math.floor(random() * (max - min + 1));
-    values[name] = value;
-    statement = statement.split(`{${name}}`).join(String(value));
+  let last: InstantiatedProblem = { statement: template.statementTemplate };
+  for (let attempt = 0; attempt < 25; attempt++) {
+    const values: Record<string, number> = {};
+    for (const [name, [min, max]] of Object.entries(template.generatorRanges ?? {})) values[name] = min + Math.floor(random() * (max - min + 1));
+    for (const [name, formula] of Object.entries(template.derived ?? {})) {
+      try { values[name] = calcEvaluate(substitute(formula, values)); } catch (e) { if (!(e instanceof CalcError)) throw e; }
+    }
+    let statement = template.statementTemplate;
+    for (const [name, value] of Object.entries(values)) statement = statement.split(`{${name}}`).join(String(value));
+    statement = prettySigns(statement);
+    let expected: ExpectedAnswer | undefined;
+    if (template.answerTemplate) {
+      try {
+        const value = calcEvaluate(substitute(template.answerTemplate, values));
+        expected = { value, ...(template.answerUnit ? { unit: template.answerUnit } : {}), tolerance: Number.isInteger(value) ? 1e-9 : 0.01 };
+      } catch (e) { if (!(e instanceof CalcError)) throw e; }
+    } else if (!template.freeText) expected = expectedAnswerFor(statement);
+    last = expected ? { statement, expected } : { statement };
+    if (expected || template.freeText || template.answerTemplate) return last;
   }
-  if (template.answerTemplate) {
-    let formula = template.answerTemplate;
-    for (const [name, value] of Object.entries(values)) formula = formula.split(`{${name}}`).join(value < 0 ? `(${value})` : String(value));
-    try {
-      const value = calcEvaluate(formula);
-      return { statement, expected: { value, ...(template.answerUnit ? { unit: template.answerUnit } : {}), tolerance: 0.01 } };
-    } catch (e) { if (!(e instanceof CalcError)) throw e; }
-  }
-  if (template.freeText) return { statement };
-  const expected = expectedAnswerFor(statement);
-  return expected ? { statement, expected } : { statement };
+  return last;
 }
 
 const NUMBER = /[-−]?\d+(?:[.,]\d+)?(?:\s*(?:[·×x*]\s*10\s*\^?\s*[-−]?\d+))?/g;
@@ -73,8 +91,10 @@ function numberValue(token: string): number | null {
  * The number a student wrote as the answer on a line: the leading numeric expression after the last "="
  * (so "2/5", "120/8" and "2,5·10^-3 mol" all work, units are ignored), else the first number found.
  */
+const ANSWER_WORDS = /^(?:odpověď|odpoved|výsledek|vysledek|answer|result)\s*[:=]?\s*/i;
+
 export function answerFromLine(line: string): number | null {
-  const text = line.trim();
+  const text = line.trim().replace(ANSWER_WORDS, "");
   if (!text) return null;
   const tail = (text.includes("=") ? text.slice(text.lastIndexOf("=") + 1) : text).trim();
   const prefix = (/^[\d\s.,+\-−*×·/^()%]+/.exec(tail)?.[0] ?? "").replace(/·/g, "*").trim();
@@ -90,7 +110,7 @@ export function answerFromLine(line: string): number | null {
  * intermediate step such as "2x = 4". `taskHasSymbols` says whether the task statement contains a variable.
  */
 export function looksLikeFinalLine(line: string, taskHasSymbols: boolean): boolean {
-  const text = line.trim();
+  const text = line.trim().replace(ANSWER_WORDS, "");
   if (!text) return false;
   const eq = text.lastIndexOf("=");
   const tail = (eq >= 0 ? text.slice(eq + 1) : text).trim();
@@ -105,17 +125,36 @@ export function looksLikeFinalLine(line: string, taskHasSymbols: boolean): boole
   return !taskHasSymbols;
 }
 
-export type AnswerVerdict = "correct" | "wrong" | "none";
+export type AnswerVerdict = "correct" | "wrong" | "unit" | "none";
+
+const normalizeUnit = (unit: string) => unit.toLowerCase().replace(/[\s·.,;]/g, "").replace(/[π^]/g, "").replace(/²/g, "2").replace(/³/g, "3").replace(/ω|ohm/g, "Ω");
+
+/** The unit the student wrote after the number, or "" (also "" when the trailing text is not a unit at all). */
+export function unitFromLine(line: string): string {
+  const text = line.trim().replace(ANSWER_WORDS, "");
+  const tail = (text.includes("=") ? text.slice(text.lastIndexOf("=") + 1) : text).trim();
+  const prefix = /^[\d\s.,+\-−*×·/^()%]+/.exec(tail)?.[0] ?? "";
+  const rest = tail.slice(prefix.length).trim();
+  return /^[\p{L}°%µΩπ][\p{L}°%µΩπ/²³^·\-\d\s.]{0,14}$/u.test(rest) ? rest : "";
+}
 
 export function checkAnswerLine(expected: ExpectedAnswer, line: string): AnswerVerdict {
   const given = answerFromLine(line);
   if (given === null) return "none";
   const scale = Math.max(Math.abs(expected.value), 1e-12);
-  return Math.abs(given - expected.value) <= expected.tolerance * scale + 1e-12 ? "correct" : "wrong";
+  if (Math.abs(given - expected.value) > expected.tolerance * scale + 1e-12) return "wrong";
+  const unit = unitFromLine(line);
+  if (unit && expected.unit && normalizeUnit(unit) !== normalizeUnit(expected.unit)) return "unit";
+  return "correct";
 }
 
 export function formatExpected(expected: ExpectedAnswer, locale: "cs" | "en"): string {
-  const rounded = Number(expected.value.toPrecision(6));
-  const text = String(rounded);
-  return `${locale === "cs" ? text.replace(".", ",") : text}${expected.unit ? ` ${expected.unit}` : ""}`;
+  const { value } = expected;
+  let text: string;
+  if (value !== 0 && (Math.abs(value) >= 1e6 || Math.abs(value) < 1e-3)) {
+    const [mantissa, exponent] = value.toExponential(3).split("e");
+    text = `${Number(mantissa)}·10^${Number(exponent)}`;
+  } else text = String(Number(value.toPrecision(6)));
+  if (locale === "cs") text = text.replace(".", ",");
+  return `${text}${expected.unit ? ` ${expected.unit}` : ""}`;
 }
