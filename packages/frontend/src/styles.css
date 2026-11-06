@@ -431,3 +431,13 @@ body { overflow: hidden; }
 .upload-board .upload-title { font-size: 15px; }
 .upload-board .upload-hint { color: var(--muted); font-weight: 500; }
 .upload-board::after { content: attr(data-hint); color: var(--muted); font-weight: 500; font-size: 12px; }
+
+/* Author credit: pelican logo + link, quiet by default */
+.credit { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--muted); font-size: 12px; font-weight: 600; text-decoration: none; margin-top: var(--space-3); }
+.credit img { border-radius: 6px; display: block; }
+.credit:hover, .credit:focus-visible { color: var(--accent); }
+.credit-compact { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); margin: 0; padding: 4px 10px 4px 5px; border-radius: 999px;
+  background: var(--glass-surface); border: 1px solid var(--glass-border); box-shadow: var(--shadow-1); pointer-events: auto; opacity: .72; transition: opacity var(--duration-fast) var(--ease-standard); }
+.credit-compact:hover, .credit-compact:focus-visible { opacity: 1; }
+@media (max-width: 900px) { .credit-compact { display: none; } }
+.onboarding-credit { display: flex; justify-content: center; margin-top: var(--space-4); }

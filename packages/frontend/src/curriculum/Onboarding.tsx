@@ -1,3 +1,4 @@
+import { Credit } from '../Credit';
 import { useState } from 'react';
 import type { CourseCatalog, Locale } from '@openmathtutor/shared';
 import type { MessageKey } from '../i18n';
@@ -58,6 +59,7 @@ export function Onboarding({ catalog, t, locale, onSelectTrack, onSkip }: Props)
         </ul>
       </>}
       <button className="onboarding-skip" onClick={onSkip}>{t.onboardingSkip}</button>
+      <div className="onboarding-credit"><Credit locale={locale} /></div>
     </div>
   </div>;
 }

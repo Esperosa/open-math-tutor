@@ -29,6 +29,7 @@ import { NotesPanel } from './NotesPanel';
 import { PlanPanel } from './PlanPanel';
 import { buildTestHtml } from './testSheet';
 import type { TutorMood } from './Tutor';
+import { Credit } from './Credit';
 import { buildNotesHtml, buildNotesMarkdown, downloadBlob, printHtml, studyTextRequest, summarizeStrengths } from './notes';
 import { AskPanel } from './AskPanel';
 import { UploadBoard, type UploadedImage } from './UploadBoard';
@@ -594,7 +595,9 @@ export function App() {
         <p className="muted">{t.controlsHelp}</p>
         <p className="privacy">{t.privacy}</p>
         <button className="stop" onClick={eraseEverything}>{t.eraseAll}</button>
+        <Credit locale={settings.locale} />
       </aside>
+      <Credit locale={settings.locale} compact />
       {calcOpen && calcPolicy !== 'none' && <Calculator t={t} locale={settings.locale} policy={calcPolicy} examRules={!!activeTrack?.calculator}
         onClose={() => setCalcOpen(false)} onUse={text => editor.current?.addLine(text, null)} />}
       <Rail items={[{ id: 'plan', label: t.planTitle, hint: t.hintPlan }, { id: 'courses', label: t.courses, hint: t.hintCourses }, { id: 'ask', label: t.askLabel, hint: t.hintAsk }, { id: 'materials', label: t.customSources, hint: t.hintMaterials },
