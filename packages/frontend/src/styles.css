@@ -32,6 +32,13 @@ small, .muted { color: var(--muted); font-size: 12px; line-height: 1.5; }
 .math-annotation { position: absolute; transform-origin: top left; background: #fff7e7; color: #8e3908; padding: 6px 12px; border-left: 3px solid #b54708; border-radius: 3px; display: flex; align-items: center; gap: 10px; animation: math-reveal 650ms ease-out both; font-size: 22px; }
 .math-annotation small { color: #8e3908; font: 600 10px system-ui; }
 .layer-badge { position: absolute; bottom: 16px; left: 70px; pointer-events: none; z-index: 3; padding: 4px 8px; border-radius: 3px; background: #fff3de; color: #803800; font-size: 11px; }
+.graph-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
+.graph-annotation { position: absolute; transform-origin: top left; background: #fff7e7; border: 1px solid #b54708; border-radius: 4px; padding: 4px; animation: math-reveal 650ms ease-out both; }
+.graph-annotation small { color: #8e3908; font: 600 10px system-ui; display: block; margin-bottom: 2px; }
+.graph-background { fill: #fffdf8; }
+.graph-axis { stroke: #c9b08a; stroke-width: 1; }
+.graph-curve { stroke: #165d58; stroke-width: 2; }
+:root[data-theme="dark"] .graph-curve { stroke: #79d2c5; }
 @keyframes math-reveal { from { opacity: 0; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
 @media (prefers-reduced-motion: reduce) { .math-annotation { animation: none; } }
 .keyboard-entry { display: grid; grid-template-columns: 2fr 1fr auto; align-items: end; gap: 10px; padding: 12px 0; }

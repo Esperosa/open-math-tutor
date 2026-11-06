@@ -4,6 +4,7 @@ import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from '@excalidraw
 import type { ExcalidrawElement, NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import katex from 'katex';
 import { annotationElements } from './annotations';
+import { GraphPlot } from './GraphPlot';
 import { fingerprint, isStudent, renderableActions, type BoardState } from './boardState';
 import type { Settings } from './storage';
 import { messages } from './i18n';
@@ -99,6 +100,14 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
           transform: `scale(${view.zoom})`,
         }}><small>{t.aiBadge}</small><span dangerouslySetInnerHTML={{ __html: html }} /></div>;
       })}
+    </div>
+    <div className="graph-layer" aria-live="polite">
+      {settings.showAI && actions.filter(a => a.type === 'plot_function').map(a => a.type === 'plot_function' && (
+        <div key={a.id} className="graph-annotation" style={{
+          left: (a.anchor.x + view.x) * view.zoom, top: (a.anchor.y + view.y) * view.zoom,
+          transform: `scale(${view.zoom})`,
+        }}><small>{t.aiBadge}</small><GraphPlot action={a} /></div>
+      ))}
     </div>
     {settings.showAI && actions.length > 0 && <span className="layer-badge">{t.aiBadge} · {t.annotations}</span>}
   </div>;
