@@ -1,4 +1,4 @@
-import { checkAnswerLine, checkSteps, looksLikeFinalLine, statementHasSymbols, type ExpectedAnswer, type StepVerdict } from '@openmathtutor/shared';
+import { judgeLines, type ExpectedAnswer, type StepVerdict } from '@openmathtutor/shared';
 import type { Step } from './boardState';
 
 export interface WrittenLine { stepId: string; latexGuess: string; parentId: string; uncertain?: boolean }
@@ -14,7 +14,7 @@ export function writtenLines(steps: readonly Step[]): WrittenLine[] {
 
 /** The task is the lesson statement, or - on a free board - the first thing the student wrote. */
 export function effectiveStatement(statement: string, lines: readonly WrittenLine[]): string {
-  return statement.trim() || lines[0]?.latexGuess || '';
+  return statement.trim() || (lines[0]?.uncertain ? '' : lines[0]?.latexGuess ?? '');
 }
 
 /** One verdict per board step for the margin mark: any wrong line wins, then ok, otherwise unknown. */
@@ -33,17 +33,5 @@ export function markPerStep(lineVerdicts: Record<string, StepVerdict>, lines: re
 
 /** Step-by-step verdicts, then the final answer line judged against the expected answer (number and unit). */
 export function computeLineVerdicts(statement: string, lines: readonly WrittenLine[], expected?: ExpectedAnswer, confirmedFinals: readonly string[] = []): Record<string, StepVerdict> {
-  const byLine = checkSteps(statement, lines);
-  // A low-confidence reading is not a student error. Leave it unknown so the
-  // coach asks or the student taps the correct character instead of marking ✗.
-  for (const line of lines) if (line.uncertain) byLine[line.stepId] = { status: 'unknown' };
-  if (!expected) return byLine;
-  const symbols = statementHasSymbols(statement);
-  for (const line of lines) {
-    if (line.uncertain || byLine[line.stepId]?.status === 'wrong' || !looksLikeFinalLine(line.latexGuess, symbols)) continue;
-    const answer = checkAnswerLine(confirmedFinals.includes(`${line.stepId}:${line.latexGuess}`) ? { ...expected, wordProblem: false, givens: [] } : expected, line.latexGuess);
-    if (answer === 'correct') byLine[line.stepId] = { status: 'ok' };
-    else if (answer === 'wrong' || answer === 'unit') byLine[line.stepId] = { status: 'wrong', reason: 'wrong_value' };
-  }
-  return byLine;
+  return judgeLines(statement, lines, expected, confirmedFinals);
 }

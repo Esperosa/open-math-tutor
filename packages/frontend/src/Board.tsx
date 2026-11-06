@@ -6,7 +6,7 @@ import { createStepLocatorRegistry, textStepLocator, type StepLocator } from './
 import { useReducedMotion } from './useReducedMotion';
 import { annotationElements, revealNotes } from './annotations';
 import { GraphPlot } from './GraphPlot';
-import { fingerprint, inkSymbolKey, isStudent, renderableActions, type BoardState } from './boardState';
+import { correctionLabels, fingerprint, inkSymbolKey, isStudent, renderableActions, type BoardState } from './boardState';
 import type { Settings } from './storage';
 import { messages } from './i18n';
 import type { StepVerdict } from '@openmathtutor/shared';
@@ -293,22 +293,20 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
     </div>
     <div className="ink-layer">
       {board.steps.filter(step => step.origin === 'ink' && step.latexGuess.trim()).map(step => {
-        const soft = (step.symbols ?? []).map((symbol, index) => ({ symbol, index })).filter(({ symbol }) => {
-          const top = symbol.candidates[0]?.probability ?? 0;
-          const second = symbol.candidates[1]?.probability ?? 0;
-          return symbol.candidates.length > 1 && (top < 0.8 || top - second < 0.2);
-        }).slice(0, 6);
+        const soft = step.uncertain ? (step.symbols ?? []).map((symbol, index) => ({ symbol, index }))
+          .filter(({ symbol }) => symbol.uncertain || !step.parserCompatible).slice(0, 6) : [];
         return <div key={step.stepId} className={`ink-reading${step.uncertain ? ' uncertain' : ''}`}
           data-testid={`ink-reading-${step.stepId}`} data-confidence={step.confidence ?? 0}
           style={{ left: (step.box.x + view.x) * view.zoom, top: (step.box.y + step.box.height + 4 + view.y) * view.zoom }}>
           <span className="ink-read-label" title={step.uncertain ? t.handwritingUncertain : undefined}>
-            {t.handwritingRead} <strong>{step.latexGuess}</strong>{step.uncertain ? ' ?' : ''}
+            {t.handwritingRead} <strong>{step.latexGuess}</strong>{step.uncertain ? ` — ${t.handwritingUncertain}` : ''}
           </span>
-          {soft.length > 0 && <span className="ink-candidates" aria-label={t.handwritingCorrect}>
-            {soft.flatMap(({ symbol, index }) => symbol.candidates.filter(candidate => candidate.label !== symbol.label).slice(0, 2)
+          {soft.length > 0 && <span className="ink-candidates" aria-label={t.handwritingCorrect} style={{ left: Math.max(180, step.box.width * view.zoom + 32) }}>
+            {soft.flatMap(({ symbol, index }) => correctionLabels(symbol).map(label => ({ label }))
               .map(candidate => <button key={`${index}-${candidate.label}`} type="button"
                 data-testid={`ink-candidate-${step.stepId}-${index}-${candidate.label}`}
-                title={`${t.handwritingCorrect}: ${symbol.label} → ${candidate.label}`}
+                aria-label={`${t.handwritingCorrect}: ${index + 1}. ${t.handwritingSymbol} „${symbol.label ?? symbol.candidates[0]?.label}“ → „${candidate.label}“`}
+                title={`${index + 1}. ${t.handwritingSymbol}: ${symbol.label ?? symbol.candidates[0]?.label} → ${candidate.label}`}
                 onPointerDown={event => event.stopPropagation()}
                 onClick={event => { event.stopPropagation(); onInkCorrection?.(inkSymbolKey(symbol.strokeIds, board.elements), candidate.label); }}>
                 {candidate.label}</button>))}

@@ -12,3 +12,4 @@ export * from "./coach.js";
 export * from "./learnerProfile.js";
 export * from "./progress.js";
 export * from "./testGen.js";
+export * from "./judgement.js";

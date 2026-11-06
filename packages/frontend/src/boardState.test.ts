@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as shared from '@openmathtutor/shared';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
-import { applyResponse, commitStudent, correctInk, editTask, fingerprint, inkSymbolKey, newBoard, removeAnnotation, renderableActions, stableMathCandidate } from './boardState';
+import { applyResponse, commitStudent, correctInk, correctionLabels, editTask, fingerprint, inkSymbolKey, newBoard, removeAnnotation, renderableActions, stableMathCandidate } from './boardState';
+import { recognizeBoardLines, type RecognizedLine } from './handwriting';
 import { rowElements } from './handwriting/__fixtures__/generate';
 
 export function element(id = 'line', text = '2x + 3 = 8', version = 1, y = 120): ExcalidrawElement {
@@ -14,6 +15,64 @@ function response(state = fixture(), actions: shared.BoardAction[] = []): shared
     needsClarification: null, boardActions: actions };
 }
 describe('board commits and stable steps', () => {
+  it('offers equals for a noisy pair of wide pen strokes even when the classifier omitted it', () => {
+    expect(correctionLabels({ bbox: { x: 0, y: 0, width: 44, height: 25 }, strokeIds: ['a', 'b'], strokeOrder: [0, 1], uncertain: true,
+      candidates: [{ label: '2', probability: .6 }, { label: '8', probability: .3 }, { label: 'x', probability: .1 }] })).toContain('=');
+  });
+  it('does not resolve an ambiguous cross-out by confirming a different glyph', () => {
+    const ink = rowElements('4+1=5', 13);
+    const box = recognizeBoardLines(ink)[0].symbols[0].bbox;
+    const raw = [...ink, { id: 'short-cross', type: 'freedraw', x: box.x - 3, y: box.y + box.height * .55,
+      points: [[0, 0], [box.width * 1.4, -3]], strokeWidth: 2 }].map((e, i) => ({ ...e, version: 1, versionNonce: i } as unknown as ExcalidrawElement));
+    const state = commitStudent(newBoard(), raw);
+    expect(state.steps[0].uncertain).toBe(true);
+    const last = state.steps[0].symbols!.at(-1)!;
+    expect(correctInk(state, inkSymbolKey(last.strokeIds, raw), last.candidates[0].label).steps[0].uncertain).toBe(true);
+  });
+  it('replays symbol edits with task unit aliases and preserves inferred uncertainty', () => {
+    const labels = '77/7=11*n4/2'.split('');
+    const raw = labels.map((_, i) => ({ ...element(`raw-${i}`, ''), type: 'freedraw', version: 1, versionNonce: i } as ExcalidrawElement));
+    const symbols = labels.map((label, i) => ({ bbox: { x: i * 25, y: 0, width: 20, height: 40 }, strokeIds: [raw[i].id], strokeOrder: [i], uncertain: false,
+      candidates: [{ label, probability: .99 }, { label: '1', probability: .001 }] }));
+    const reading: RecognizedLine = { id: 'ink', strokeIds: raw.map(e => e.id), text: '77/7=11*n4/2', symbols, confidence: .99,
+      bbox: { x: 0, y: 0, width: 300, height: 40 }, alternatives: [], parserCompatible: true, ignoredStrokeIds: [] };
+    const state = commitStudent({ ...newBoard(), expected: { value: 11, unit: 'm/s', tolerance: 1e-9 } }, raw, {}, () => [reading]);
+    const corrected = correctInk(state, inkSymbolKey([raw[9].id], raw), '1');
+    expect(corrected.steps[0]).toMatchObject({ latexGuess: '77/7=11 m/s', uncertain: true });
+    const replay = commitStudent(corrected, [...raw, element('other', '1')], {}, () => [reading]);
+    expect(replay.steps.find(s => s.origin === 'ink')).toMatchObject({ latexGuess: '77/7=11 m/s', uncertain: true });
+  });
+  it('keeps a parseable line uncertain when one symbol has weak evidence', () => {
+    const raw = rowElements('4=4', 7).map((e, i) => ({ ...e, version: 1, versionNonce: i } as unknown as ExcalidrawElement));
+    const state = commitStudent(newBoard(), raw, {}, els => sharedReading(els));
+    expect(state.steps[0].latexGuess).toBe('4=4');
+    expect(state.steps[0].uncertain).toBe(true);
+    const symbol = state.steps[0].symbols![0];
+    expect(correctInk(state, 'not-a-symbol', '7')).toBe(state);
+    expect(correctInk(state, inkSymbolKey(symbol.strokeIds, raw), '?')).toBe(state);
+  });
+  it('uses explicit human confirmation rather than a low model probability for the corrected symbol', () => {
+    const raw = rowElements('4=4', 7).map((e, i) => ({ ...e, version: 1, versionNonce: i } as unknown as ExcalidrawElement));
+    const state = commitStudent(newBoard(), raw);
+    const symbol = state.steps[0].symbols![0];
+    symbol.uncertain = true;
+    symbol.candidates = [{ label: '4', probability: .999 }, { label: '9', probability: .000001 }];
+    const corrected = correctInk(state, inkSymbolKey(symbol.strokeIds, raw), '9');
+    expect(corrected.steps[0].latexGuess).toBe('9=4');
+    expect(corrected.steps[0].uncertain).toBe(false);
+    expect(corrected.steps[0].symbols![0].candidates).toEqual(symbol.candidates);
+  });
+  it('discards the old course answer and judgement when the task is edited', () => {
+    const state = { ...newBoard(), statement: '1+1', expected: { value: 2, tolerance: 1e-9 }, outcome: 'failed' as const,
+      handled: ['old'], confirmedFinals: ['old'], skillId: 'old-skill' };
+    const edited = editTask(state, 'statement', '12+7');
+    expect(edited.expected?.value).toBe(19);
+    expect(edited.outcome).toBeUndefined();
+    expect(edited.handled).toEqual([]);
+    expect(edited.confirmedFinals).toEqual([]);
+    expect(edited.skillId).toBeUndefined();
+    expect(editTask(state, 'topic', 'New topic').expected).toEqual(state.expected);
+  });
   it('increments for each committed edit, not selection/no-op, and preserves corrected step IDs', () => {
     const first = fixture();
     expect(first.revision).toBe(1);
@@ -89,7 +148,27 @@ describe('board commits and stable steps', () => {
     expect(next.steps[0].stepId).toBe(corrected.steps[0].stepId);
   });
 });
+
+function sharedReading(els: readonly ExcalidrawElement[]) {
+  const line = recognizeBoardLines(els)[0];
+  return [{ ...line, confidence: .99, symbols: line.symbols.map((s, i) => ({ ...s, uncertain: i === 0 })) }];
+}
 describe('shared validation is the annotation trust boundary', () => {
+  it('keeps an unrelated explanation from explicit chat while never accepting grades or board corrections', () => {
+    const state = fixture(); state.steps[0].uncertain = true;
+    const explanation = { ...response(state), firstErrorStepId: null, verifierStatus: 'ambiguous' as const,
+      pedagogicalResponse: 'Zlomek vyjadřuje část celku.', ttsText: 'Zlomek vyjadřuje část celku.' };
+    const applied = applyResponse(state, explanation, 'req', 'cs', 'ask');
+    expect(applied.state.history.at(-1)?.text).toBe(explanation.pedagogicalResponse);
+    expect(applied.state.annotations).toEqual([]);
+  });
+  it('drops even unanchored provider arithmetic and grades when any source ink is uncertain', () => {
+    const state = fixture(); state.steps[0].uncertain = true;
+    const applied = applyResponse(state, response(state, [{ id: 'invented', type: 'write_math', latex: '215+115=330', boardRevision: 1, anchor: { x: 100, y: 200 } }]), 'req');
+    expect(applied.state.annotations).toEqual([]);
+    expect(applied.state.history.at(-1)?.text).toContain('Zkontroluj, jestli jsem to přečetl správně');
+    expect(applied.state.history.at(-1)?.status).toBe('ambiguous');
+  });
   it('rejects stale requests, including request ID mismatch, without changing history', () => {
     const state = fixture();
     expect(applyResponse(state, { ...response(state), boardRevision: 0 }, 'req')).toMatchObject({ state, stale: true });

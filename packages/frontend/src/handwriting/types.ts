@@ -35,6 +35,8 @@ export interface RecognizedSymbol {
   strokeIds: string[];
   strokeOrder: number[];
   uncertain: boolean;
+  /** Explicit student confirmation, independent of the neural score. */
+  confirmed?: boolean;
   /** Context-selected reading; candidates remain the raw, probability-sorted neural top three. */
   label?: string;
 }
@@ -49,8 +51,12 @@ export interface RecognizedLine {
   symbols: RecognizedSymbol[];
   parserCompatible: boolean;
   ignoredStrokeIds: string[];
+  crossOutUncertain?: boolean;
+  /** Ambiguous layout or context-only unit spelling must be confirmed. */
+  uncertain?: boolean;
 }
 export interface RecognitionOptions {
+  unitAliases?: readonly string[];
   /** Native Excalidraw elements are in scene coordinates. Viewport never alters them. */
   inputSpace?: 'scene' | 'screen';
   viewport?: { zoom: number; scrollX: number; scrollY: number; offsetLeft?: number; offsetTop?: number };

@@ -3,7 +3,8 @@
  * decide what, if anything, the tutor should react to — no AI, no network.
  * The caller keeps the `handled` set so every written line is judged once.
  */
-import { checkStep, checkSteps, statementHasSymbols } from "./stepCheck.js";
+import { statementHasSymbols } from "./stepCheck.js";
+import { judgeLines } from "./judgement.js";
 import { checkAnswerLine, looksLikeFinalLine, type ExpectedAnswer } from "./answers.js";
 
 export type CoachMode = "live" | "final" | "off";
@@ -21,7 +22,7 @@ export type CoachEvent =
 export interface CoachInput {
   mode: CoachMode;
   statement: string;
-  steps: readonly { stepId: string; latexGuess: string }[];
+  steps: readonly { stepId: string; latexGuess: string; uncertain?: boolean }[];
   expected?: ExpectedAnswer | undefined;
   handled: ReadonlySet<string>;
 }
@@ -33,9 +34,9 @@ export function confirmCoachFinal(input: CoachInput, key: string): CoachEvent {
   if (input.mode === 'off' || !input.expected) return { kind: 'idle' };
   const index = input.steps.findIndex(s => stepKey(s) === key);
   const step = input.steps[index];
-  if (!step || input.steps.slice(index + 1).some(s => s.latexGuess.trim()) || !looksLikeFinalLine(step.latexGuess, statementHasSymbols(input.statement))) return { kind: 'idle' };
+  if (!step || step.uncertain || input.steps.slice(index + 1).some(s => s.latexGuess.trim()) || !looksLikeFinalLine(step.latexGuess, statementHasSymbols(input.statement))) return { kind: 'idle' };
   const answer = checkAnswerLine({ ...input.expected, wordProblem: false, givens: [] }, step.latexGuess);
-  if (answer === 'correct') return { kind: 'solved', key, n: index + 1 };
+  if (answer === 'correct' && judgeLines(input.statement, input.steps, input.expected, [key])[step.stepId]?.status === 'ok') return { kind: 'solved', key, n: index + 1 };
   if (answer === 'wrong' || answer === 'unit') return { kind: 'wrong_final', key, n: index + 1, ...(answer === 'unit' ? { reason: 'unit' as const } : {}) };
   return { kind: 'idle' };
 }
@@ -46,19 +47,21 @@ export function nextCoachEvent(input: CoachInput): CoachEvent {
   const newest = written.filter(s => !input.handled.has(stepKey(s))).at(-1);
   if (!newest) return { kind: "idle" };
   const key = stepKey(newest);
+  if (newest.uncertain) return { kind: 'unclear', key, n: newest.n };
+  const verdicts = judgeLines(input.statement, written, input.expected);
   const hasSymbols = statementHasSymbols(input.statement) || written.some(s => statementHasSymbols(s.latexGuess));
   const final = looksLikeFinalLine(newest.latexGuess, hasSymbols);
   const index = written.indexOf(newest);
-  const previous = index > 0 ? written[index - 1]!.latexGuess : input.statement.trim() || null;
+  if (index === 0 && statementHasSymbols(input.statement) && input.statement.replace(/[\s*]/g, '') === newest.latexGuess.replace(/[\s*]/g, '')) return { kind: 'idle' };
 
   if (input.mode === "final") {
     if (!final || newest !== written.at(-1)) return { kind: "idle" };
-    const verdicts = checkSteps(input.statement, written);
+
     const firstWrong = written.find(s => verdicts[s.stepId]?.status === "wrong");
     if (firstWrong) return { kind: "wrong_step", key, n: firstWrong.n, reason: verdicts[firstWrong.stepId]!.reason ?? "not_equivalent" };
     if (input.expected) {
       const answer = checkAnswerLine(input.expected, newest.latexGuess);
-      if (answer === "correct") return { kind: "solved", key, n: newest.n };
+      if (answer === "correct" && verdicts[newest.stepId]?.status === "ok") return { kind: "solved", key, n: newest.n };
       if (answer === "wrong") return { kind: "wrong_final", key, n: newest.n };
       if (answer === "maybe") return { kind: "check_in", key, n: newest.n };
       if (answer === "unit") return { kind: "wrong_final", key, n: newest.n, reason: "unit" };
@@ -66,13 +69,17 @@ export function nextCoachEvent(input: CoachInput): CoachEvent {
     return { kind: "unclear", key, n: newest.n };
   }
 
-  const verdict = checkStep(newest.latexGuess, previous);
+  const verdict = verdicts[newest.stepId]!;
   // The first line of a free board is the task itself: nothing to verify, nothing to comment on.
   if (verdict.status === "unknown" && input.statement.trim() === newest.latexGuess.trim()) return { kind: "ok_step", key, n: newest.n };
-  if (verdict.status === "wrong") return { kind: "wrong_step", key, n: newest.n, reason: verdict.reason ?? "not_equivalent" };
+  if (verdict.status === "wrong") {
+    if (final && input.expected && verdict.reason === 'wrong_value') return { kind: 'wrong_final', key, n: newest.n,
+      ...(checkAnswerLine(input.expected, newest.latexGuess) === 'unit' ? { reason: 'unit' as const } : {}) };
+    return { kind: "wrong_step", key, n: newest.n, reason: verdict.reason ?? "not_equivalent" };
+  }
   if (input.expected && newest === written.at(-1)) {
     const answer = checkAnswerLine(input.expected, newest.latexGuess);
-    if (answer === "correct" && (final || verdict.status === "ok")) return { kind: "solved", key, n: newest.n };
+    if (answer === "correct" && verdict.status === "ok") return { kind: "solved", key, n: newest.n };
     if (answer === "wrong" && final) return { kind: "wrong_final", key, n: newest.n };
     if (answer === "maybe" && final) return { kind: "check_in", key, n: newest.n };
     if (answer === "unit" && final) return { kind: "wrong_final", key, n: newest.n, reason: "unit" };

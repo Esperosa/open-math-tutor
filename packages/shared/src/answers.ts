@@ -43,6 +43,14 @@ export function numbersIn(text: string): number[] {
 
 export function expectedAnswerFor(statementText: string): ExpectedAnswer | undefined {
   if (statementText.length > MAX_INPUT_LENGTH) return undefined;
+  statementText = statementText.trim().replace(/^(?:vypočítej|vypocti|spočítej|calculate|compute)\s*:?\s+/i, '').replace(/=\s*$/, '').trim();
+  // An arithmetic task may include its result. It is still the left-hand
+  // expression being practised, not a single-variable equation to solve.
+  const arithmetic = /^([\d.,\s+\-−*/()·×÷^]+)(?:=[\d.,\s+\-−*/()·×÷^]+)?$/.exec(statementText);
+  if (arithmetic) {
+    try { return { value: calcEvaluate(arithmetic[1]!.replace(/·/g, '*')), tolerance: 1e-9,
+      ...(/^\s*[-−]?\d+\s*\/\s*\d+\s*$/.test(arithmetic[1]!) ? { fractionRounding: true } : {}) }; } catch { return undefined; }
+  }
   let parsed: MathStatement;
   try { parsed = parseMathStatement(statementText.trim()); } catch {
     // The verifier grammar intentionally accepts integers only; local decimal
@@ -134,7 +142,11 @@ export function answerFromLine(line: string): number | null {
   }
   const prefix = (/^[\d\s.,+\-−*×·/^()%]+/.exec(tail)?.[0] ?? "").replace(/·/g, "*").replace(/\s*%\s*$/, "").trim();
   if (prefix && /\d/.test(prefix)) {
-    try { return calcEvaluate(prefix); } catch (e) { if (!(e instanceof CalcError)) throw e; }
+    try { return calcEvaluate(prefix); } catch (e) {
+      if (!(e instanceof CalcError)) throw e;
+      // An invalid expression is not its first number (notably 4/0 != 4).
+      return null;
+    }
   }
   const tokens = tail.match(NUMBER);
   return tokens?.length ? numberValue(tokens[0]!) : null;

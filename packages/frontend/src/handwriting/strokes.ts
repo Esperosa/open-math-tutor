@@ -118,9 +118,25 @@ export function groupSymbols(strokes: readonly Stroke[]): StrokeSymbol[] {
   // of a glyph can match its silhouette and must stay part of that glyph.
   const tallest = Math.max(1, ...strokes.map(s => s.bbox.height));
   const radical = (s: Stroke): boolean => isRadicalStroke(s) && s.bbox.height > tallest * .4;
+  // A fraction bar is a separate layout token, never a detached serif of
+  // numerator/denominator. Decide from strokes before merging glyphs.
+  const fractionBars = new Set(strokes.filter(bar => {
+    if (!isBar(bar.bbox)) return false;
+    const peers = strokes.filter(s => s !== bar && s.bbox.height > typical * .3
+      && centerX(s.bbox) > bar.bbox.x && centerX(s.bbox) < right(bar.bbox)
+      && Math.abs(centerY(s.bbox) - centerY(bar.bbox)) < Math.max(typical, bar.bbox.width) * 1.5);
+    return peers.some(s => bottom(s.bbox) < bar.bbox.y - bar.width)
+      && peers.some(s => s.bbox.y > bottom(bar.bbox) + bar.width);
+  }));
+  const dots = strokes.filter(s => Math.max(s.bbox.width, s.bbox.height) < typical * .2);
+  const dotNeighbor = new Map(dots.map(dot => [dot, dots.filter(other => other !== dot
+    && Math.abs(centerX(dot.bbox) - centerX(other.bbox)) < typical * .3
+    && Math.abs(centerY(dot.bbox) - centerY(other.bbox)) < typical * 1.1)
+    .sort((a, b) => Math.abs(centerY(dot.bbox) - centerY(a.bbox)) - Math.abs(centerY(dot.bbox) - centerY(b.bbox)))[0]]));
   const groups = clusters(strokes, (a, b) => {
     if (Math.abs(a.order - b.order) > 12) return false;
     const x = a.bbox, y = b.bbox;
+    if (fractionBars.has(a) || fractionBars.has(b)) return false;
     if (radical(a) || radical(b)) return false;
     if (dividePairs.has([a.id, b.id].sort().join('\0'))) return true;
     const ox = overlapX(x, y), oy = overlapY(x, y);
@@ -131,7 +147,7 @@ export function groupSymbols(strokes: readonly Stroke[]): StrokeSymbol[] {
     // Colon: two small, vertically aligned dots. Two isolated dots are ambiguous.
     if (Math.max(x.width, x.height, y.width, y.height) < typical * .2
       && Math.abs(centerX(x) - centerX(y)) < typical * .3
-      && Math.abs(centerY(x) - centerY(y)) < typical * 1.1) return true;
+      && Math.abs(centerY(x) - centerY(y)) < typical * 1.1) return dotNeighbor.get(a) === b && dotNeighbor.get(b) === a;
     // Disconnected inequality underline (≤/≥) and other same-column components.
     if (ox > Math.min(x.width, y.width) * .65 && oy < 0 && oy > -typical * .25
       && Math.min(x.width, y.width) > Math.max(x.width, y.width) * .6) return true;

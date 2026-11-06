@@ -20,10 +20,10 @@ Pointa celé aplikace: student píše a kreslí na tabuli (pero, prst, myš) a a
 | 0.4 | Když AI není připojená, appka to **řekne na rovinu** a ukáže, jak ji připojit (co spustit/přihlásit); lokální čtení a kontrola fungují i bez ní | ✅ HUD `ai-status` s `data-state="offline"`; všechny ink e2e běží s nedostupným bridge |
 | 0.5 | AI s obrazem je volitelný doplněk pro těžký rukopis a kresby, nikdy jediná cesta | 🟡 hinty a `imageCrop` jsou hotové a validované, ale oba provideři obrázek v neinteraktivním režimu odmítají (`multimodal_unsupported`) |
 | 0.6 | Testovací matice: rukopis (syntetické tahy z Hershey fontu s šumem + held-out MNIST), různé adresy (localhost/127.0.0.1), bridge nedostupný/dostupný, zoom 50–200 %, posunutá tabule, světlý/tmavý, telefon a dotyk/pero/myš, pomalé/rychlé psaní | 🟡 pokryto: myš/pero/dotyk, 200% zoom + pan, telefon, bridge offline, rychlé i pomalé tahy. Chybí 50% zoom, tmavý/světlý motiv a `localhost` vs `127.0.0.1` |
-| 0.8 | Zvládá českou rozmanitost zápisu: dělení `:` `÷` `/` zlomková čára, násobení `×` `·` `*` `x`, všechny druhy závorek, desetinná čárka/tečka, evropské tvary číslic (1 s hákem, 7 s příčkou), `=` jedním i dvěma tahy, nerovnosti, odmocnina, %, π | 🟡 většina variant funguje, ale `x`/`×` se pletou (38 případů) a jedna varianta desetinné tečky se čte jako středová tečka; kandidáti to řeší, ne odstraňují |
-| 0.9 | Každý rozpoznaný symbol je přiřazený ke konkrétním tahům na tabuli (kde přesně je napsán) a nese kandidáty a jistotu | ✅ `RecognitionSymbol.strokeIds`/`bbox`/`candidates`; testy ověří stabilní `stepId`, kandidáty i neměnnost vstupu |
+| 0.8 | Zvládá českou rozmanitost zápisu: dělení `:` `÷` `/` zlomková čára, násobení `×` `·` `*` `x`, všechny druhy závorek, desetinná čárka/tečka, evropské tvary číslic (1 s hákem, 7 s příčkou), `=` jedním i dvěma tahy, nerovnosti, odmocnina, %, π | 🟡 desetinná čárka/tečka mezi číslicemi a celé stojící zlomky mají geometrii i pen e2e z kola 7; `x`/`×`, nové třídy a další neviděné rukopisy zůstávají limitem modelu |
+| 0.9 | Každý rozpoznaný symbol je přiřazený ke konkrétním tahům na tabuli (kde přesně je napsán) a nese kandidáty a jistotu | ✅ `RecognizedSymbol.strokeIds`/`bbox`/`candidates`; testy ověří stabilní `stepId`, kandidáty i neměnnost vstupu |
 | 0.10 | Nejistý rukopis jde AI i jako obrázek spolu s lokálním přepisem, polohou a nejistými symboly, aby AI mohla opravit čtení | 🟡 `handwriting` hinty s polohou, kandidáty, pořadím tahů a jistotou jdou; obrázek blokuje `multimodal_unsupported` |
-| 0.11 | Tabule je interaktivní pro korektury: student i AI dopisují, podtrhávají, škrtají, mažou části; přeškrtnutý symbol se ignoruje, přepsaný se čte znovu, přepočet jen změněných tahů | 🟡 mazání a přepočet jen změněného řádku fungují; ignorování přeškrtnutého symbolu a plná korektura AI nejsou e2e pokryté |
+| 0.11 | Tabule je interaktivní pro korektury: student i AI dopisují, podtrhávají, škrtají, mažou části; přeškrtnutý symbol se ignoruje, přepsaný se čte znovu, přepočet jen změněných tahů | 🟡 mazání a cache fungují, dlouhé přeškrtnutí má pen e2e; krátké nejasné škrtnutí vyžádá gumu a zachová nejistotu. Univerzální rozpoznání korektur a plná korektura AI nejsou dokončené |
 | 0.12 | AI tutor **píše přímo do tabule jako učitel, který opravuje a vysvětluje**: ručně vypadajícím písmem a barvou odlišenou od studenta dopíše opravu vedle chybného místa, zakroužkuje/podtrhne/přeškrtne chybu, nakreslí šipku a krátké vysvětlení, rozepíše správný další krok pod řádek; nejen text v bublině | ✅ `teacher.spec.ts` ověří všech 8 typů akcí na tabuli, rukopisný font a červené/tyrkysové pero (pixmapový test PNG exportu); systémový prompt i `validation.ts` řídí pořadí (nejdřív kroužek/škrtnutí první chyby) a povolují škrtnutí, šipku i `write_math` pod řádek |
 | 0.13 | Zápis AI se objevuje postupně (jako psaný), je v samostatné vrstvě, student ho může smazat/skrýt; AI se na místa odkazuje přes řádek/symbol (ne odhadnuté souřadnice) | ✅ `teacher.spec.ts`: postupné psaní (`data-writing`, `prefers-reduced-motion` zobrazí najednou), mazání jedné poznámky křížkem, zobrazení/skrytí/smazání z nabídky maskota, anotace nikdy nepřekrývají studentův text; bridge odmítne absolutní souřadnice a neznámá stepId (`validation.test.ts`) |
 | 0.14 | Bublina maskota je jen stručný komentář; podstatné opravy a vysvětlení jsou na tabuli | ✅ `BRIDGE_API.md` + `prompt.test.ts`: `pedagogicalResponse` má nejvýše tři krátké věty (≤ ~220 znaků), podstatné věty jsou na tabuli jako `boardActions`; e2e ověří, že komentář dospí v bublině a opravy nezávisle na tabuli |
@@ -185,3 +185,27 @@ Zpětná vazba: „kontrola pořád nereaguje a když jo, tak mu to strašně tr
 - Mastery a profil započítají první finální posouzení úlohy právě jednou. Pozdější oprava vyvolá pochvalu a nabídku další úlohy, nikoli druhý pokus/úspěch; chyby jednotlivých kroků se v profilu sledují samostatně. Zaokrouhlené procento kurzu se nemusí změnit po každém pokusu.
 - Řádky delší než 400 znaků se lokálně neověřují (ochrana před nákladnými regulárními výrazy), obsah tabule se nekrátí.
 - Escape během editace řádku dokončí psaní, ale nezavírá kalkulačku. Na telefonech kalkulačka ponechává volný levý rail a spodní ovládání tabule.
+
+
+## Kolo 7 — čtení a kontrola rukopisu (2026-11-06)
+
+Tato tabulka hodnotí konkrétní regresní scénáře, nikoli univerzální přesnost OCR.
+Důkazy a zbývající limity: [handwriting e2e report](docs/handwriting-e2e-report.md#opravy-po-nezávislém-testu--kolo-7-2026-11-06).
+
+| Bod | Stav po opravě logiky |
+|---|---|
+| D1 | ✅ Změna zadání zahodí staré expected/hodnocení; všech pět tvarů má unit + pen e2e po skutečném výběru kurzu. |
+| D2 | ✅ Geometrie čárky (tečka / šikmý tah / háček); nejistý řádek nikdy nevytvoří aritmetickou opravu učitele; unit a mock-provider pen e2e. |
+| D3 | ✅ Celá rovnost se třemi stojícími zlomky zůstává jediným řádkem; unit a pen e2e. |
+| D4 | ✅ První symbolická rovnice je zadání bez známky; x=4 správně, x=5 špatně, implicitní násobení a holý kořen pokryty. |
+| D5 | ✅ Viditelná nejistota, 44px cíle, pozice znaku v názvu kandidáta, top-3 + běžné záměny, bezpečná korektura; pen e2e se šumem 15 / výškou 70. Nejde o záruku zachycení každého omylu modelu. |
+| D6 | 🟡 Hodnota/jednotka/operandy se vážou na expected z úlohy, nesouvisející výpočet nedostane ✓; kontext m/s zůstává nejistý. J přes rozpoznávač a kg přes parser testovány; plné čtení kg čeká na třídu k v paralelní práci s modelem. |
+| D10 | ✅ Štítek propouští tahy, kandidáti jen u nejistých znaků; opravené párování dvojteček dvou těsných řádků; pen e2e s 18px mezerou pod řádkem. |
+| D13 | ✅ Zbloudilé tečky/malé tahy mimo řádek ignorovány; jasné přeškrtnutí odstraní znak, nejasné vyžádá gumu, nejistota přežije opravu jiného znaku. |
+
+Nezávislé recenze a regresní testy zahrnují i zachování nejistoty při replay
+korektur, zákaz výsledku z `4/0`, závorky v kontrole operandů a běžný převod
+minut na hodiny. Váhy a trénink se v této větvi neměnily. Stav „TOP“ ani
+úplné dokončení 0.6/0.8/0.10 se netvrdí.
+
+Ověření kódu `6ac284d`: lint a typecheck prošly; unit **571 prošlo / 7 živých CLI přeskočeno**; standardní Playwright **70/70** na vlastním portu 5320 s mockovaným/odpojeným bridge.

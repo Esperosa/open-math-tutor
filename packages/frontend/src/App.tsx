@@ -10,6 +10,7 @@ import { catalog } from '@openmathtutor/content';
 import type { BinaryFiles } from '@excalidraw/excalidraw/types';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { Board, type BoardHandle } from './Board';
+import { unitAliasesFor } from './handwriting/units';
 import { applyResponse, commitStudent, correctInk, editTask, fingerprint, newBoard, removeAnnotation, stableMathCandidate, type BoardState } from './boardState';
 import { createHandwritingRecognizer } from './handwriting';
 import { bridge, BridgeError, type ProviderEntry } from './api';
@@ -260,19 +261,19 @@ export function App() {
         if (request.keep) chat.add(request.boardId, 'tutor', response.pedagogicalResponse, id);
         setStatus('waiting'); return;
       }
-      const applied = applyResponse(current, response, id);
+      const applied = applyResponse(current, response, id, settings.locale, mode === 'ask' ? 'ask' : 'check');
       if (applied.state !== current) updateBoard(applied.state);
       setStatus(applied.stale ? 'waiting' : 'ready'); setRejected(applied.rejected);
-      if (!applied.stale && mode === 'check' && current.skillId && !current.outcome && (response.verifierStatus === 'correct' || response.verifierStatus === 'incorrect')) {
-        const wasCorrect = response.verifierStatus === 'correct';
+      if (!applied.stale && mode === 'check' && current.skillId && !current.outcome && (applied.response.verifierStatus === 'correct' || applied.response.verifierStatus === 'incorrect')) {
+        const wasCorrect = applied.response.verifierStatus === 'correct';
         recordMastery(current.skillId, wasCorrect);
         updateBoard({ ...applied.state, outcome: wasCorrect ? 'solved' : 'failed' });
       }
       if (!applied.stale || request.keep) {
         setAiAnswerId(id);
-        setMessage({ id: id, kind: response.verifierStatus === 'correct' ? 'solved' : 'info', text: response.pedagogicalResponse,
-          ...(!applied.stale ? { stepId: response.firstErrorStepId ?? (mode === 'ask' ? undefined : snapshot.activeStepId ?? undefined) } : {}) });
-        voice.speak(response.ttsText);
+        setMessage({ id: id, kind: applied.response.verifierStatus === 'correct' ? 'solved' : 'info', text: applied.response.pedagogicalResponse,
+          ...(!applied.stale ? { stepId: applied.response.firstErrorStepId ?? (mode === 'ask' ? undefined : snapshot.activeStepId ?? undefined) } : {}) });
+        voice.speak(applied.response.ttsText);
       }
     } catch (error) {
       if (pending.current !== request) return;
@@ -293,7 +294,7 @@ export function App() {
   function commit(elements: readonly ExcalidrawElement[], files: BinaryFiles) {
     const current = live.current.boards.find(b => b.id === live.current.activeId)!;
     const recognizer = recognizerFor(current.id);
-    const next = commitStudent(current, elements, files, els => recognizer.recognize(els));
+    const next = commitStudent(current, elements, files, els => recognizer.recognize(els, { unitAliases: unitAliasesFor(current.expected?.unit, current.statement) }));
     if (next.revision === current.revision) { if (next !== current) updateBoard(next); return; }
     boardEdited(); setStatus('waiting'); updateBoard(next); schedule(next);
   }
@@ -526,9 +527,6 @@ export function App() {
     const ls = writtenLines(current.steps);
     const task = effectiveStatement(current.statement, ls);
     const expected: ExpectedAnswer | undefined = current.expected ?? expectedAnswerFor(task);
-    // A low-confidence handwriting reading is a question, never a wrong answer.
-    const newest = ls.filter(line => line.latexGuess.trim()).at(-1);
-    if (newest?.uncertain) { applyCoachEvent(current, ls, { kind: 'unclear', key: stepKey(newest), n: ls.indexOf(newest) + 1 }); return; }
     const handled = new Set(current.handled ?? []);
     const event = nextCoachEvent({ mode, statement: task, steps: ls, expected, handled });
     if (event.kind === 'idle') return;

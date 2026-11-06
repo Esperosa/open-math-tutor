@@ -1,7 +1,8 @@
 import type { ExpectedAnswer } from '@openmathtutor/shared';
-import { parseMathStatement, validateBoardActions, type BoardAction, type AnalyzeBoardResponse, type RecognizedStep } from '@openmathtutor/shared';
+import { expectedAnswerFor, unitFromLine, parseMathStatement, validateBoardActions, type BoardAction, type AnalyzeBoardResponse, type RecognizedStep } from '@openmathtutor/shared';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import type { BinaryFiles } from '@excalidraw/excalidraw/types';
+import { unitAliasesFor } from './handwriting/units';
 import { parseLine, recognizeBoardLines, type RecognizedLine, type RecognizedSymbol } from './handwriting';
 
 export interface Box { x: number; y: number; width: number; height: number }
@@ -12,6 +13,7 @@ export interface Step extends RecognizedStep {
   confidence?: number;
   uncertain?: boolean;
   parserCompatible?: boolean;
+  crossOutUncertain?: boolean;
   symbols?: RecognizedSymbol[];
 }
 export interface Explanation {
@@ -84,24 +86,41 @@ export function inkSymbolKey(strokeIds: readonly string[], elements: readonly Ex
 
 /** The same safe parser decides whether a composed line is a usable statement. */
 function parserCompatible(text: string): boolean {
-  try { parseMathStatement(text); return true; } catch { return false; }
+  try { parseMathStatement(text); return true; } catch {
+    const unit = unitFromLine(text);
+    if (!unit || !unitAliasesFor(unit).includes(unit)) return false;
+    try { parseMathStatement(text.slice(0, -unit.length).trim()); return true; } catch { return false; }
+  }
 }
 
 /** Apply one-tap symbol edits, then let the same spatial parser recompose the line. */
-export function correctedInkLine(line: RecognizedLine, edits: Record<string, string>, elements: readonly ExcalidrawElement[]) {
-  const choices = line.symbols.map(symbol => {
+export function correctedInkLine(line: RecognizedLine, edits: Record<string, string>, elements: readonly ExcalidrawElement[], unitAliases: readonly string[] = []) {
+  if (!line.symbols.some(symbol => edits[inkSymbolKey(symbol.strokeIds, elements)])) return line;
+  const symbols = line.symbols.map(symbol => {
     const label = edits[inkSymbolKey(symbol.strokeIds, elements)];
-    return label ? symbol.candidates.findIndex(candidate => candidate.label === label) : -1;
+    return label && correctionLabels(symbol).includes(label) ? { ...symbol, label, uncertain: false, confirmed: true } : symbol;
   });
-  if (!choices.some(choice => choice >= 0)) return line;
-  const parsed = parseLine(line.symbols, choices);
-  return { ...line, text: parsed.text, confidence: parsed.confidence, parserCompatible: parserCompatible(parsed.text) };
+  const parsed = parseLine(symbols, undefined, unitAliases);
+  return { ...line, symbols, uncertain: !!parsed.uncertain || !!line.crossOutUncertain, text: parsed.text, confidence: parsed.confidence, parserCompatible: parserCompatible(parsed.text) };
+}
+
+/** Model top three plus explicit, common handwriting confusions. No probabilities are invented. */
+export function correctionLabels(symbol: RecognizedSymbol): string[] {
+  const labels = [symbol.label ?? symbol.candidates[0]?.label, ...symbol.candidates.map(c => c.label)].filter((s): s is string => !!s);
+  for (const pair of [['1', '7'], ['4', '9'], ['x', '×'], [',', '.']]) if (pair.some(label => labels.includes(label))) labels.push(...pair);
+  // Two noisy horizontal strokes can be classified as a digit. Still let
+  // the writer choose equals; offering it does not silently change the ink.
+  if (symbol.strokeIds.length === 2 && symbol.bbox.width > Math.max(8, symbol.bbox.height * 1.2)) labels.push('=');
+  return [...new Set(labels)];
+}
+function uncertainInk(line: Pick<RecognizedLine, 'symbols' | 'parserCompatible' | 'confidence' | 'uncertain'>): boolean {
+  return !!line.uncertain || !line.parserCompatible || line.confidence < .5 || line.symbols.some(symbol => symbol.uncertain);
 }
 
 export type InkRecognizer = (elements: readonly ExcalidrawElement[]) => RecognizedLine[];
 
 export function commitStudent(state: BoardState, incoming: readonly ExcalidrawElement[], files = state.files,
-  recognize: InkRecognizer = elements => recognizeBoardLines(elements)): BoardState {
+  recognize: InkRecognizer = elements => recognizeBoardLines(elements, { unitAliases: unitAliasesFor(state.expected?.unit, state.statement) })): BoardState {
   const elements = incoming.filter(isStudent);
   if (fingerprint(elements) === fingerprint(state.elements) && files === state.files) return state;
   if (fingerprint(elements) === fingerprint(state.elements)) return { ...state, files };
@@ -114,7 +133,7 @@ export function commitStudent(state: BoardState, incoming: readonly ExcalidrawEl
   const edits = state.inkEdits ?? {};
   const used = new Set<string>();
   const inkSteps: Step[] = recognized.flatMap(line => {
-    const corrected = correctedInkLine(line, edits, elements);
+    const corrected = correctedInkLine(line, edits, elements, unitAliasesFor(state.expected?.unit, state.statement));
     if (!corrected.text.trim()) return [];
     const old = state.steps.find(s => s.origin === 'ink' && !used.has(s.stepId)
       && s.elementIds.some(id => line.strokeIds.includes(id)));
@@ -122,12 +141,12 @@ export function commitStudent(state: BoardState, incoming: readonly ExcalidrawEl
     used.add(stepId);
     return [{
       stepId, boardRevision: revision, latexGuess: corrected.text, box: { ...line.bbox }, elementIds: [...line.strokeIds],
-      origin: 'ink' as const, confidence: corrected.confidence, uncertain: !corrected.parserCompatible || corrected.confidence < .5,
-      parserCompatible: corrected.parserCompatible, symbols: line.symbols,
+      origin: 'ink' as const, confidence: corrected.confidence, uncertain: uncertainInk(corrected),
+      crossOutUncertain: corrected.crossOutUncertain, parserCompatible: corrected.parserCompatible, symbols: corrected.symbols,
     }];
   });
   const covered = new Set(recognized.flatMap(line => line.strokeIds));
-  const rest = elements.filter(e => e.type !== 'freedraw' || !covered.has(e.id));
+  const rest = elements.filter(e => e.type !== 'freedraw' || (!e.points?.length && !covered.has(e.id)));
   const textSteps = rows(rest, state.steps.filter(s => s.origin !== 'ink'), revision).map(s => ({ ...s,
     latexGuess: s.elementIds.some(id => changedIds.has(id)) && !elements.some(e => s.elementIds.includes(e.id) && e.type === 'text') ? '' : s.latexGuess,
   }));
@@ -142,25 +161,24 @@ export function commitStudent(state: BoardState, incoming: readonly ExcalidrawEl
 /** One-tap correction of a single recognised symbol; recomposes only its line. */
 export function correctInk(state: BoardState, key: string, label: string): BoardState {
   if (state.inkEdits?.[key] === label) return state;
-  const revision = state.revision + 1;
-  const edits = { ...state.inkEdits, [key]: label };
-  const steps = state.steps.map(step => {
-    if (step.origin !== 'ink' || !step.symbols) return { ...step, boardRevision: revision };
-    const choices = step.symbols.map(symbol => {
-      const choice = edits[inkSymbolKey(symbol.strokeIds, state.elements)];
-      return choice ? symbol.candidates.findIndex(candidate => candidate.label === choice) : -1;
-    });
-    const parsed = parseLine(step.symbols, choices);
-    const compatible = parserCompatible(parsed.text);
-    return { ...step, boardRevision: revision, latexGuess: parsed.text, confidence: parsed.confidence,
-      uncertain: !compatible || parsed.confidence < .5, parserCompatible: compatible };
-  });
+  const target = state.steps.find(step => step.symbols?.some(symbol => inkSymbolKey(symbol.strokeIds, state.elements) === key && correctionLabels(symbol).includes(label)));
+  if (!target?.symbols) return state;
+  const revision = state.revision + 1, edits = { ...state.inkEdits, [key]: label };
+  const symbols = target.symbols.map(symbol => inkSymbolKey(symbol.strokeIds, state.elements) === key ? { ...symbol, label, uncertain: false, confirmed: true } : symbol);
+  const parsed = parseLine(symbols, undefined, unitAliasesFor(state.expected?.unit, state.statement)), compatible = parserCompatible(parsed.text);
+  // A chip must not turn a readable row into unsupported syntax.
+  if (target.parserCompatible && !compatible) return state;
+  const corrected = { ...target, symbols, boardRevision: revision, latexGuess: parsed.text, confidence: parsed.confidence,
+    uncertain: uncertainInk({ symbols, parserCompatible: compatible, confidence: parsed.confidence, uncertain: parsed.uncertain || target.crossOutUncertain }), parserCompatible: compatible };
+  const steps = state.steps.map(step => step === target ? corrected : { ...step, boardRevision: revision });
   return { ...state, revision, steps, inkEdits: edits, annotations: [] };
 }
+
 export function editTask(state: BoardState, field: 'statement' | 'topic', value: string): BoardState {
   if (state[field] === value) return state;
   const revision = state.revision + 1;
-  return { ...state, [field]: value, revision, annotations: [], steps: state.steps.map(s => ({ ...s, boardRevision: revision })) };
+  return { ...state, [field]: value, revision, annotations: [], steps: state.steps.map(s => ({ ...s, boardRevision: revision })),
+    ...(field === 'statement' ? { expected: expectedAnswerFor(value), outcome: undefined, handled: [], confirmedFinals: [], skillId: undefined } : {}) };
 }
 export function boardBounds(state: BoardState) {
   const box = state.steps.reduce<Box>((b, s) => union(b, s.box), { x: 0, y: 0, width: 1000, height: 700 });
@@ -178,8 +196,14 @@ export function removeAnnotation(state: BoardState, id: string): BoardState {
   return { ...state, revision, annotations: rebase(state.annotations.filter(a => a.id !== id), revision),
     steps: state.steps.map(s => ({ ...s, boardRevision: revision })) };
 }
-export function applyResponse(state: BoardState, response: AnalyzeBoardResponse, requestId: string) {
-  if (response.boardRevision !== state.revision || response.requestId !== requestId) return { state, stale: true, rejected: false };
+export function applyResponse(state: BoardState, response: AnalyzeBoardResponse, requestId: string, locale: 'cs' | 'en' = 'cs', intent: 'check' | 'ask' = 'check') {
+  if (response.boardRevision !== state.revision || response.requestId !== requestId) return { state, stale: true, rejected: false, response };
+  if (state.steps.some(step => step.uncertain)) {
+    const text = locale === 'cs' ? 'Zkontroluj, jestli jsem to přečetl správně. Nejasný znak oprav klepnutím; při přeškrtnutí použij gumu.' : 'Check whether I read that correctly. Correct the unclear symbol; use the eraser for crossed-out ink.';
+    const explanationOnly = intent === 'ask' && response.boardActions.length === 0 && response.firstErrorStepId === null && response.verifierStatus === 'ambiguous';
+    response = { ...response, recognizedSteps: state.steps, boardActions: [], firstErrorStepId: null, verifierStatus: 'ambiguous', confidence: 0,
+      ...(!explanationOnly ? { pedagogicalResponse: text, ttsText: text, needsClarification: { reason: text } } : {}) };
+  }
   const result = validateBoardActions(response.boardActions, state.revision, boardBounds(state));
   // The local recognizer (and explicit student corrections) own ink text; the
   // provider may only restate typed lines.
@@ -207,7 +231,7 @@ export function applyResponse(state: BoardState, response: AnalyzeBoardResponse,
       id: response.requestId, revision: response.boardRevision, text: response.pedagogicalResponse, ttsText: response.ttsText,
       status: response.verifierStatus, firstErrorStepId: response.firstErrorStepId, clarification: response.needsClarification?.reason ?? null,
     }] };
-  return { state: next, stale: result.errors.some(e => e.reason.startsWith('stale boardRevision')), rejected };
+  return { state: next, response, stale: result.errors.some(e => e.reason.startsWith('stale boardRevision')), rejected };
 }
 export function stableMathCandidate(state: BoardState): boolean {
   const step = state.steps.find(s => s.stepId === state.activeStepId);

@@ -4,6 +4,9 @@ import type { WrittenLine } from './lines';
  * Everything else gets a guiding question, never an invented corrected step. */
 export function localTeacherActions(line: WrittenLine | undefined, revision: number, locale: Locale): BoardAction[] {
   if (!line) return [];
+  if (line.uncertain) return [{ id: `coach-${line.stepId}-unclear`, type: 'show_hint', boardRevision: revision,
+    text: locale === 'cs' ? 'Zkontroluj, jestli jsem to přečetl správně. Při přeškrtnutí použij gumu.' : 'Check whether I read that correctly. Use the eraser for crossed-out ink.',
+    placement: { relativeToStepId: line.stepId, side: 'right', offsetEm: 1.5 } }];
   let text = locale === 'cs' ? 'Zkontroluj tenhle krok.' : 'Check this step.';
   const source = line.latexGuess.replace(/[−–]/g, '-').replace(/[×·]/g, '*').replace(/÷|:/g, '/').replace(/(\d),(?=\d)/g, '$1.');
   try {

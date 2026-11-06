@@ -3,6 +3,9 @@ import { numbersIn, prettySigns, unitFromLine, answerFromLine, checkAnswerLine, 
 import type { ProblemTemplate } from "./curriculum.js";
 
 describe("expectedAnswerFor", () => {
+  it.each(['12+7', '12 + 7', '12+7=', 'Vypočítej 12+7', '5+2=7'])('derives an edited arithmetic task: %s', text => {
+    expect(expectedAnswerFor(text)?.value).toBe(text === '5+2=7' ? 7 : 19);
+  });
   it("evaluates expressions and solves linear equations, nothing else", () => {
     expect(expectedAnswerFor("-6+-8")?.value).toBe(-14);
     expect(expectedAnswerFor("2x+3=7")?.value).toBe(2);

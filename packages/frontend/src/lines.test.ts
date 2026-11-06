@@ -33,4 +33,9 @@ describe('written lines', () => {
     const expected = { value: 6, tolerance: 0.01, wordProblem: false, givens: [] };
     expect(computeLineVerdicts('5+1', lines, expected).ink?.status).toBe('unknown');
   });
+  it('never uses an uncertain first free-board line as the expected answer', () => {
+    const lines = writtenLines([{ ...step('ink', '215+115=4'), uncertain: true }, step('next', '2,5+1,5=4')]);
+    expect(effectiveStatement('', lines)).toBe('');
+    expect(computeLineVerdicts('', lines).next?.status).toBe('ok');
+  });
 });
