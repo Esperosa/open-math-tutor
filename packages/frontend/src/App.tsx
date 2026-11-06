@@ -3,7 +3,7 @@ import type { ContinueLessonRequest, ExpectedAnswer, ProviderId } from '@openmat
 import {
   recordAttempt, retrieveTopChunks, checkSteps, isMastered, instantiateProblem, expectedAnswerFor, statementHasSymbols,
   looksLikeFinalLine, nextCoachEvent, coachLine, stepKey, recordError, recordSolved, chooseStyle, recordStyleShown,
-  resolveStyleOutcome, profileSummary, getTopicSkills, nextUnlockedTopic, nextUnlockedSkill, pickTemplateForDifficulty,
+  resolveStyleOutcome, profileSummary, generateTest, topicMastered, getTopicSkills, nextUnlockedTopic, nextUnlockedSkill, pickTemplateForDifficulty,
   type ExplainStyle, type LearnerProfile,
 } from '@openmathtutor/shared';
 import { catalog } from '@openmathtutor/content';
@@ -26,6 +26,8 @@ import { TrackBreadcrumb } from './curriculum/TrackBreadcrumb';
 import { Rail, Icon, type PanelId } from './Hud';
 import { Calculator } from './Calculator';
 import { NotesPanel } from './NotesPanel';
+import { PlanPanel } from './PlanPanel';
+import { buildTestHtml } from './testSheet';
 import type { TutorMood } from './Tutor';
 import { buildNotesHtml, buildNotesMarkdown, downloadBlob, printHtml, studyTextRequest, summarizeStrengths } from './notes';
 import { AskPanel } from './AskPanel';
@@ -90,6 +92,7 @@ export function App() {
   const [settler] = useState(() => new StrokeSettler(() => void analyze.current()));
   const analyze = useRef<() => Promise<void>>(async () => {});
   const [mastery, setMastery] = useState(loadMastery);
+  const masteryRef = useRef(mastery); masteryRef.current = mastery;
   const strengths = useMemo(() => summarizeStrengths(catalog, mastery, settings.locale), [mastery, settings.locale]);
   const [lessonSkillId, setLessonSkillId] = useState<string | null>(null);
   const [sources, setSources] = useState(loadSources);
@@ -270,6 +273,29 @@ export function App() {
     configure({ activeTrackId: trackId, onboardingDismissed: true, startLevel: level });
     startNext(trackId, level);
   }
+  function startSkill(topicId: string, skillId: string) {
+    const topic = catalog.topics.find(tp => tp.id === topicId);
+    const skill = catalog.skills.find(sk => sk.id === skillId);
+    if (!topic || !skill) return;
+    const trackId = settings.activeTrackId || catalog.tracks.find(tr => tr.topicIds.includes(topicId))?.id || '';
+    const template = pickTemplateForDifficulty(catalog, skillId, mastery[skillId]?.difficultyLevel ?? settings.startLevel);
+    if (!template) return;
+    const problem = instantiateProblem(template);
+    setPanel(null); setPinned(false);
+    startLesson({
+      skillId, statementText: problem.statement, topic: topic.title[settings.locale], ...(problem.expected ? { expected: problem.expected } : {}),
+      curriculumContext: { trackId, topicId, skillId, difficultyLevel: template.difficultyLevel },
+    });
+  }
+  function buildTest(scope: { topicId?: string }, mode: 'print' | 'download') {
+    const trackId = settings.activeTrackId;
+    if (!trackId) return;
+    const test = generateTest(catalog, { trackId, ...scope }, 2);
+    const trackTitle = catalog.tracks.find(tr => tr.id === trackId)?.title[settings.locale] ?? '';
+    const topicTitle = scope.topicId ? catalog.topics.find(tp => tp.id === scope.topicId)?.title[settings.locale] : undefined;
+    const html = buildTestHtml(test, `${t.testTitle}: ${topicTitle ?? trackTitle}`, t, settings.locale);
+    if (mode === 'print') printHtml(html); else downloadBlob(new Blob([html], { type: 'text/html' }), 'test.html');
+  }
   function nextProblem() {
     if (settings.activeTrackId) startNext(settings.activeTrackId, settings.startLevel); else createExercise();
   }
@@ -321,8 +347,13 @@ export function App() {
     const marked: BoardState = { ...current, handled: [...(current.handled ?? []), event.key].slice(-300) };
     const locale = cur.settings.locale;
     const say = (kind: TutorMessage['kind']) => {
-      const text = coachLine(event, locale, hashKey(event.key));
+      let text = coachLine(event, locale, hashKey(event.key));
       if (!text) return;
+      if (event.kind === 'solved' && marked.skillId) {
+        const topic = catalog.topics.find(tp => tp.skillIds.includes(marked.skillId!));
+        const after = { ...masteryRef.current, [marked.skillId]: recordAttempt(getOrCreateMastery(masteryRef.current, marked.skillId, Date.now()), true, Date.now()) };
+        if (topic && !marked.outcome && topicMastered(catalog, topic.id, after)) text += ` ${messages[locale].topicDoneHint}`;
+      }
       setMessage({ id: event.key, kind, text }); voice.speak(text);
     };
     switch (event.kind) {
@@ -447,11 +478,15 @@ export function App() {
       </aside>
       {calcOpen && calcPolicy !== 'none' && <Calculator t={t} locale={settings.locale} policy={calcPolicy} examRules={!!activeTrack?.calculator}
         onClose={() => setCalcOpen(false)} onUse={text => editor.current?.addLine(text, null)} />}
-      <Rail items={[{ id: 'courses', label: t.courses, hint: t.hintCourses }, { id: 'ask', label: t.askLabel, hint: t.hintAsk }, { id: 'materials', label: t.customSources, hint: t.hintMaterials },
+      <Rail items={[{ id: 'plan', label: t.planTitle, hint: t.hintPlan }, { id: 'courses', label: t.courses, hint: t.hintCourses }, { id: 'ask', label: t.askLabel, hint: t.hintAsk }, { id: 'materials', label: t.customSources, hint: t.hintMaterials },
         { id: 'exercises', label: t.exercise, hint: t.hintExercises }, { id: 'history', label: t.history, hint: t.hintHistory }, { id: 'notes', label: t.notesRail, hint: t.hintNotes }]}
         active={openPanel} onHover={hoverPanel} onToggle={togglePanel} />
       <aside className={`drawer${openPanel ? ' open' : ''}`}
         onMouseEnter={() => clearTimeout(leaveTimer.current)} onMouseLeave={leavePanel}>
+        <section hidden={openPanel !== 'plan'}>
+          <PlanPanel catalog={catalog} trackId={settings.activeTrackId} mastery={mastery} profile={profile} t={t} locale={settings.locale}
+            currentSkillId={board.skillId ?? lessonSkillId} onStartSkill={startSkill} onBuildTest={buildTest} />
+        </section>
         <section hidden={openPanel !== 'courses'}>
           <CoursesPanel catalog={catalog} mastery={mastery} t={t} locale={settings.locale} onStartLesson={startLesson} activeSkillId={lessonSkillId} defaultDifficulty={settings.startLevel}
             onAsk={q => { setPanel('ask'); setPinned(true); ask(q); }} />

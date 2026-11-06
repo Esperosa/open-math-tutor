@@ -1,8 +1,9 @@
 import { useRef, useState, type ReactNode } from 'react';
 
-export type PanelId = 'courses' | 'ask' | 'materials' | 'exercises' | 'history' | 'notes';
+export type PanelId = 'plan' | 'courses' | 'ask' | 'materials' | 'exercises' | 'history' | 'notes';
 
 const ICONS: Record<PanelId | 'settings' | 'calc', ReactNode> = {
+  plan: <path d="M5 19V9m7 10V5m7 14v-7" />,
   calc: <path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" />,
   courses: <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15H5.5A1.5 1.5 0 0 0 4 20.5zM20 5.5A1.5 1.5 0 0 0 18.5 4H13v15h5.5a1.5 1.5 0 0 1 1.5 1.5z" />,
   ask: <path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />,

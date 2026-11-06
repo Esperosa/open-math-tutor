@@ -248,3 +248,19 @@ body { overflow: hidden; }
 /* Excalidraw's own library button would sit under our top-right buttons. */
 .excalidraw .layer-ui__wrapper__top-right { display: none !important; }
 @media (max-width: 900px) { .tutor-hud { width: min(320px, calc(100vw - 100px)); bottom: 72px; } }
+
+.mini-bar, .plan-bar { display: inline-block; width: 56px; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--ink) 12%, transparent); overflow: hidden; vertical-align: middle; margin-right: 6px; }
+.mini-bar > span, .plan-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width var(--duration-base) var(--ease-standard); }
+.plan-panel h2 { margin-top: var(--space-4); }
+.plan-hero { display: flex; align-items: center; gap: var(--space-3); }
+.plan-hero strong { font-size: 28px; font-variant-numeric: tabular-nums; }
+.plan-hero .plan-bar { flex: 1; height: 10px; width: auto; }
+.plan-topics, .plan-skills { list-style: none; margin: 0; padding: 0; }
+.plan-topics > li { margin-top: var(--space-3); }
+.plan-topic-head { display: flex; justify-content: space-between; margin-bottom: var(--space-1); }
+.plan-skill { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "t b" "p b"; gap: 4px var(--space-2); align-items: center; padding: var(--space-2) var(--space-2); border-radius: var(--radius-sm); }
+.plan-skill > div { grid-area: t; display: flex; flex-direction: column; }
+.plan-skill .plan-bar { grid-area: p; width: 100%; margin: 0; }
+.plan-skill button { grid-area: b; min-height: 32px; padding: 2px 10px; font-size: 12px; }
+.plan-skill.current { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.plan-skill.done > div > span { color: var(--accent); }

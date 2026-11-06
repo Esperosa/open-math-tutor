@@ -57,7 +57,7 @@ async function selectProvider(page: Page) {
 async function writeOnBoard(page: Page, text: string, row: number) {
   const canvas = page.locator('.excalidraw__canvas.interactive');
   const rect = await canvas.boundingBox(); if (!rect) throw new Error('Canvas missing');
-  await page.mouse.click(rect.x + 380, rect.y + 190 + row * 90);
+  await page.mouse.click(rect.x + 560, rect.y + 270 + row * 90);
   await expect(page.locator('textarea.excalidraw-wysiwyg')).toBeFocused();
   await page.keyboard.type(text);
   await page.keyboard.press('Escape');
@@ -83,9 +83,9 @@ test('deterministic replay: stroke → settled crop → first error annotations 
   await expect(canvas).toBeVisible();
   await page.keyboard.press('p');
   const rect = await canvas.boundingBox(); if (!rect) throw new Error('Canvas missing');
-  await page.mouse.move(rect.x + 560, rect.y + 192);
+  await page.mouse.move(rect.x + 600, rect.y + 272);
   await page.mouse.down();
-  await page.mouse.move(rect.x + 585, rect.y + 195, { steps: 5 });
+  await page.mouse.move(rect.x + 625, rect.y + 275, { steps: 5 });
   await page.mouse.up();
   await expect.poll(() => requests.length, { timeout: 12000 }).toBe(1);
   expect(requests[0].imageCrop.dataUrl).toMatch(/^data:image\/png;base64,/);
@@ -363,4 +363,30 @@ test('physics lesson: the numeric answer is checked without any AI call', async 
   await writeOnBoard(page, `v = ${a} / ${b} = ${Math.round(a / b * 1000) / 1000} m/s`, 1);
   await expect(bubble(page)).toHaveAttribute('data-kind', 'solved', { timeout: 8000 });
   await expect(page.getByRole('button', { name: 'Další příklad' })).toBeVisible();
+});
+
+test('plan: solving a problem moves the percentage, and a printable test with an answer key is built from the course', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Chystám se na střední školu/ }).click();
+  await page.getByRole('button', { name: /^Přijímačky na střední školu/ }).click();
+  const task = ((await page.getByTestId('task-text').textContent()) ?? '').trim();
+  const match = /^(-?\d+)\+(-?\d+)$/.exec(task);
+  expect(match, `unexpected first task: ${task}`).not.toBeNull();
+  const sum = Number(match![1]) + Number(match![2]);
+  await openPanel(page, 'Plán a cesta');
+  await expect(page.getByTestId('plan-percent')).toHaveText('0 %');
+  await page.keyboard.press('Escape');
+  await writeOnBoard(page, `${task} = ${sum}`, 0);
+  await expect(bubble(page)).toHaveAttribute('data-kind', 'solved', { timeout: 8000 });
+  await openPanel(page, 'Plán a cesta');
+  await expect(page.getByTestId('plan-percent')).not.toHaveText('0 %');
+  await expect(page.getByTestId('track-breadcrumb')).not.toContainText('0 %');
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Stáhnout test (HTML)' }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe('test.html');
+  const stream = await file.createReadStream();
+  let html = ''; for await (const chunk of stream) html += chunk;
+  expect(html).toContain('Klíč správných odpovědí');
+  expect(html).toContain('Počítání se zápornými čísly');
 });

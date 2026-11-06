@@ -65,6 +65,11 @@ export const cs = {
   tutorMenu: 'Učitel', nextProblem: 'Další příklad', askTeacher: 'Ať se podívá učitel', tutorSpeaks: 'Učitel mluví nahlas', micAsk: 'Zeptat se hlasem', micListening: 'Poslouchám…',
   taskEmpty: 'Klikni na tabuli a napiš příklad. Já ho budu hlídat.', taskEdit: 'Upravit zadání', taskDone: 'Hotovo', tutorThinking: 'Přemýšlím…',
   whoScience: 'Chci počítat a kreslit fyziku nebo chemii', whoScienceHint: 'Rychlost, síla, elektřina, mol, roztoky. Výsledky kontroluju hned.',
+  planTitle: 'Plán a cesta', planPercent: '{p} % kurzu', planToday: 'Dnes vyřešeno: {n}', planStreak: 'dní v řadě: {n}', planNow: 'právě teď', planNext: 'na řadě', planWaiting: 'čeká', planLocked: 'zamčeno', planDone: 'zvládnuto', planStart: 'Začít', planNothing: 'Vyber kurz a uvidíš celou cestu.',
+  checkSteps: 'kontrola kroků', checkAnswer: 'kontrola výsledku', checkNone: 'bez automatické kontroly', checkDrawing: 'kresba, AI ji zatím nevidí',
+  testTitle: 'Test na doma', testScope: 'Z čeho', testWholeTrack: 'Celý kurz', testBuild: 'Sestavit test (PDF)', testDownload: 'Stáhnout test (HTML)',
+  testHelp: 'Test vznikne bez AI z úloh kurzu, správné odpovědi jsou na poslední stránce. Vyfocené řešení vyhodnotí jen model, který umí obrázky.',
+  testSheetName: 'Jméno', testSheetDate: 'Datum', testPoints: 'Body', testAnswers: 'Klíč správných odpovědí', hintPlan: 'Cesta kurzem, procenta a test na doma.', topicDoneHint: 'Celé téma máš zvládnuté. V Plánu můžeš sestavit test.',
   onboardingSkip: 'Přeskočit, chci jen volnou tabuli', trackComplete: 'vše zvládnuto', changeTrack: 'Změnit kurz',
 } as const;
 export type MessageKey = keyof typeof cs;
@@ -133,6 +138,11 @@ export const en: Record<MessageKey, string> = {
   tutorMenu: 'Teacher', nextProblem: 'Next problem', askTeacher: 'Let the teacher look', tutorSpeaks: 'Teacher speaks aloud', micAsk: 'Ask by voice', micListening: 'Listening…',
   taskEmpty: 'Click the board and write a problem. I will keep an eye on it.', taskEdit: 'Edit the task', taskDone: 'Done', tutorThinking: 'Thinking…',
   whoScience: 'I want to calculate and draw physics or chemistry', whoScienceHint: 'Speed, force, electricity, moles, solutions. I check results at once.',
+  planTitle: 'Plan and path', planPercent: '{p} % of the course', planToday: 'Solved today: {n}', planStreak: 'days in a row: {n}', planNow: 'right now', planNext: 'up next', planWaiting: 'waiting', planLocked: 'locked', planDone: 'mastered', planStart: 'Start', planNothing: 'Pick a course to see the whole path.',
+  checkSteps: 'steps are checked', checkAnswer: 'result is checked', checkNone: 'not machine-checked', checkDrawing: 'drawing, the AI cannot see it yet',
+  testTitle: 'Test for home', testScope: 'Covering', testWholeTrack: 'Whole course', testBuild: 'Build a test (PDF)', testDownload: 'Download test (HTML)',
+  testHelp: 'The test is built without AI from the course problems; correct answers are on the last page. A photo of your solution can only be judged by a model that reads images.',
+  testSheetName: 'Name', testSheetDate: 'Date', testPoints: 'Points', testAnswers: 'Answer key', hintPlan: 'The path through the course, percentages and a test for home.', topicDoneHint: 'You have the whole topic down. Build a test in the Plan.',
   onboardingSkip: 'Skip, I just want the free board', trackComplete: 'all done', changeTrack: 'Change track',
 };
 export const messages: Record<Locale, Record<MessageKey, string>> = { cs, en };

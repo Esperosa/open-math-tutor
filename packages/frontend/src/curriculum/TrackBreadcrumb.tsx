@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import {
-  getTopicSkills, isMastered, nextUnlockedSkill, nextUnlockedTopic, trackProgress,
+  getTopicSkills, isMastered, nextUnlockedSkill, nextUnlockedTopic, trackPercent, trackProgress,
   type CourseCatalog, type Locale,
 } from '@openmathtutor/shared';
 import type { MessageKey } from '../i18n';
@@ -24,6 +24,7 @@ export function TrackBreadcrumb({ catalog, trackId, mastery, t, locale, onChange
   const topic = nextUnlockedTopic(catalog, trackId, masteredIds);
   const skill = topic ? nextUnlockedSkill(getTopicSkills(catalog, topic.id), masteredIds) : null;
   const progress = trackProgress(catalog, trackId, masteredIds);
+  const percent = trackPercent(catalog, trackId, mastery);
 
   return <div className="track-breadcrumb" data-testid="track-breadcrumb">
     <span className="track-breadcrumb-path">
@@ -32,7 +33,8 @@ export function TrackBreadcrumb({ catalog, trackId, mastery, t, locale, onChange
       {skill && <> <span aria-hidden="true">›</span> {skill.title[locale]}</>}
       {!topic && <> <span aria-hidden="true">›</span> {t.trackComplete}</>}
     </span>
-    <span className="track-breadcrumb-progress">{progress.masteredCount}/{progress.totalCount}</span>
+    <span className="track-breadcrumb-progress" title={`${progress.masteredCount}/${progress.totalCount}`}>
+      <span className="mini-bar" aria-hidden="true"><span style={{ width: `${percent}%` }} /></span>{percent} %</span>
     <button className="track-breadcrumb-change" onClick={onChangeTrack}>{t.changeTrack}</button>
   </div>;
 }

@@ -10,3 +10,5 @@ export * from "./calc.js";
 export * from "./answers.js";
 export * from "./coach.js";
 export * from "./learnerProfile.js";
+export * from "./progress.js";
+export * from "./testGen.js";
