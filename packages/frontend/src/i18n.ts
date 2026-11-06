@@ -50,6 +50,7 @@ export const cs = {
   controlsHelp: 'Posun: kolečko, mezerník + tah nebo šipky. Zoom: Ctrl + kolečko nebo + / −. Podržení na tabuli otevře nabídku. Shift + 1 zobrazí vše.',
   stepOk: 'Řádek vypadá správně', stepWrong: 'Řádek nesedí', tutorOffer: 'Řádek {n} nesedí. Chceš to vysvětlit?', offerExplain: 'Vysvětli', offerHint: 'Nápověda', offerDismiss: 'Zkusím sám',
   searchPlaceholder: 'Hledej kurz nebo téma (Ctrl+K)', searchNone: 'Nic nenalezeno.', searchAskAI: 'Zeptat se AI: „{q}“', noAutoCheck: 'bez automatické kontroly', unofficialSyllabus: 'neoficiální osnova', searchLabel: 'Hledat v kurzech',
+  calcTitle: 'Kalkulačka', calcClose: 'Zavřít kalkulačku', calcUse: 'Do řádku', calcError: 'Chyba ve výrazu', calcExam: 'Funkce odpovídají tomu, co je u zkoušky povoleno.', calcFree: 'Studijní kalkulačka.', calcDegrees: 'Úhly ve stupních.', calcNone: 'U této zkoušky se kalkulačka nepoužívá.', calcOpen: 'Kalkulačka',
   onboardingSkip: 'Přeskočit, chci jen volnou tabuli', trackComplete: 'vše zvládnuto', changeTrack: 'Změnit kurz',
 } as const;
 export type MessageKey = keyof typeof cs;
@@ -103,6 +104,7 @@ export const en: Record<MessageKey, string> = {
   controlsHelp: 'Pan: scroll wheel, Space + drag or arrow keys. Zoom: Ctrl + wheel or + / −. Press and hold on the board for a menu. Shift + 1 shows everything.',
   stepOk: 'This line looks right', stepWrong: 'This line does not add up', tutorOffer: 'Line {n} does not add up. Want me to explain?', offerExplain: 'Explain', offerHint: 'Hint', offerDismiss: 'I will try myself',
   searchPlaceholder: 'Search a course or topic (Ctrl+K)', searchNone: 'Nothing found.', searchAskAI: 'Ask the AI: "{q}"', noAutoCheck: 'not machine-checked', unofficialSyllabus: 'unofficial syllabus', searchLabel: 'Search courses',
+  calcTitle: 'Calculator', calcClose: 'Close calculator', calcUse: 'Use in line', calcError: 'Error in expression', calcExam: 'Functions match what the exam allows.', calcFree: 'Study calculator.', calcDegrees: 'Angles in degrees.', calcNone: 'No calculator is used in this exam.', calcOpen: 'Calculator',
   onboardingSkip: 'Skip, I just want the free board', trackComplete: 'all done', changeTrack: 'Change track',
 };
 export const messages: Record<Locale, Record<MessageKey, string>> = { cs, en };

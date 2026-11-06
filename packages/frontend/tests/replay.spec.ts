@@ -250,3 +250,24 @@ test('course search: Ctrl+K finds a specific skill by what the student calls it 
   await expect(page.getByText('Nic nenalezeno.')).toBeVisible();
   await expect(page.getByRole('button', { name: /Zeptat se AI/ })).toBeVisible();
 });
+
+test('calculator: evaluates safely, feeds the line, and is hidden where the exam forbids it', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Přijímačky na střední školu/ }).click();
+  await expect(page.getByRole('button', { name: 'Kalkulačka', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Změnit kurz' }).click();
+  await page.getByRole('button', { name: /Maturita/ }).click();
+  await page.getByRole('button', { name: 'Kalkulačka', exact: true }).click();
+  const display = page.getByRole('textbox', { name: 'Kalkulačka' });
+  await display.fill('2+3*4');
+  await display.press('Enter');
+  await expect(display).toHaveValue('14');
+  await page.getByRole('button', { name: '√' }).click();
+  await expect(display).toHaveValue('3,741657387');
+  await display.fill('1/0');
+  await display.press('Enter');
+  await expect(page.getByRole('alert').filter({ hasText: 'Chyba ve výrazu' })).toBeVisible();
+  await display.fill('7*6');
+  await page.getByRole('button', { name: 'Do řádku' }).click();
+  await expect(page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true })).toHaveValue('7*6');
+});

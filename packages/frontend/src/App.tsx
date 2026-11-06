@@ -19,6 +19,7 @@ import { CoursesPanel, type LessonStart } from './curriculum/CoursesPanel';
 import { Onboarding } from './curriculum/Onboarding';
 import { TrackBreadcrumb } from './curriculum/TrackBreadcrumb';
 import { Rail, Icon, type PanelId } from './Hud';
+import { Calculator } from './Calculator';
 import { AskPanel } from './AskPanel';
 import { UploadBoard, type UploadedImage } from './UploadBoard';
 import { CustomSourcesPanel } from './CustomSourcesPanel';
@@ -49,6 +50,7 @@ export function App() {
   const [panel, setPanel] = useState<PanelId | null>(null);
   const [pinned, setPinned] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false);
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
   const leaveTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -283,6 +285,8 @@ export function App() {
     return <Onboarding catalog={catalog} t={t} locale={settings.locale} onSelectTrack={startTrack} onSkip={() => configure({ onboardingDismissed: true })} />;
   }
   const openPanel = panel;
+  const activeTrack = catalog.tracks.find(tr => tr.id === settings.activeTrackId);
+  const calcPolicy = activeTrack?.calculator ?? 'scientific';
   const alertChip = !connected ? <span role="alert">{t.bridgeUnavailable} <button onClick={() => setRetry(r => r + 1)}>{t.retry}</button></span>
     : !canRequest ? <span>{provider && !provider.models.length ? t.noModels : t.selectProvider}</span> : null;
   return <div className="app-shell">
@@ -297,6 +301,7 @@ export function App() {
       </div>
       <div className="hud-top-right">
         {alertChip && <div className="hud-chip" aria-live="polite">{alertChip}</div>}
+        {calcPolicy !== 'none' && <button className="icon-btn" title={t.calcOpen} aria-label={t.calcOpen} aria-pressed={calcOpen} onClick={() => setCalcOpen(o => !o)}><Icon name="calc" /></button>}
         <button className="icon-btn" title={t.settings} aria-label={t.settings} aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>
           <span className={`status-dot ${canRequest ? 'ok' : 'idle'}`} aria-hidden="true" /><Icon name="settings" /></button>
       </div>
@@ -331,6 +336,8 @@ export function App() {
         <p className="muted">{t.controlsHelp}</p>
         <p className="privacy">{t.privacy}</p>
       </aside>
+      {calcOpen && calcPolicy !== 'none' && <Calculator t={t} locale={settings.locale} policy={calcPolicy} examRules={!!activeTrack?.calculator}
+        onClose={() => setCalcOpen(false)} onUse={text => setLine(text)} />}
       <Rail items={[{ id: 'courses', label: t.courses }, { id: 'ask', label: t.askLabel }, { id: 'materials', label: t.customSources },
         { id: 'exercises', label: t.exercise }, { id: 'history', label: t.history }]}
         active={openPanel} onHover={hoverPanel} onToggle={togglePanel} />
