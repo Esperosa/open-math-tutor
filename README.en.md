@@ -69,17 +69,34 @@ This is a large project; also check `ARCHITECTURE.md` and the in-app
 own login.
 
 - **Done and actually tested**: the safe math AST parser
-  (`packages/shared/src/mathAst.ts`) with unit tests, `board_actions`
-  validation (schema, bounds, revision), the monorepo skeleton,
-  documentation, and CI.
-- **In progress**: the Excalidraw-based frontend, the Python SymPy
-  verifier, the local bridge with Codex/Claude adapters, the Windows
-  Electron build, and the full-flow E2E scenario.
-- **Requires your own login, cannot be verified automatically in CI**: real
-  inference from the Codex/Claude providers, multimodal (image) input.
+  (`packages/shared/src/mathAst.ts`) and its Python port in the verifier,
+  `board_actions` validation (schema, bounds, revision), the
+  Excalidraw-based frontend, the local bridge with Codex/Claude adapters,
+  four pre-built course tracks with original problems
+  (`packages/content`), per-skill adaptive difficulty
+  (`packages/shared/src/mastery.ts`), a free-text "Ask" panel, interactive
+  function plotting (`plot_function`, a safe `eval`-free numeric
+  evaluator), and a NotebookLM-style custom course built from uploaded
+  `.txt`/`.pdf` sources (local TF-IDF retrieval, no embeddings, no extra
+  API calls) — all covered by automated tests (shared, content, frontend,
+  bridge, verifier) and CI.
+- **Actually exercised against a live Claude Max subscription in this
+  session**: text-based tutoring (Check/Hint/Next step/Explain
+  differently/Ask) via `claude -p` without `--bare`, preserving
+  subscription login.
+- **Knowingly unavailable, not faked**: no documented way was found to
+  fully disable Codex's built-in shell/filesystem tools in the app-server
+  protocol — until one exists, Codex tutoring reports
+  `provider_unavailable` rather than sandbox the tools and call it safe.
+  Claude's non-interactive mode has no documented way to read an image at
+  all — uploading a scan/photo currently returns `multimodal_unsupported`
+  from both providers; the UI is wired and will light up automatically
+  once either provider documents a real path.
 - **Knowingly out of scope for this phase**: the Android/Capacitor wrapper,
   iOS build, "Sign in with ChatGPT" mode, true stroke-by-stroke pen
-  animation (as opposed to incremental KaTeX reveal).
+  animation (as opposed to incremental KaTeX reveal), and
+  geometry/quadratics/radicals (the verifier currently covers arithmetic,
+  fractions, percentages, parentheses, and linear equations only).
 
 ## License
 

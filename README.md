@@ -68,16 +68,33 @@ Tento projekt je rozsáhlý; řiďte se také konkrétním stavem v
 UI pro cokoliv, co vyžaduje vaše vlastní přihlášení.
 
 - **Hotovo a reálně otestováno**: bezpečný matematický AST parser
-  (`packages/shared/src/mathAst.ts`) s unit testy, validace `board_actions`
-  (schéma, meze, revize), monorepo skeleton, dokumentace a CI.
-- **Ve výstavbě / dokončuje se**: frontend s Excalidraw tabulí, Python
-  SymPy verifier, lokální bridge s adaptéry Codex/Claude, Electron balení
-  pro Windows, E2E scénář celého toku.
-- **Vyžaduje vaše přihlášení, nelze ověřit automaticky v CI**: reálná
-  inference u Codex/Claude providerů, multimodální (obrázkový) vstup.
+  (`packages/shared/src/mathAst.ts`) a jeho Python port ve verifikátoru,
+  validace `board_actions` (schéma, meze, revize), frontend s Excalidraw
+  tabulí, lokální bridge s adaptéry Codex/Claude, 4 předpřipravené kurzy
+  s původními úlohami (`packages/content`), adaptivní obtížnost per
+  dovednost (`packages/shared/src/mastery.ts`), volný dotaz ("Zeptej se"),
+  interaktivní vykreslování funkcí (`plot_function`, bezpečný numerický
+  evaluátor bez `eval`), vlastní kurz z nahraných `.txt`/`.pdf` materiálů
+  (lokální TF-IDF vyhledávání, žádné embeddings, žádné API volání navíc) —
+  vše s automatickými testy (shared, content, frontend, bridge, verifier)
+  a CI.
+- **Reálně odzkoušeno na živém Claude Max předplatném v této session**:
+  textové doučování (Zkontrolovat/Poradit/Další krok/Vysvětli
+  jinak/Zeptej se) přes `claude -p` bez `--bare`, se zachovaným
+  přihlášením předplatným.
+- **Vědomě nedostupné, ne předstírané**: Codex nemá v CLI zjištěný
+  dokumentovaný způsob, jak mu úplně zakázat shell/filesystem nástroje —
+  dokud takový způsob neexistuje, appka pro Codex tutoring hlásí
+  `provider_unavailable`, místo aby mu nástroje "jen" sandboxovala a
+  předstírala bezpečnost. Claude neumí v neinteraktivním režimu přečíst
+  obrázek (žádný dokumentovaný flag) — nahrání skenu/fota proto zatím
+  vždy vrátí `multimodal_unsupported` od obou providerů; UI je připravené
+  a rozsvítí se automaticky, jakmile některý provider tuto cestu doloží.
 - **Vědomě mimo tuto fázi**: Android/Capacitor obálka, iOS build, režim
   "Sign in with ChatGPT", skutečná animace psaní perem tah po tahu (místo
-  postupného vykreslení KaTeX).
+  postupného vykreslení KaTeX), geometrie/kvadratické rovnice/odmocniny
+  (verifikátor zatím podporuje jen aritmetiku, zlomky, procenta, závorky
+  a lineární rovnice).
 
 ## Licence
 

@@ -10,6 +10,7 @@ on the following third-party components, each under its own license:
 | KaTeX | MIT | Math typesetting |
 | Electron | MIT | Desktop packaging |
 | React, Vite, TypeScript | MIT | Frontend tooling |
+| pdf.js (`pdfjs-dist`) | Apache-2.0 | Local text extraction from uploaded PDF sources (NotebookLM-style custom courses) |
 | `codex` CLI (OpenAI) | OpenAI's own terms | Installed separately by the end user; not bundled, not modified |
 | `claude` CLI (Anthropic) | Anthropic's own terms | Installed separately by the end user; not bundled, not modified |
 

@@ -92,17 +92,38 @@ anything that reaches the board or the verifier:
 - `packages/bridge` — Node process: provider adapters (Codex, Claude),
   Electron main/preload (contextIsolation, no nodeIntegration, narrow typed
   IPC), HTTP client to the Python verifier.
+- `packages/content` — original, curriculum-shaped practice problems for
+  four pre-built tracks (lower-secondary and university entrance exams,
+  maturita, university algebra review), built from the same types the
+  frontend uses to drive its track/topic/skill picker and lesson mode. See
+  `packages/content/SOURCES.md` for what each track is modeled on and the
+  no-copyrighted-material guarantee.
 - `verifier/` — isolated Python 3 process (own venv), SymPy-based step
   verification behind a small HTTP/JSON contract, with process-level CPU
   time, memory, and input-size limits.
 - `electron/` — Windows-first desktop packaging (first platform actually
   built and tested; macOS/Linux only added once independently verified).
 
-## Known, disclosed limitations (MVP)
+## Known, disclosed limitations
 
 See README.md "Co je hotové a co ne" / "What's done and what isn't" for the
 full, honest acceptance-checklist-style status — this file only tracks the
-architectural *reasons*. In short: Android/Capacitor wrapper, iOS, "Sign in
-with ChatGPT", and true per-stroke pen-animation (vs. incremental KaTeX
-reveal) are scaffolded or specified but not shipped as working in this pass;
-each is called out explicitly rather than silently assumed done.
+architectural *reasons*.
+
+- **Codex tutoring is fail-closed.** No documented Codex app-server control
+  was found that fully removes its built-in shell/filesystem tools for a
+  turn (sandbox/approval-policy settings restrict *how* a tool runs, not
+  *whether* the model can invoke one at all). Per this project's hard rule
+  against giving the model any code-execution capability, `codexProvider.ts`
+  throws `provider_unavailable` instead of shipping a sandboxed-but-present
+  tool and calling it safe.
+- **No image input in non-interactive Claude.** The official CLI reference
+  has no flag for passing a local image to `claude -p` outside interactive
+  drag-and-drop; `analyzeBoard`/scan-upload therefore returns
+  `multimodal_unsupported` for Claude. Codex's app-server protocol does
+  document a `localImage` capability, so OCR-driven board reading is
+  Codex-only once/if the tool-disable gap above is resolved.
+- Android/Capacitor wrapper, iOS, "Sign in with ChatGPT", and true
+  per-stroke pen-animation (vs. incremental KaTeX reveal) are scaffolded or
+  specified but not shipped as working; each is called out explicitly
+  rather than silently assumed done.
