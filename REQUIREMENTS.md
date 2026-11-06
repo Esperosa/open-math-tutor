@@ -31,6 +31,18 @@ Pointa celé aplikace: student píše a kreslí na tabuli (pero, prst, myš) a a
 
 ---
 
+## 7. Hlas a papír tabule (zpráva z 2026-11-06 večer)
+
+| # | Požadavek | Stav |
+|---|---|---|
+| 7.1 | Vzory papíru tabule: čistý, kostičkovaný, linkovaný, tečkovaný, školní s okrajem; sledují posun a zoom | ✅ (výběr v Nastavení) |
+| 7.2 | Úvodní karta zadání se nesmí překrývat s menu plátna | ✅ karta se skryje při otevřeném menu |
+| 7.3 | Víc a lepších hlasů: online hlasy prohlížeče (např. Microsoft Natural v Edge) jako volitelná možnost s upozorněním na odesílání textu do cloudu | ✅ |
+| 7.4 | Kvalitní open-source hlasy v prohlížeči (Piper přes @diffusionstudio/vits-web, česká `cs_CZ-jirka` a anglické hlasy), stahování modelu jednou s varováním o velikosti, licence hlasů ověřit a uvést v NOTICE.md | ❌ naplánováno |
+| 7.5 | Průchod celým UI/UX znovu a poctivé označení nedodělků (dřívější „hotovo“ neplatí tam, kde to uživatel vidí jinak) | 🟡 průběžně |
+
+---
+
 ## 1. Základní architektura (z původního zadání)
 
 | # | Požadavek | Stav |

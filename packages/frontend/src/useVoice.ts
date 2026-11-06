@@ -8,12 +8,15 @@ export function useVoice(settings: Settings) {
   const [speaking, setSpeaking] = useState(false);
   useEffect(() => {
     if (!supported) return;
-    const refresh = () => setVoices(speechSynthesis.getVoices().filter(v => v.localService));
+    const refresh = () => setVoices(speechSynthesis.getVoices().filter(v => v.localService || settings.onlineVoices));
     refresh(); speechSynthesis.addEventListener('voiceschanged', refresh);
     return () => { speechSynthesis.removeEventListener('voiceschanged', refresh); speechSynthesis.cancel(); };
-  }, [supported]);
+  }, [supported, settings.onlineVoices]);
   const matching = voices.filter(v => v.lang.toLowerCase().startsWith(settings.locale));
-  const chosen = matching.find(v => v.voiceURI === settings.voiceURI) ?? matching[0];
+  // Prefer natural/neural voices when nothing was picked explicitly.
+  const quality = (v: SpeechSynthesisVoice) => /natural|neural|online|premium|enhanced/i.test(v.name) ? 0 : v.localService ? 1 : 2;
+  const sorted = [...matching].sort((a, b) => quality(a) - quality(b));
+  const chosen = matching.find(v => v.voiceURI === settings.voiceURI) ?? sorted[0];
   const warning: MessageKey | null = !supported ? 'voiceUnavailable' : !chosen ? (settings.locale === 'cs' ? 'noCzechVoice' : 'noEnglishVoice') : error ? 'speechError' : null;
   /** `force` is for an explicit click on a "read aloud" button; automatic tutor comments obey the tutor-voice setting. */
   function speak(text: string, force = false) {
@@ -26,7 +29,7 @@ export function useVoice(settings: Settings) {
     utterance.onerror = e => { setSpeaking(false); if (e.error !== 'interrupted' && e.error !== 'canceled') setError(true); };
     speechSynthesis.speak(utterance);
   }
-  return { voices: matching, warning, available: supported && !!chosen, speaking, speak,
+  return { voices: sorted, warning, available: supported && !!chosen, speaking, speak,
     cancel: () => { if (supported) speechSynthesis.cancel(); setSpeaking(false); } };
 }
 

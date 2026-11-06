@@ -13,6 +13,8 @@ export interface Settings {
   coachMode: CoachMode;
   /** The tutor speaks its comments aloud. */
   tutorVoice: boolean;
+  /** Also offer the browser's online (cloud) voices, e.g. Microsoft Natural voices in Edge. Text then leaves the device. */
+  onlineVoices: boolean;
   /** Paper under the board: plain, squared, lined, dotted or school (lined with a margin). */
   boardPattern: BoardPattern;
 }
@@ -23,7 +25,7 @@ const KEY = 'openmathtutor.frontend.v1';
 export const defaultSettings: Settings = {
   locale: 'cs', theme: 'light', auto: false, voiceEnabled: false, voiceURI: '', rate: 1, provider: '', model: '', showAI: true,
   activeTrackId: '', onboardingDismissed: false, startLevel: 1,
-  coachMode: 'live', tutorVoice: false, boardPattern: 'plain',
+  coachMode: 'live', tutorVoice: false, onlineVoices: false, boardPattern: 'plain',
 };
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 const isBox = (v: unknown) => isObj(v) && ['x', 'y', 'width', 'height'].every(k => Number.isFinite(v[k]));

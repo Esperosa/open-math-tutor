@@ -592,6 +592,7 @@ export function App() {
         <label>{t.voiceChoice}<select value={voice.voices.some(v => v.voiceURI === settings.voiceURI) ? settings.voiceURI : ''} onChange={e => configure({ voiceURI: e.target.value })}>
           <option value="">{t.choose}</option>{voice.voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</select></label>
         <label>{t.rate} ({settings.rate})<input type="range" min="0.5" max="1.5" step="0.1" value={settings.rate} onChange={e => configure({ rate: Number(e.target.value) })} /></label>
+        <label className="check"><input type="checkbox" checked={settings.onlineVoices} onChange={e => configure({ onlineVoices: e.target.checked, voiceURI: '' })} /> {t.onlineVoices}</label>
         {voice.warning && <p className="warning" role="alert">{t[voice.warning]}</p>}
         {saveError && <p role="alert" className="warning">{t.localSaveError}</p>}
         {rejected && <p role="alert" className="warning">{t.rejectedActions}</p>}
