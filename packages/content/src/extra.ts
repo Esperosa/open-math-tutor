@@ -13,8 +13,8 @@ import type { ProblemTemplate, Skill, Topic } from "@openmathtutor/shared";
 type Ranges = Record<string, [number, number]>;
 type Tpl = [statement: string, ranges?: Ranges];
 interface SkillSpec {
-  id: string; cs: string; en: string; prereq: string[]; topic: string; levels?: [number, number, number];
-  auto?: boolean; free?: boolean; kw?: [string[], string[]]; templates: [Tpl, Tpl, Tpl];
+  id: string; cs: string; en: string; prereq: string[]; topic: string; levels?: number[];
+  auto?: boolean; free?: boolean; kw?: [string[], string[]]; templates: Tpl[];
   /** Per-template expected answer, for skills defined with their own formulas (physics, chemistry). */
   answers?: ([formula: string, unit?: string] | undefined)[];
   drawing?: boolean;
@@ -38,6 +38,8 @@ const ANSWERS: Record<string, [formula: string, unit?: string]> = {
 /** Model answers for printed test keys where the result is not one number. */
 const ANSWER_NOTES: Record<string, string> = {
   "ch-balance-1": "2 H₂ + O₂ → 2 H₂O", "ch-balance-2": "4 Fe + 3 O₂ → 2 Fe₂O₃", "ch-balance-3": "C₃H₈ + 5 O₂ → 3 CO₂ + 4 H₂O",
+  "ch-balance-4": "2 CO + O₂ → 2 CO₂", "ch-balance-5": "CH₄ + 2 O₂ → CO₂ + 2 H₂O", "ch-balance-6": "2 Na + 2 H₂O → 2 NaOH + H₂",
+  "ch-balance-7": "4 Al + 3 O₂ → 2 Al₂O₃", "ch-balance-8": "N₂ + 3 H₂ → 2 NH₃",
 };
 
 /** Ranges and derived values for tasks whose answer is a division: the numbers are built so the result comes out even. */
@@ -73,7 +75,7 @@ function topic(id: string, cs: string, en: string, specs: SkillSpec[]) {
       ...(s.auto === false ? { autoCheck: false } : {}), ...(s.drawing ? { drawing: true } : {}), ...(s.kw ? { keywords: { cs: s.kw[0], en: s.kw[1] } } : {}),
     });
     s.templates.forEach(([statementTemplate, generatorRanges], i) => extraTemplates.push({
-      id: ids[i]!, skillId: s.id, difficultyLevel: levels[i]!, topic: id, statementTemplate,
+      id: ids[i]!, skillId: s.id, difficultyLevel: levels[i] ?? levels[levels.length - 1] ?? 2, topic: id, statementTemplate,
       ...(OVERRIDES[ids[i]!] ? { generatorRanges: OVERRIDES[ids[i]!]!.ranges, derived: OVERRIDES[ids[i]!]!.derived } : generatorRanges ? { generatorRanges } : {}), ...(s.free === false ? {} : s.auto === false ? { freeText: true } : {}),
       ...(ANSWER_NOTES[ids[i]!] ? { answerNote: ANSWER_NOTES[ids[i]!] } : {}),
       ...(ANSWERS[ids[i]!] ? { answerTemplate: ANSWERS[ids[i]!]![0], ...(ANSWERS[ids[i]!]![1] ? { answerUnit: ANSWERS[ids[i]!]![1] } : {}) } : {}),
@@ -85,7 +87,7 @@ const NOAUTO = { auto: false } as const;
 
 // ---------------------------------------------------------------- základní škola / přijímačky SŠ
 topic("mocniny-a-vyrazy", "Mocniny a výrazy", "Powers and expressions", [
-  { id: "powers-basic", cs: "Druhé mocniny a mocniny čísel", en: "Squares and powers of numbers", prereq: ["arithmetic-integers"], topic: "mocniny-a-vyrazy",
+  { id: "powers-basic", cs: "Druhé mocniny a mocniny čísel", en: "Squares and powers of numbers", prereq: [], topic: "mocniny-a-vyrazy",
     kw: [["mocnina", "na druhou", "umocňování"], ["power", "square", "exponent"]], levels: [1, 2, 3],
     templates: [["{a}^2", { a: [2, 12] }], ["{a}^2+{b}^2", { a: [2, 9], b: [2, 9] }], ["({a}+{b})^2-{c}", { a: [1, 6], b: [1, 6], c: [1, 30] }]] },
   { id: "expression-formulas", cs: "Vzorce (a ± b)² a a² − b²", en: "Formulas (a ± b)² and a² − b²", prereq: ["powers-basic"], topic: "mocniny-a-vyrazy", ...NOAUTO,
@@ -93,7 +95,7 @@ topic("mocniny-a-vyrazy", "Mocniny a výrazy", "Powers and expressions", [
     templates: [["Roznásob podle vzorce: (x+{a})^2", { a: [1, 9] }], ["Rozlož na součin: x^2-{a}^2", { a: [2, 12] }], ["Zjednoduš: (x+{a})^2-(x-{a})^2", { a: [1, 9] }]] },
 ]);
 topic("soustavy-rovnic", "Soustavy rovnic", "Systems of equations", [
-  { id: "systems-2x2", cs: "Soustava dvou lineárních rovnic", en: "System of two linear equations", prereq: ["linear-equations-basic"], topic: "soustavy-rovnic", ...NOAUTO,
+  { id: "systems-2x2", cs: "Soustava dvou lineárních rovnic", en: "System of two linear equations", prereq: [], topic: "soustavy-rovnic", ...NOAUTO,
     kw: [["soustava", "dosazovací", "sčítací", "dvě rovnice"], ["system", "substitution", "elimination"]],
     templates: [["Řeš soustavu: x+y={a}, x-y={b}", { a: [6, 20], b: [2, 4] }], ["Řeš soustavu: 2x+y={a}, x-y={b}", { a: [8, 20], b: [1, 4] }], ["Řeš soustavu: {a}x+2y={b}, x+y={c}", { a: [3, 6], b: [10, 30], c: [3, 8] }]] },
 ]);
@@ -127,41 +129,41 @@ topic("geometrie", "Geometrie", "Geometry", [
       ["Válec má poloměr podstavy {a} cm a výšku {b} cm. Urči jeho objem (v násobcích π).", { a: [2, 8], b: [3, 12] }]] },
 ]);
 topic("nestandardni-ulohy", "Logika a nestandardní úlohy", "Logic and non-standard problems", [
-  { id: "counting-basic", cs: "Jednoduchá kombinatorika", en: "Simple counting", prereq: ["arithmetic-integers"], topic: "nestandardni-ulohy", ...NOAUTO,
+  { id: "counting-basic", cs: "Jednoduchá kombinatorika", en: "Simple counting", prereq: [], topic: "nestandardni-ulohy", ...NOAUTO,
     kw: [["kombinatorika", "kolika způsoby", "pořadí", "možnosti"], ["counting", "arrangements", "ways"]], levels: [1, 2, 3],
-    templates: [["Kolika způsoby lze seřadit {a} různých knih vedle sebe na polici?", { a: [3, 6] }],
+    templates: [["Máš polici s {a} různými knihami. Kolika způsoby je lze seřadit vedle sebe?", { a: [3, 6] }],
       ["Máš {a} druhů polévek a {b} druhů hlavních jídel. Kolik různých obědů (polévka + hlavní jídlo) můžeš složit?", { a: [2, 6], b: [3, 8] }],
       ["Ve třídě je {a} žáků. Kolika způsoby lze vybrat dvojici, která bude dělat službu?", { a: [5, 12] }]] },
 ]);
 
 // ---------------------------------------------------------------- maturita / přijímačky VŠ
 topic("funkce", "Funkce a rovnice", "Functions and equations", [
-  { id: "quadratic-eq", cs: "Kvadratické rovnice", en: "Quadratic equations", prereq: ["linear-equations-distribution", "powers-basic"], topic: "funkce", ...NOAUTO, free: false,
+  { id: "quadratic-eq", cs: "Kvadratické rovnice", en: "Quadratic equations", prereq: [], topic: "funkce", ...NOAUTO, free: false,
     kw: [["diskriminant", "kvadratická", "parabola", "kořeny"], ["discriminant", "quadratic", "roots"]], levels: [2, 3, 4],
     templates: [["x^2+{b}x+{c}=0", { b: [3, 9], c: [2, 20] }], ["x^2-{b}=0", { b: [4, 100] }], ["{a}x^2+{b}x={c}", { a: [2, 4], b: [1, 7], c: [3, 15] }]] },
-  { id: "inequalities-linear", cs: "Lineární nerovnice", en: "Linear inequalities", prereq: ["linear-equations-basic"], topic: "funkce", ...NOAUTO, free: false,
+  { id: "inequalities-linear", cs: "Lineární nerovnice", en: "Linear inequalities", prereq: ["quadratic-eq"], topic: "funkce", ...NOAUTO, free: false,
     kw: [["nerovnost", "interval", "záporné číslo"], ["inequality", "interval"]],
     templates: [["{a}x+{b}<{c}", { a: [2, 7], b: [1, 9], c: [12, 40] }], ["{a}-{b}x>={c}", { a: [10, 30], b: [2, 5], c: [-8, 4] }], ["{a}(x-{b})<={c}", { a: [2, 6], b: [1, 6], c: [4, 30] }]] },
-  { id: "abs-equations", cs: "Rovnice s absolutní hodnotou", en: "Equations with absolute value", prereq: ["linear-equations-basic"], topic: "funkce", ...NOAUTO,
+  { id: "abs-equations", cs: "Rovnice s absolutní hodnotou", en: "Equations with absolute value", prereq: ["quadratic-eq"], topic: "funkce", ...NOAUTO,
     kw: [["absolutní hodnota", "modul"], ["absolute value", "modulus"]],
     templates: [["Řeš rovnici s absolutní hodnotou: |x-{a}|={b}", { a: [1, 9], b: [1, 8] }], ["Řeš: |{a}x+{b}|={c}", { a: [2, 4], b: [1, 6], c: [3, 12] }], ["Řeš nerovnici: |x+{a}|<{b}", { a: [1, 6], b: [2, 9] }]] },
-  { id: "functions-graphs", cs: "Funkce, definiční obor a graf", en: "Functions, domain and graph", prereq: ["linear-equations-basic"], topic: "funkce", ...NOAUTO,
+  { id: "functions-graphs", cs: "Funkce, definiční obor a graf", en: "Functions, domain and graph", prereq: ["quadratic-eq"], topic: "funkce", ...NOAUTO,
     kw: [["lineární funkce", "graf", "definiční obor", "obor hodnot"], ["function", "graph", "domain", "range"]],
     templates: [["Lineární funkce má rovnici y={a}x+{b}. Najdi průsečíky grafu s osami.", { a: [1, 6], b: [-8, 8] }], ["Urči definiční obor funkce f(x)=1/(x-{a}).", { a: [1, 9] }], ["Funkce f(x)=x^2-{a}. Urči f({b}) a nuly funkce.", { a: [1, 16], b: [1, 6] }]] },
 ]);
 topic("posloupnosti-a-finance", "Posloupnosti a finanční matematika", "Sequences and finance", [
-  { id: "arith-seq", cs: "Aritmetická posloupnost", en: "Arithmetic sequence", prereq: ["linear-equations-basic"], topic: "posloupnosti-a-finance", ...NOAUTO,
+  { id: "arith-seq", cs: "Aritmetická posloupnost", en: "Arithmetic sequence", prereq: [], topic: "posloupnosti-a-finance", ...NOAUTO,
     kw: [["posloupnost", "diference", "člen"], ["sequence", "difference"]], levels: [2, 3, 4],
     templates: [["Aritmetická posloupnost má první člen {a} a diferenci {b}. Urči desátý člen.", { a: [1, 9], b: [2, 7] }], ["V aritmetické posloupnosti je a_3={a} a a_7={b}. Urči diferenci a první člen.", { a: [5, 15], b: [25, 45] }], ["Urči součet prvních {a} členů aritmetické posloupnosti 2, 5, 8, …", { a: [6, 20] }]] },
   { id: "geom-seq", cs: "Geometrická posloupnost", en: "Geometric sequence", prereq: ["arith-seq"], topic: "posloupnosti-a-finance", ...NOAUTO,
     kw: [["kvocient", "geometrická"], ["ratio", "geometric"]],
     templates: [["Geometrická posloupnost má první člen {a} a kvocient 2. Urči pátý člen.", { a: [1, 6] }], ["V geometrické posloupnosti je a_2={a} a a_4={b}. Urči kvocient (kladný).", { a: [2, 6], b: [32, 96] }], ["Urči součet prvních {a} členů posloupnosti 1, 2, 4, 8, …", { a: [4, 9] }]] },
-  { id: "finance-interest", cs: "Úroky a spoření", en: "Interest and savings", prereq: ["percentages-applied"], topic: "posloupnosti-a-finance", ...NOAUTO,
+  { id: "finance-interest", cs: "Úroky a spoření", en: "Interest and savings", prereq: ["arith-seq"], topic: "posloupnosti-a-finance", ...NOAUTO,
     kw: [["úrok", "spoření", "půjčka", "složené úročení"], ["interest", "savings", "loan", "compound"]],
     templates: [["Na účet vložíš {a}000 Kč s ročním úrokem {b} %. Kolik budeš mít po roce (bez zdanění)?", { a: [5, 50], b: [2, 6] }], ["Cena zboží {a} Kč se zvýšila o {b} % a pak snížila o {b} %. Jaká je nová cena?", { a: [200, 900], b: [10, 30] }], ["Vklad {a}000 Kč se {b} roky úročí ročně {c} % složeně. Napiš výraz pro konečnou částku.", { a: [10, 40], b: [2, 4], c: [2, 5] }]] },
 ]);
 topic("goniometrie", "Goniometrie a trigonometrie", "Trigonometry", [
-  { id: "trig-right-triangle", cs: "Funkce sin, cos, tg v pravoúhlém trojúhelníku", en: "Sine, cosine, tangent in a right triangle", prereq: ["pythagoras"], topic: "goniometrie", ...NOAUTO,
+  { id: "trig-right-triangle", cs: "Funkce sin, cos, tg v pravoúhlém trojúhelníku", en: "Sine, cosine, tangent in a right triangle", prereq: [], topic: "goniometrie", ...NOAUTO,
     kw: [["sinus", "kosinus", "tangens", "goniometrie"], ["sine", "cosine", "tangent", "trigonometry"]],
     templates: [["V pravoúhlém trojúhelníku je přepona {a} cm a úhel α={b}°. Urči protilehlou odvěsnu.", { a: [6, 20], b: [20, 70] }], ["Žebřík dlouhý {a} m je opřen o zeď pod úhlem {b}° k zemi. Do jaké výšky sahá?", { a: [3, 8], b: [55, 75] }], ["Odvěsny pravoúhlého trojúhelníku jsou {a} cm a {b} cm. Urči velikost většího ostrého úhlu.", { a: [3, 9], b: [10, 20] }]] },
   { id: "trig-equations", cs: "Goniometrické rovnice a vzorce", en: "Trigonometric equations and identities", prereq: ["trig-right-triangle"], topic: "goniometrie", ...NOAUTO,
@@ -169,7 +171,7 @@ topic("goniometrie", "Goniometrie a trigonometrie", "Trigonometry", [
     templates: [["Řeš v intervalu <0°; 360°): sin x = 1/2", undefined], ["Převeď {a}° na radiány.", { a: [30, 330] }], ["Zjednoduš výraz: sin^2 x + cos^2 x + {a}", { a: [1, 9] }]] },
 ]);
 topic("kombinatorika-pravdepodobnost", "Kombinatorika a pravděpodobnost", "Combinatorics and probability", [
-  { id: "comb-formulas", cs: "Variace, permutace a kombinace", en: "Permutations and combinations", prereq: ["counting-basic"], topic: "kombinatorika-pravdepodobnost", ...NOAUTO,
+  { id: "comb-formulas", cs: "Variace, permutace a kombinace", en: "Permutations and combinations", prereq: [], topic: "kombinatorika-pravdepodobnost", ...NOAUTO,
     kw: [["variace", "kombinační číslo", "faktoriál"], ["permutation", "combination", "factorial"]],
     templates: [["Kolika způsoby lze z {a} lidí vybrat dvoučlenný výbor?", { a: [6, 12] }], ["Kolik různých čtyřciferných čísel lze složit z číslic 1–{a}, když se číslice neopakují?", { a: [5, 9] }], ["Vypočítej kombinační číslo C({a}, {b}).", { a: [6, 10], b: [2, 4] }]] },
   { id: "probability-basic", cs: "Klasická pravděpodobnost", en: "Classical probability", prereq: ["comb-formulas"], topic: "kombinatorika-pravdepodobnost", ...NOAUTO,
@@ -298,7 +300,7 @@ topic("fy-mechanika", "Mechanika", "Mechanics", [
     answers: [["{a}/{b}", "g/cm³"], ["{a}/{b}", "Pa"], ["1000*10*{a}/1000", "kPa"]] },
   { id: "fy-draw-forces", cs: "Nakresli síly (kresba)", en: "Draw the forces (drawing)", prereq: ["fy-force"], topic: "fy-mechanika", ...NOAUTO, drawing: true,
     kw: [["kresba", "vektor", "síly", "nakloněná rovina"], ["drawing", "vector", "forces", "inclined plane"]],
-    templates: [["Nakresli těleso ležící na stole a všechny síly, které na něj působí.", undefined], ["Nakresli těleso na nakloněné rovině a rozlož tíhovou sílu na dvě složky.", undefined], ["Nakresli síly působící na závaží zavěšené na pružině.", undefined]] },
+    templates: [["Nakresli těleso ležící na stole a všechny síly, které na něj působí.", undefined], ["Nakresli těleso na nakloněné rovině a rozlož tíhovou sílu na dvě složky.", undefined], ["Nakresli síly působící na závaží zavěšené na pružině.", undefined], ["Nakresli padák s parašutistou a vyznač tíhovou sílu a odpor vzduchu.", undefined], ["Nakresli loďku plovoucí na hladině a vyznač tíhovou sílu a vztlakovou sílu.", undefined], ["Nakresli dvě přitahující se magnetky a vyznač magnetické síly.", undefined]] },
 ]);
 topic("fy-elektrina", "Elektřina", "Electricity", [
   { id: "fy-ohm", cs: "Ohmův zákon", en: "Ohm's law", prereq: [], topic: "fy-elektrina", ...NOAUTO, levels: [1, 2, 2],
@@ -315,7 +317,7 @@ topic("fy-elektrina", "Elektřina", "Electricity", [
     answers: [["{a}*{b}", "W"], ["2*{a}", "kWh"], ["{a}*1.5*{b}", "Kč"]] },
   { id: "fy-draw-circuit", cs: "Nakresli schéma obvodu (kresba)", en: "Draw a circuit diagram (drawing)", prereq: ["fy-ohm"], topic: "fy-elektrina", ...NOAUTO, drawing: true,
     kw: [["schéma", "obvod", "žárovka", "baterie", "ampérmetr"], ["circuit diagram", "bulb", "battery", "ammeter"]],
-    templates: [["Nakresli schéma obvodu: baterie, vypínač a žárovka zapojené za sebou.", undefined], ["Nakresli obvod se dvěma žárovkami zapojenými vedle sebe (paralelně) k jedné baterii.", undefined], ["Nakresli obvod s ampérmetrem a voltmetrem u žárovky a vyznač, jak se zapojují.", undefined]] },
+    templates: [["Nakresli schéma obvodu: baterie, vypínač a žárovka zapojené za sebou.", undefined], ["Nakresli obvod se dvěma žárovkami zapojenými vedle sebe (paralelně) k jedné baterii.", undefined], ["Nakresli obvod s ampérmetrem a voltmetrem u žárovky a vyznač, jak se zapojují.", undefined], ["Nakresli obvod se dvěma bateriemi v sérii, spínačem a rezistorem.", undefined], ["Nakresli obvod s rezistorem a reostatem (nastavitelným odporem).", undefined], ["Nakresli obvod se střídavým zdrojem, diodou a žárovkou.", undefined]] },
 ]);
 topic("ch-latkove-mnozstvi", "Látkové množství a roztoky", "Amount of substance and solutions", [
   { id: "ch-molar-mass", cs: "Molární hmotnost", en: "Molar mass", prereq: [], topic: "ch-latkove-mnozstvi", ...NOAUTO, levels: [1, 2, 3],
@@ -336,8 +338,9 @@ topic("ch-latkove-mnozstvi", "Látkové množství a roztoky", "Amount of substa
     answers: [["{a}", "mol"], ["{a}*18", "g"], ["2*{a}", "mol"]] },
   { id: "ch-balance", cs: "Vyčíslování rovnic", en: "Balancing equations", prereq: ["ch-molar-mass"], topic: "ch-latkove-mnozstvi", ...NOAUTO,
     kw: [["vyčíslit", "koeficienty", "chemická rovnice"], ["balance", "coefficients", "chemical equation"]],
-    templates: [["Vyčísli rovnici: H₂ + O₂ → H₂O", undefined], ["Vyčísli rovnici: Fe + O₂ → Fe₂O₃", undefined], ["Vyčísli rovnici: C₃H₈ + O₂ → CO₂ + H₂O", undefined]] },
+    templates: [["Vyčísli rovnici: H₂ + O₂ → H₂O", undefined], ["Vyčísli rovnici: Fe + O₂ → Fe₂O₃", undefined], ["Vyčísli rovnici: C₃H₈ + O₂ → CO₂ + H₂O", undefined], ["Vyčísli rovnici: CO + O₂ → CO₂", undefined], ["Vyčísli rovnici: CH₄ + O₂ → CO₂ + H₂O", undefined], ["Vyčísli rovnici: Na + H₂O → NaOH + H₂", undefined], ["Vyčísli rovnici: Al + O₂ → Al₂O₃", undefined], ["Vyčísli rovnici: N₂ + H₂ → NH₃", undefined]] },
   { id: "ch-draw-structure", cs: "Nakresli strukturní vzorec (kresba)", en: "Draw a structural formula (drawing)", prereq: ["ch-molar-mass"], topic: "ch-latkove-mnozstvi", ...NOAUTO, drawing: true,
     kw: [["strukturní vzorec", "vazby", "kresba", "uhlovodíky"], ["structural formula", "bonds", "drawing", "hydrocarbons"]],
-    templates: [["Nakresli strukturní vzorec vody a vyznač vazby.", undefined], ["Nakresli strukturní vzorec methanu CH₄.", undefined], ["Nakresli strukturní vzorec ethanolu C₂H₅OH.", undefined]] },
+    templates: [["Nakresli strukturní vzorec vody a vyznač vazby.", undefined], ["Nakresli strukturní vzorec methanu CH₄.", undefined], ["Nakresli strukturní vzorec ethanolu C₂H₅OH.", undefined], ["Nakresli strukturní vzorec oxidu uhličitého CO₂.", undefined], ["Nakresli strukturní vzorec amoniaku NH₃.", undefined], ["Nakresli strukturní vzorec ethenu C₂H₄ s dvojnou vazbou.", undefined]] },
 ]);
+
