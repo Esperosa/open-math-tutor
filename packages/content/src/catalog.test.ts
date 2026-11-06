@@ -222,7 +222,7 @@ describe("content quality and difficulty (D8, D12)", () => {
       for (let step = 0; step < 50; step++) {
         let current = "";
         for (let attempt = 0; attempt < 10; attempt++) {
-          const tpl = templates[Math.floor(Math.random() * templates.length)];
+          const tpl = templates[Math.floor(Math.random() * templates.length)]!;
           const cand = instantiateProblem(tpl).statement;
           if (cand !== previous) {
             current = cand;
@@ -238,10 +238,13 @@ describe("content quality and difficulty (D8, D12)", () => {
   it("difficulty levels match the course: maturita and vs-prijimacky do not start with 2-2 / basic arithmetic", () => {
     for (const trackId of ["maturita", "vs-prijimacky", "vysoka-skola"]) {
       const track = catalog.tracks.find(t => t.id === trackId);
+      expect(track).toBeDefined();
+      if (!track) continue;
       // First topic must not be TOPIC_NUMBERS
       expect(track.topicIds[0]).not.toBe("zaklady-cisla");
       // All starting skills in the first topic have difficulty >= 2 and don't include arithmetic-integers
-      const firstTopicSkills = getTopicSkills(catalog, track.topicIds[0]);
+      const firstTopicId = track.topicIds[0]!;
+      const firstTopicSkills = getTopicSkills(catalog, firstTopicId);
       for (const skill of firstTopicSkills) {
         expect(skill.id).not.toBe("arithmetic-integers");
         const templates = getSkillTemplates(catalog, skill.id);
