@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { CaptureUpdateAction, Excalidraw, MainMenu, convertToExcalidrawElements, exportToCanvas } from '@excalidraw/excalidraw';
+import { CaptureUpdateAction, Excalidraw, MainMenu, convertToExcalidrawElements, exportToBlob, exportToCanvas, exportToSvg } from '@excalidraw/excalidraw';
 import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 import type { ExcalidrawElement, NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import katex from 'katex';
@@ -13,6 +13,7 @@ import type { StepVerdict } from '@openmathtutor/shared';
 export interface BoardHandle {
   addLine(text: string, stepId: string | null): void;
   crop(state: BoardState): Promise<{ dataUrl: string; width: number; height: number }>;
+  exportImage(kind: 'png' | 'svg'): Promise<Blob | null>;
 }
 interface Props {
   board: BoardState; settings: Settings;
@@ -102,6 +103,15 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
       const next = [...elements, ...line];
       api.updateScene({ elements: structuredClone(next), captureUpdate: CaptureUpdateAction.IMMEDIATELY });
       onCommit(next, api.getFiles());
+    },
+    async exportImage(kind) {
+      if (!api) return null;
+      const elements = api.getSceneElements();
+      if (!elements.length) return null;
+      const appState = { exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false };
+      if (kind === 'png') return exportToBlob({ elements, files: api.getFiles(), mimeType: 'image/png', exportPadding: 32, appState });
+      const svg = await exportToSvg({ elements, files: api.getFiles(), exportPadding: 32, appState });
+      return new Blob([svg.outerHTML], { type: 'image/svg+xml' });
     },
     async crop(snapshot) {
       const step = snapshot.steps.find(s => s.stepId === snapshot.activeStepId);

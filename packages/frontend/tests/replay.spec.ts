@@ -271,3 +271,24 @@ test('calculator: evaluates safely, feeds the line, and is hidden where the exam
   await page.getByRole('button', { name: 'Do řádku' }).click();
   await expect(page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true })).toHaveValue('7*6');
 });
+
+test('notes: progress panel, markdown and image export carry the student work', async ({ page }) => {
+  await page.goto('/');
+  await skipOnboarding(page);
+  await page.getByRole('textbox', { name: 'Zadání', exact: true }).fill('2x+3=7');
+  await page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true }).fill('2x=4');
+  await page.getByRole('button', { name: 'Přidat řádek', exact: true }).click();
+  await openPanel(page, 'Zápisky a pokrok');
+  await expect(page.getByText('Zatím není z čeho hodnotit')).toBeVisible();
+  const md = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Stáhnout zápisky (.md)' }).click();
+  const mdFile = await md;
+  expect(mdFile.suggestedFilename()).toBe('zapisky.md');
+  const stream = await mdFile.createReadStream();
+  let text = ''; for await (const chunk of stream) text += chunk;
+  expect(text).toContain('2x+3=7');
+  expect(text).toContain('`2x=4` ✓');
+  const png = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Tabule jako PNG' }).click();
+  expect((await png).suggestedFilename()).toBe('tabule.png');
+});

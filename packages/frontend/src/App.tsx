@@ -20,6 +20,8 @@ import { Onboarding } from './curriculum/Onboarding';
 import { TrackBreadcrumb } from './curriculum/TrackBreadcrumb';
 import { Rail, Icon, type PanelId } from './Hud';
 import { Calculator } from './Calculator';
+import { NotesPanel } from './NotesPanel';
+import { buildNotesHtml, buildNotesMarkdown, downloadBlob, printHtml, studyTextRequest, summarizeStrengths } from './notes';
 import { AskPanel } from './AskPanel';
 import { UploadBoard, type UploadedImage } from './UploadBoard';
 import { CustomSourcesPanel } from './CustomSourcesPanel';
@@ -81,6 +83,7 @@ export function App() {
   const [settler] = useState(() => new StrokeSettler(() => void analyze.current()));
   const analyze = useRef<() => Promise<void>>(async () => {});
   const [mastery, setMastery] = useState(loadMastery);
+  const strengths = useMemo(() => summarizeStrengths(catalog, mastery, settings.locale), [mastery, settings.locale]);
   const [lessonSkillId, setLessonSkillId] = useState<string | null>(null);
   const [sources, setSources] = useState(loadSources);
   const provider = providers.find(p => p.id === settings.provider);
@@ -285,6 +288,10 @@ export function App() {
     return <Onboarding catalog={catalog} t={t} locale={settings.locale} onSelectTrack={startTrack} onSkip={() => configure({ onboardingDismissed: true })} />;
   }
   const openPanel = panel;
+  async function exportImage(kind: 'png' | 'svg') {
+    const blob = await editor.current?.exportImage(kind);
+    if (blob) downloadBlob(blob, `tabule.${kind}`);
+  }
   const activeTrack = catalog.tracks.find(tr => tr.id === settings.activeTrackId);
   const calcPolicy = activeTrack?.calculator ?? 'scientific';
   const alertChip = !connected ? <span role="alert">{t.bridgeUnavailable} <button onClick={() => setRetry(r => r + 1)}>{t.retry}</button></span>
@@ -339,7 +346,7 @@ export function App() {
       {calcOpen && calcPolicy !== 'none' && <Calculator t={t} locale={settings.locale} policy={calcPolicy} examRules={!!activeTrack?.calculator}
         onClose={() => setCalcOpen(false)} onUse={text => setLine(text)} />}
       <Rail items={[{ id: 'courses', label: t.courses }, { id: 'ask', label: t.askLabel }, { id: 'materials', label: t.customSources },
-        { id: 'exercises', label: t.exercise }, { id: 'history', label: t.history }]}
+        { id: 'exercises', label: t.exercise }, { id: 'history', label: t.history }, { id: 'notes', label: t.notesRail }]}
         active={openPanel} onHover={hoverPanel} onToggle={togglePanel} />
       <aside className={`drawer${openPanel ? ' open' : ''}`}
         onMouseEnter={() => clearTimeout(leaveTimer.current)} onMouseLeave={leavePanel}>
@@ -356,6 +363,13 @@ export function App() {
         <section hidden={openPanel !== 'exercises'}><h2>{t.exercise}</h2><label>{t.exercise}<select value={saved.activeId} onChange={e => switchExercise(e.target.value)}>
           {saved.boards.map((b, i) => <option key={b.id} value={b.id}>{i + 1}. {b.statement.slice(0, 40) || '…'}</option>)}</select></label>
           <div className="row"><button onClick={createExercise}>{t.newExercise}</button><button onClick={deleteExercise}>{t.deleteExercise}</button></div></section>
+        <section hidden={openPanel !== 'notes'}>
+          <NotesPanel t={t} strengths={strengths} canAsk={canRequest && !running}
+            onExportImage={kind => void exportImage(kind)}
+            onExportMarkdown={() => downloadBlob(new Blob([buildNotesMarkdown(saved.boards, t, strengths)], { type: 'text/markdown' }), 'zapisky.md')}
+            onPrint={() => printHtml(buildNotesHtml(saved.boards, t, strengths))}
+            onStudyText={() => { setPanel('history'); ask(studyTextRequest(strengths, settings.locale)); }} />
+        </section>
         <section hidden={openPanel !== 'history'}><h2 className="h2-muted">{t.history}<span className="info-icon" title={t.unverified} aria-label={t.unverified} role="img">ⓘ</span></h2>
           {!board.history.length && <p className="muted">{t.emptyHistory}</p>}
           <ol className="history">{board.history.map(h => <li key={h.id} data-testid="explanation">

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type PanelId = 'courses' | 'ask' | 'materials' | 'exercises' | 'history';
+export type PanelId = 'courses' | 'ask' | 'materials' | 'exercises' | 'history' | 'notes';
 
 const ICONS: Record<PanelId | 'settings' | 'calc', ReactNode> = {
   calc: <path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" />,
@@ -8,6 +8,7 @@ const ICONS: Record<PanelId | 'settings' | 'calc', ReactNode> = {
   ask: <path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />,
   materials: <path d="M12 16V5m0 0-4 4m4-4 4 4M5 15v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3" />,
   exercises: <path d="M7 7h12v12H7zM5 17V5h12" />,
+  notes: <path d="M7 3h8l4 4v14H7zM14 3v5h5M10 12h6M10 16h6" />,
   history: <path d="M12 7v5l3 2M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 5v3.5H8" />,
   settings: <path d="M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM19 12l1.5-1-1.5-3-1.8.4a6 6 0 0 0-1.4-.8L15.5 5h-3l-.3 1.6a6 6 0 0 0-1.4.8L9 7.0 7.5 10 9 12l-1.5 2L9 17l1.8-.4c.4.3.9.6 1.4.8l.3 1.6h3l.3-1.6c.5-.2 1-.5 1.4-.8l1.8.4 1.5-3z" />,
 };
