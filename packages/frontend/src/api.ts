@@ -11,7 +11,7 @@ export interface ProviderEntry {
   models: ProviderModelInfo[];
 }
 export class BridgeError extends Error {
-  constructor(public code: ProviderErrorCode | 'bridgeUnavailable') { super(code); }
+  constructor(public code: ProviderErrorCode | 'bridgeUnavailable' | 'invalidRequest') { super(code); }
 }
 // Pinned loopback contract; no provider endpoints, auth storage, tokens, or fallback here.
 const BASE = 'http://127.0.0.1:4178';
@@ -33,6 +33,7 @@ async function json(path: string, signal: AbortSignal, body?: unknown): Promise<
   try { value = await response.json(); } catch { throw new BridgeError('invalid_response'); }
   if (!response.ok) {
     const code = (value as { error?: string })?.error;
+    if (code === 'invalid_request') throw new BridgeError('invalidRequest');
     throw new BridgeError(code && Object.hasOwn(errorKeys, code) ? code as ProviderErrorCode : 'unknown');
   }
   return value;

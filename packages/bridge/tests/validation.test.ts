@@ -13,6 +13,10 @@ describe('untrusted request validation', () => {
     }, false)).toBe(true);
     expect(validRequest({ ...lesson, mode }, false)).toBe(true);
   });
+  it('accepts an empty topic and empty task statement — a student may just write steps', () => {
+    expect(validRequest({ ...lesson, task: { topic: '' } }, false)).toBe(true);
+    expect(validRequest({ ...lesson, task: { topic: '', statementText: '', statementLatex: '' } }, false)).toBe(true);
+  });
   it('accepts bounded optional fields independently and empty retrieval', () => {
     expect(validRequest({ ...lesson, studentMessage: 'q'.repeat(4000) }, false)).toBe(true);
     expect(validRequest({ ...lesson, curriculumContext: { trackId: 't'.repeat(128), topicId: 'p', skillId: 's', difficultyLevel: 0 } }, false)).toBe(true);
@@ -41,7 +45,8 @@ describe('untrusted request validation', () => {
     null, {}, { ...lesson, boardRevision: -1 }, { ...lesson, boardRevision: 1.1 },
     { ...lesson, locale: 'xx' }, { ...lesson, model: '--system-prompt=bad' },
     { ...lesson, locale: ['en'] }, { ...lesson, mode: ['hint'] },
-    { ...lesson, mode: 'exec' }, { ...lesson, task: { topic: '' } },
+    { ...lesson, mode: 'exec' }, { ...lesson, task: { topic: 123 } },
+    { ...lesson, task: { ...lesson.task, statementText: 'x'.repeat(2001) } },
     { ...lesson, stepHistory: [{ stepId: 'x', latexGuess: 'x', boardRevision: NaN }] },
     { ...lesson, stepHistory: Array(101).fill(lesson.stepHistory[0]) },
   ])('rejects malformed text request %#', value => expect(validRequest(value, false)).toBe(false));

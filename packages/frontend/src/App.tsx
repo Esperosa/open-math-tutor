@@ -135,7 +135,7 @@ export function App() {
       if (pending.current !== request) return;
       if (controller.signal.aborted) setStatus('timeout');
       else if (error instanceof BridgeError) {
-        setStatus(error.code === 'bridgeUnavailable' ? error.code : errorKeys[error.code]);
+        setStatus(error.code === 'bridgeUnavailable' || error.code === 'invalidRequest' ? error.code : errorKeys[error.code]);
         if (error.code === 'bridgeUnavailable') setConnected(false);
       } else setStatus('unknown');
     } finally {

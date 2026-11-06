@@ -9,6 +9,9 @@ export function record(value: unknown): value is Record<string, unknown> {
 }
 export const text = (v: unknown, max = 500): v is string =>
   typeof v === 'string' && v.length > 0 && v.length <= max;
+/** Like text(), but an empty string is valid — for genuinely optional fields (topic, task statement). */
+export const optionalText = (v: unknown, max = 500): v is string =>
+  typeof v === 'string' && v.length <= max;
 export const revision = (v: unknown): v is number => Number.isSafeInteger(v) && (v as number) >= 0;
 export const oneOf = (value: unknown, allowed: readonly string[]): value is string =>
   typeof value === 'string' && allowed.includes(value);
@@ -25,9 +28,11 @@ export function validRequest(value: unknown, image: boolean): boolean {
   if (!record(value) || !text(value.requestId, 128) || !revision(value.boardRevision) ||
       !oneOf(value.locale, ['cs', 'en']) || !text(value.model, 128) ||
       !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]*$/.test(value.model) || !record(value.task) ||
-      !text(value.task.topic, 100) || !steps(value.stepHistory)) return false;
+      // Topic and statement are genuinely optional: a student may just write
+      // steps without first typing a restated problem or a topic label.
+      !optionalText(value.task.topic, 100) || !steps(value.stepHistory)) return false;
   for (const key of ['statementText', 'statementLatex']) {
-    if (value.task[key] !== undefined && !text(value.task[key], 2000)) return false;
+    if (value.task[key] !== undefined && !optionalText(value.task[key], 2000)) return false;
   }
   if (!image) {
     if (!oneOf(value.mode, ['check', 'hint', 'next_step', 'explain_differently', 'ask', 'next_problem'])) return false;
