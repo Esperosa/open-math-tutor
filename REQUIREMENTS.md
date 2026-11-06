@@ -89,7 +89,7 @@ Zpětná vazba: „kontrola pořád nereaguje a když jo, tak mu to strašně tr
 | 1.13 | Odstupňované nápovědy, ne rovnou celé řešení | ✅ prompt přepsán: u Zkontrolovat/Poradit jen nápověda a naváděcí otázka, celé řešení až na "Ukaž další krok" nebo výslovnou žádost |
 | 1.14 | Hlas (speechSynthesis, cs-CZ) | ✅ |
 | 1.15 | MVP matematický rozsah (aritmetika, zlomky, procenta, závorky, lineární rovnice) | ✅ |
-| 1.16 | Testy (unit/integration/e2e) | ✅ audit 6: shared 92, frontend 75, e2e 30, lint a typecheck; dříve ověřeno: content 34, bridge 161, verifier 161 |
+| 1.16 | Testy (unit/integration/e2e) | ✅ po sekci 8: shared 121, content 34, frontend 163, bridge 181 (+7 přeskočených živých CLI testů), e2e 48, lint a typecheck; verifier 161 naposledy ověřen dříve |
 | 1.17 | Bezpečnost (žádný shell z LLM, CSP, origin kontrola) | ✅ |
 | 1.18 | Dokumentace, licence, README cz/en | ✅ |
 
