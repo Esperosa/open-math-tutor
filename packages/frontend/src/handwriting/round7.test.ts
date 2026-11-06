@@ -32,7 +32,7 @@ it('keeps a full standing fraction equality on one row', () => {
 });
 
 it('ignores a lone pen tap and small isolated mark, not a digit or decimal', () => {
-  for (const points of [[[0, 0]], [[0, 0], [1, 2]]] as number[][][]) {
+  for (const points of [[[0, 0]], [[0, 0], [1, 2]], [[0, 0], [3, 5]]] as number[][][]) {
     expect(recognizeBoardLines([{ id: 'tap', type: 'freedraw', x: 600, y: 500, points, strokeWidth: 2 }])).toEqual([]);
   }
   const input = [...rowElements('4=4', 7), { id: 'tap', type: 'freedraw', x: 600, y: 500, points: [[0, 0]], strokeWidth: 2 }];
@@ -53,6 +53,13 @@ it('uses expected unit aliases for a suspicious suffix, never for arbitrary arit
   const numeric = { ...symbols[0], bbox: { x: -30, y: 0, width: 15, height: 30 }, candidates: [{ label: '6', probability: .99 }] };
   expect(parseLine([numeric, ...symbols], undefined, ['m/s'])).toMatchObject({ text: '6 m/s', uncertain: true });
   expect(recognizeBoardLines(rowElements('72/12=6', 13), { unitAliases: ['m/s'] })[0].text).toBe('72/12=6');
+});
+
+it('reads a handwritten joule and preserves compound unit spelling rather than multiplying letters', () => {
+  expect(recognizeBoardLines(rowElements('5J', 13), { unitAliases: ['J'] })[0].text).toBe('5 J');
+  const symbols = '5kg'.split('').map((label, i) => ({ bbox: { x: i * 25, y: 0, width: 20, height: 40 },
+    candidates: [{ label, probability: .99 }], strokeIds: [String(i)], strokeOrder: [i], uncertain: false }));
+  expect(parseLine(symbols, undefined, ['kg']).text).toBe('5 kg');
 });
 
 it('flags a late short cross-out as ambiguous instead of judging its silhouette', () => {

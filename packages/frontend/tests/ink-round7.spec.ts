@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { drawElements, drawLine, setTask, start } from './inkDriver';
 import { decimalElements, noisyElements, rowElements, standingFractionElements } from './inkFixture';
+import type { ContinueLessonRequest } from '@openmathtutor/shared';
 
 test.beforeEach(async ({ page }) => {
   await page.route('http://127.0.0.1:4178/**', route => route.abort('connectionrefused'));
@@ -68,6 +69,32 @@ test('D5 noisy pen input stays uncertain; correction chips are labelled and touc
   const before = await readings(page).locator('strong').allTextContents();
   await chips.first().click();
   await expect(readings(page).locator('strong')).toHaveText(before);
+});
+
+test('D2/D5 even a provider response cannot write an arithmetic correction from uncertain pen input', async ({ page }) => {
+  await page.route('http://127.0.0.1:4178/**', async route => {
+    const req = route.request(), path = new URL(req.url()).pathname;
+    const headers = { 'Access-Control-Allow-Origin': new URL(page.url()).origin, 'Access-Control-Allow-Headers': 'content-type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    if (path === '/health') return route.fulfill({ json: { status: 'ok', verifier: 'ok' }, headers });
+    if (path === '/providers') return route.fulfill({ json: { providers: [{ id: 'codex', detect: { installed: true }, authStatus: { authenticated: true, tutoringAvailable: true },
+      models: [{ id: 'ink-model', label: 'Ink mock', supportsImageInput: false }] }] }, headers });
+    if (path.endsWith('/cancel')) return route.fulfill({ status: 204, headers });
+    const body = req.postDataJSON() as ContinueLessonRequest;
+    return route.fulfill({ headers, json: { requestId: body.requestId, boardRevision: body.boardRevision, recognizedSteps: body.stepHistory,
+      confidence: .99, firstErrorStepId: body.stepHistory[0].stepId, verifierStatus: 'incorrect', needsClarification: null,
+      pedagogicalResponse: '215+115=330', ttsText: '330', boardActions: [{ id: 'unsafe-correction', type: 'write_math', latex: '215+115=330',
+        boardRevision: body.boardRevision, placement: { relativeToStepId: body.stepHistory[0].stepId, side: 'right', offsetEm: 1 } }] } });
+  });
+  await start(page);
+  await setTask(page, '4');
+  await drawElements(page, noisyElements(), 'pen');
+  await expect(readings(page).first()).toHaveClass(/uncertain/);
+  await page.getByRole('button', { name: 'Učitel', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Zkontrolovat', exact: true }).click();
+  await expect(page.getByTestId('tutor-bubble')).toContainText('Zkontroluj, jestli jsem to přečetl správně');
+  await expect(page.locator('[data-annotation-id="unsafe-correction"]')).toHaveCount(0);
+  await expect(page.getByTestId('step-mark-wrong')).toHaveCount(0);
 });
 
 async function physicsTask(page: Page) {

@@ -100,7 +100,7 @@ export function createHandwritingRecognizer(): {
       const corrected = applyCorrections(current);
       // Stray pen taps are not mathematical rows. Keep punctuation near a
       // real glyph (including decimal dots and division colons).
-      const tiny = (s: Stroke) => Math.max(s.bbox.width, s.bbox.height) <= Math.max(3, s.width * 2);
+      const tiny = (s: Stroke) => Math.max(s.bbox.width, s.bbox.height) <= Math.max(6, s.width * 2);
       const taps = corrected.active.filter(s => tiny(s) && !corrected.active.some(o => o !== s && !tiny(o)
         && Math.abs(centerY(s.bbox) - centerY(o.bbox)) < o.bbox.height * 1.4
         && Math.max(s.bbox.x, o.bbox.x) - Math.min(right(s.bbox), right(o.bbox)) < Math.max(o.bbox.height, o.bbox.width) * 1.2));
