@@ -20,6 +20,10 @@ Pointa celé aplikace: student píše a kreslí na tabuli (pero, prst, myš) a a
 | 0.4 | Když AI není připojená, appka to **řekne na rovinu** a ukáže, jak ji připojit (co spustit/přihlásit); lokální čtení a kontrola fungují i bez ní | 🟡 |
 | 0.5 | AI s obrazem je volitelný doplněk pro těžký rukopis a kresby, nikdy jediná cesta | 🟡 |
 | 0.6 | Testovací matice: rukopis (syntetické tahy z Hershey fontu s šumem + held-out MNIST), různé adresy (localhost/127.0.0.1), bridge nedostupný/dostupný, zoom 50–200 %, posunutá tabule, světlý/tmavý, telefon a dotyk/pero/myš, pomalé/rychlé psaní | 🟡 |
+| 0.8 | Zvládá českou rozmanitost zápisu: dělení `:` `÷` `/` zlomková čára, násobení `×` `·` `*` `x`, všechny druhy závorek, desetinná čárka/tečka, evropské tvary číslic (1 s hákem, 7 s příčkou), `=` jedním i dvěma tahy, nerovnosti, odmocnina, %, π | 🟡 |
+| 0.9 | Každý rozpoznaný symbol je přiřazený ke konkrétním tahům na tabuli (kde přesně je napsán) a nese kandidáty a jistotu | 🟡 |
+| 0.10 | Nejistý rukopis jde AI i jako obrázek spolu s lokálním přepisem, polohou a nejistými symboly, aby AI mohla opravit čtení | 🟡 |
+| 0.11 | Tabule je interaktivní pro korektury: student i AI dopisují, podtrhávají, škrtají, mažou části; přeškrtnutý symbol se ignoruje, přepsaný se čte znovu, přepočet jen změněných tahů | 🟡 |
 | 0.7 | Úspěšnost čtení se měří a zapisuje do dokumentace (číslice, operátory, celé řádky); pod stanovenou hranicí se nic netvrdí | 🟡 |
 
 ---
