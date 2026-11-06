@@ -121,6 +121,8 @@ UI pro cokoliv, co vyžaduje vaše vlastní přihlášení.
 
 **Třetí strany:** použité komponenty (Excalidraw, SymPy, KaTeX, Electron, pdf.js, React, Vite) mají vlastní licence uvedené v [NOTICE.md](NOTICE.md) a [ARCHITECTURE.md](ARCHITECTURE.md); jejich podmínky platí dál. Nástroje `codex` a `claude` si uživatel instaluje sám a řídí se podmínkami jejich poskytovatelů. „Claude“, „Claude Code“, „Codex“ a „OpenAI“ jsou ochranné známky svých vlastníků; projekt s nimi není nijak spojen.
 
+**Offline hlasy:** kvalitní hlasy Piper se stahují na přání uživatele z Hugging Face a ukládají se jen v prohlížeči — v repozitáři ani v instalaci nejsou. Všechny čtyři jsou dotrénované z výzkumného hlasu Lessac, jehož licenční podmínky (nekomerční, s ručním ověřením) jsou rozepsané v [NOTICE.md](NOTICE.md).
+
 **Evidence použití AI:** část kódu vznikla s pomocí AI nástrojů (OpenAI Codex, Anthropic Claude) a prošla kontrolou a testy; podrobnosti v [ai-disclosure.md](ai-disclosure.md). Logo, texty o autorovi a licenční ustanovení jsou lidskou prací autora.
 
 Tento přehled není právní poradenství.

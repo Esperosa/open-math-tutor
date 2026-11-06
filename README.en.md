@@ -123,6 +123,8 @@ own login.
 
 **Third parties:** the components used (Excalidraw, SymPy, KaTeX, Electron, pdf.js, React, Vite) keep their own licenses, listed in [NOTICE.md](NOTICE.md) and [ARCHITECTURE.md](ARCHITECTURE.md). The `codex` and `claude` tools are installed by the user and governed by their providers' terms. "Claude", "Claude Code", "Codex" and "OpenAI" are trademarks of their owners; the project is not affiliated with them.
 
+**Offline voices:** the Piper voices are downloaded on request from Hugging Face and stored only in the browser; they are not part of the repository or the installation. All four are finetuned from the Lessac research voice, whose license terms (non-commercial, manual verification) are spelled out in [NOTICE.md](NOTICE.md).
+
 **AI use disclosure:** part of the code was written with AI tools (OpenAI Codex, Anthropic Claude) and reviewed and tested; see [ai-disclosure.md](ai-disclosure.md). The logo, the author texts and the licensing provisions are the author's own human work.
 
 This overview is not legal advice.

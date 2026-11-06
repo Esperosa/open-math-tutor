@@ -13,6 +13,36 @@ on the following third-party components, each under its own license:
 | pdf.js (`pdfjs-dist`) | Apache-2.0 | Local text extraction from uploaded PDF sources (NotebookLM-style custom courses) |
 | `codex` CLI (OpenAI) | OpenAI's own terms | Installed separately by the end user; not bundled, not modified |
 | `claude` CLI (Anthropic) | Anthropic's own terms | Installed separately by the end user; not bundled, not modified |
+| `@diffusionstudio/vits-web` | MIT | Offline Piper speech synthesis in the browser (voice catalog, ONNX inference) |
+| `onnxruntime-web` | MIT | ONNX runtime used by the synthesiser |
+| `@diffusionstudio/piper-wasm` | MIT | Grapheme-to-phoneme WASM used at synthesis time (loaded from jsDelivr) |
+| Piper voice models | Per voice, see below | Offline speech; downloaded by the user on request, never committed to this repository |
+
+### Voice models (downloaded on demand)
+
+The four voices offered under Nastavení → Hlas → "High-quality voices
+(Piper, offline)" are fetched at runtime from
+`huggingface.co/diffusionstudio/piper-voices` (a mirror of the
+`rhasspy/piper-voices` layout, MIT for the packaging code), stored in the
+browser's origin-private file system and removed by clearing site data.
+Nothing is bundled with the application. Licenses come from each model
+card:
+
+| Voice | Dataset license | Training |
+|---|---|---|
+| `cs_CZ-jirka-medium` | CC0 ([NabuCasa/voice-datasets](https://github.com/NabuCasa/voice-datasets)) | Finetuned from `en_US-lessac-medium` |
+| `en_US-lessac-medium` | [Lessac / Blizzard 2013 research license](https://www.cstr.ed.ac.uk/projects/blizzard/2013/lessac_blizzard2013/license.html) | Trained from scratch |
+| `en_US-amy-medium` | CC BY-SA 4.0 ([MycroftAI/mimic3-voices](https://github.com/MycroftAI/mimic3-voices)) | Finetuned from `en_US-lessac-medium` |
+| `en_GB-alba-medium` | CC BY 4.0 ([Edinburgh DataShare](https://datashare.ed.ac.uk/handle/10283/3270)) | Finetuned from `en_US-lessac-medium` |
+
+**Every offered voice is a fine-tune of the Lessac voice**, so the Lessac
+license applies to all four on top of their dataset licenses: it is a
+research license, it is non-commercial, it asks for manual verification
+of the license before use, and it restricts incorporating the output into
+voice-synthesis products. This project is itself non-commercial
+(PolyForm Noncommercial), which matches that requirement; anyone who needs
+the voices for a commercial product must obtain voices under terms that
+allow it.
 
 No commercial fonts are bundled or committed to this repository. Any
 third-party visual reference used during design work is recorded in

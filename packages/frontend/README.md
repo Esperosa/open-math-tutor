@@ -102,9 +102,26 @@ voice produces a specific `cs-CZ` installation warning instead of an English
 fallback. Speech input is not implemented and is never required. Voice API
 behavior is unit-tested; actual audible playback requires an OS/browser check.
 
+**Offline Piper voices.** Nastavení → Hlas additionally lists four Piper models
+(`cs_CZ-jirka`, `en_US-lessac`, `en_US-amy`, `en_GB-alba`) synthesised locally by
+`@diffusionstudio/vits-web`. They are never selected automatically: the user picks
+one, then downloads it explicitly (≈60 MB, with progress and a cancel button).
+The model lands in the origin-private file system and speaks offline from then on;
+synthesis runs in a Web Worker and playback through Web Audio, so the explanation
+text never leaves the device. A failed download or a synthesis error falls back to
+the system voice with a visible reason. The four voices are fine-tunes of the
+Lessac voice, so their licenses (including the non-commercial research terms) are
+spelled out in `NOTICE.md`.
+
 No analytics, remote scripts, direct provider calls or credentials. Network
-requests from the application client go only to the fixed loopback bridge.
-Local CSP blocks external scripts, images, fonts and embedded frames. HTTP
+requests from the application client otherwise go only to the fixed loopback
+bridge; the exceptions are the explicit voice download (`huggingface.co`, its
+`*.huggingface.co` pages and `*.hf.co` delivery CDN, where the model files
+redirect) and the
+ONNX/phonemizer runtimes the synthesiser needs (`cdnjs.cloudflare.com`,
+`cdn.jsdelivr.net`). Local CSP blocks external scripts, images, fonts and embedded
+frames, and permits exactly those five hosts for `connect-src` plus
+`'wasm-unsafe-eval'` for the ONNX runtime. HTTP
 credentials are omitted, redirects refused, responses validated as envelopes;
 untrusted explanation text is React text, never HTML. KaTeX is configured with
 `trust:false`, strict parsing, bounded expansion and output sizing. Its generated
@@ -112,7 +129,9 @@ HTML is the only `dangerouslySetInnerHTML` sink. Style/color instructions from
 models are not used to inject CSS; annotations use fixed application colors.
 
 The production build contains a web manifest and generated service worker
-precaching local static assets, not bridge requests or exercise data. The
+precaching local static assets, not bridge requests or exercise data. The same
+worker keeps the synthesiser runtimes in a separate `piper-runtime-v1` cache, so a
+downloaded voice still speaks offline. The
 development server does not register a worker. Offline install support is a
 PWA scaffold with a headlessly tested built offline shell; browser install prompts and packaged Electron origins require
 integration testing. Service-worker updates take effect on the next session.
