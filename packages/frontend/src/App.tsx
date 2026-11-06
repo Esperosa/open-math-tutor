@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ContinueLessonRequest, CurriculumContext, ProviderId } from '@openmathtutor/shared';
-import { recordAttempt } from '@openmathtutor/shared';
+import type { ContinueLessonRequest, ProviderId } from '@openmathtutor/shared';
+import { recordAttempt, retrieveTopChunks } from '@openmathtutor/shared';
 import { catalog } from '@openmathtutor/content';
 import type { BinaryFiles } from '@excalidraw/excalidraw/types';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
@@ -15,8 +15,11 @@ import { loadMastery, saveMastery, getOrCreateMastery } from './curriculumStorag
 import { CoursesPanel, type LessonStart } from './curriculum/CoursesPanel';
 import { AskPanel } from './AskPanel';
 import { UploadBoard, type UploadedImage } from './UploadBoard';
+import { CustomSourcesPanel } from './CustomSourcesPanel';
+import { loadSources, saveSources, addSource, removeSource, allChunks } from './customSources';
 
 type Mode = ContinueLessonRequest['mode'];
+type ContinueLessonExtra = Pick<ContinueLessonRequest, 'studentMessage' | 'curriculumContext' | 'retrievedContext'>;
 interface Pending { id: string; controller: AbortController; provider: ProviderId; boardId: string; revision: number }
 export function App() {
   const [saved, setSaved] = useState<Saved>(load);
@@ -42,6 +45,7 @@ export function App() {
   const analyze = useRef<() => Promise<void>>(async () => {});
   const [mastery, setMastery] = useState(loadMastery);
   const [lessonSkillId, setLessonSkillId] = useState<string | null>(null);
+  const [sources, setSources] = useState(loadSources);
   const provider = providers.find(p => p.id === settings.provider);
   const model = provider?.models.find(m => m.id === settings.model);
   const canRequest = connected && !!provider?.detect.installed && !!provider.authStatus.authenticated && !!model;
@@ -91,7 +95,7 @@ export function App() {
 
   async function request(
     mode?: Mode,
-    extra?: { studentMessage?: string; curriculumContext?: CurriculumContext },
+    extra?: ContinueLessonExtra,
     imageOverride?: UploadedImage,
   ) {
     if (!canRequest || busy.current || (!mode && !imageOverride && !model?.supportsImageInput)) return;
@@ -172,10 +176,20 @@ export function App() {
     void request('next_problem', { curriculumContext: lesson.curriculumContext });
   }
   function ask(message: string) {
-    void request('ask', { studentMessage: message });
+    const chunks = allChunks(sources);
+    const retrievedContext = chunks.length
+      ? retrieveTopChunks(chunks, message, 5).map(c => ({ sourceId: c.sourceId, sourceTitle: c.sourceTitle, chunkIndex: c.chunkIndex, text: c.text }))
+      : undefined;
+    void request('ask', { studentMessage: message, retrievedContext });
   }
   function uploadScan(image: UploadedImage) {
     void request(undefined, undefined, image);
+  }
+  function addCustomSource(title: string, text: string) {
+    setSources(prev => { const next = addSource(prev, title, text); saveSources(next); return next; });
+  }
+  function removeCustomSource(id: string) {
+    setSources(prev => { const next = removeSource(prev, id); saveSources(next); return next; });
   }
   function deleteExercise() {
     if (!window.confirm(t.eraseConfirm)) return;
@@ -228,6 +242,7 @@ export function App() {
         </details>
         <AskPanel t={t} disabled={!canRequest || running} onAsk={ask} />
         <UploadBoard t={t} disabled={!canRequest || !model?.supportsImageInput || running} onUpload={uploadScan} />
+        <CustomSourcesPanel t={t} sources={sources} onAdd={addCustomSource} onRemove={removeCustomSource} />
         <section><h2>{t.exercise}</h2><label>{t.exercise}<select value={saved.activeId} onChange={e => switchExercise(e.target.value)}>
           {saved.boards.map((b, i) => <option key={b.id} value={b.id}>{i + 1}. {b.statement.slice(0, 40) || '…'}</option>)}</select></label>
           <div className="row"><button onClick={createExercise}>{t.newExercise}</button><button onClick={deleteExercise}>{t.deleteExercise}</button></div></section>
