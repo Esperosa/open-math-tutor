@@ -45,6 +45,8 @@ export const cs = {
   customSources: 'Vlastní materiály', customSourcesHelp: 'Nahraj vlastní poznámky (.txt, .pdf). Appka z nich bude čerpat a citovat je, když odpovídá na tvoje otázky.',
   addSource: 'Nahrát materiál', sourceProcessing: 'Zpracovávám…', removeSource: 'Odstranit',
   sourceEmpty: 'Soubor je prázdný nebo z něj nelze získat text.', sourceExtractFailed: 'Text se z tohoto souboru nepodařilo získat.',
+  onboardingTitle: 'Na co se připravuješ?', onboardingSubtitle: 'Vyber si kurz a appka tě bude provázet od první úlohy.',
+  onboardingSkip: 'Přeskočit, chci jen volnou tabuli', trackComplete: 'vše zvládnuto', changeTrack: 'Změnit kurz',
 } as const;
 export type MessageKey = keyof typeof cs;
 export const en: Record<MessageKey, string> = {
@@ -92,6 +94,8 @@ export const en: Record<MessageKey, string> = {
   customSources: 'My own materials', customSourcesHelp: 'Upload your own notes (.txt, .pdf). The app will draw on and cite them when answering your questions.',
   addSource: 'Upload material', sourceProcessing: 'Processing…', removeSource: 'Remove',
   sourceEmpty: 'The file is empty or no text could be extracted.', sourceExtractFailed: 'Text could not be extracted from this file.',
+  onboardingTitle: 'What are you studying for?', onboardingSubtitle: 'Pick a track and the app will guide you starting from your first problem.',
+  onboardingSkip: 'Skip, I just want the free board', trackComplete: 'all done', changeTrack: 'Change track',
 };
 export const messages: Record<Locale, Record<MessageKey, string>> = { cs, en };
 export const errorKeys: Record<ProviderErrorCode, MessageKey> = {

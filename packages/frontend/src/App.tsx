@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ContinueLessonRequest, ProviderId } from '@openmathtutor/shared';
-import { recordAttempt, retrieveTopChunks } from '@openmathtutor/shared';
+import {
+  recordAttempt, retrieveTopChunks, isMastered, instantiateTemplate,
+  getTopicSkills, nextUnlockedTopic, nextUnlockedSkill, pickTemplateForDifficulty,
+} from '@openmathtutor/shared';
 import { catalog } from '@openmathtutor/content';
 import type { BinaryFiles } from '@excalidraw/excalidraw/types';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
@@ -13,6 +16,8 @@ import { StrokeSettler } from './settle';
 import { useVoice } from './useVoice';
 import { loadMastery, saveMastery, getOrCreateMastery } from './curriculumStorage';
 import { CoursesPanel, type LessonStart } from './curriculum/CoursesPanel';
+import { Onboarding } from './curriculum/Onboarding';
+import { TrackBreadcrumb } from './curriculum/TrackBreadcrumb';
 import { AskPanel } from './AskPanel';
 import { UploadBoard, type UploadedImage } from './UploadBoard';
 import { CustomSourcesPanel } from './CustomSourcesPanel';
@@ -188,6 +193,23 @@ export function App() {
     setStatus('idle');
     void request('next_problem', { curriculumContext: lesson.curriculumContext });
   }
+  function startTrack(trackId: string) {
+    configure({ activeTrackId: trackId, onboardingDismissed: true });
+    const masteredIds = new Set(Object.values(mastery).filter(isMastered).map(s => s.skillId));
+    const topic = nextUnlockedTopic(catalog, trackId, masteredIds);
+    const skill = topic ? nextUnlockedSkill(getTopicSkills(catalog, topic.id), masteredIds) : null;
+    if (!topic || !skill) return;
+    const difficultyLevel = mastery[skill.id]?.difficultyLevel ?? 1;
+    const template = pickTemplateForDifficulty(catalog, skill.id, difficultyLevel);
+    if (!template) return;
+    startLesson({
+      skillId: skill.id, statementText: instantiateTemplate(template), topic: topic.title[settings.locale],
+      curriculumContext: { trackId, topicId: topic.id, skillId: skill.id, difficultyLevel: template.difficultyLevel },
+    });
+  }
+  function changeTrack() {
+    configure({ activeTrackId: '', onboardingDismissed: false });
+  }
   function ask(message: string) {
     const chunks = allChunks(sources);
     const retrievedContext = chunks.length
@@ -210,6 +232,9 @@ export function App() {
     const boards = live.current.boards.filter(b => b.id !== live.current.activeId);
     if (!boards.length) boards.push(newBoard());
     const value = { ...live.current, boards, activeId: boards[0].id }; live.current = value; setSaved(value); setLine(''); setSelectedStep('');
+  }
+  if (!settings.activeTrackId && !settings.onboardingDismissed) {
+    return <Onboarding catalog={catalog} t={t} locale={settings.locale} onSelectTrack={startTrack} onSkip={() => configure({ onboardingDismissed: true })} />;
   }
   return <div className="app-shell">
     <header className="app-header"><strong>{t.title}</strong><span className="save-label">{t.saved}</span>
@@ -239,6 +264,7 @@ export function App() {
     </section>
     <main className="workspace">
       <section className="work-area">
+        {settings.activeTrackId && <TrackBreadcrumb catalog={catalog} trackId={settings.activeTrackId} mastery={mastery} t={t} locale={settings.locale} onChangeTrack={changeTrack} />}
         <div className="problem"><label>{t.task}<textarea rows={2} maxLength={4000} value={board.statement} placeholder={t.taskPlaceholder}
           onChange={e => { stop(false); updateBoard(editTask(board, 'statement', e.target.value)); }} /></label>
           <label>{t.topic}<input value={board.topic} maxLength={200} placeholder={t.topicPlaceholder}

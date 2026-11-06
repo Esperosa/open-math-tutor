@@ -31,11 +31,15 @@ async function mockBridge(page: Page, requests: AnalyzeBoardRequest[], manuals: 
     await route.fulfill({ json: response, headers });
   });
 }
+async function skipOnboarding(page: Page) {
+  await page.getByRole('button', { name: 'Přeskočit, chci jen volnou tabuli', exact: true }).click();
+}
 test('deterministic replay: stroke → settled crop → first error annotations → correction → success', async ({ page }) => {
   const requests: AnalyzeBoardRequest[] = [], manuals: ContinueLessonRequest[] = [];
   const exceptions: string[] = []; page.on('pageerror', e => exceptions.push(e.message));
   await mockBridge(page, requests, manuals);
   await page.goto('/');
+  await skipOnboarding(page);
   await page.getByRole('combobox', { name: 'Poskytovatel', exact: true }).selectOption('codex');
   await page.getByRole('combobox', { name: 'Model', exact: true }).selectOption('replay-model');
   await page.getByText('Nastavení', { exact: true }).click();
@@ -100,6 +104,7 @@ test('test-only delayed bridge replay: Stop aborts in-flight work and calls the 
   const cancels: string[] = [];
   page.on('request', request => { if (request.url().endsWith('/cancel')) cancels.push(request.postDataJSON().requestId); });
   await page.goto('/');
+  await skipOnboarding(page);
   await page.getByRole('combobox', { name: 'Poskytovatel', exact: true }).selectOption('codex');
   await page.getByRole('combobox', { name: 'Model', exact: true }).selectOption('replay-model');
   await page.getByRole('button', { name: 'Zkontrolovat', exact: true }).click();
@@ -131,6 +136,7 @@ test('curriculum mode: picking a skill starts a lesson and a correct check advan
     await route.fulfill({ json: response, headers });
   });
   await page.goto('/');
+  await skipOnboarding(page);
   await page.getByRole('combobox', { name: 'Poskytovatel', exact: true }).selectOption('codex');
   await page.getByRole('combobox', { name: 'Model', exact: true }).selectOption('replay-model');
   await page.getByRole('combobox', { name: 'Kurz', exact: true }).selectOption({ label: 'Přijímačky na střední školu' });
@@ -149,6 +155,7 @@ test('curriculum mode: picking a skill starts a lesson and a correct check advan
 test('real unavailable-bridge state remains usable, persistent, bilingual and responsive', async ({ page }) => {
   // No mocks or bridge server: genuinely exercise connection refusal.
   await page.goto('/');
+  await skipOnboarding(page);
   await expect(page.getByText(/Lokální bridge není dostupný/)).toBeVisible();
   await page.getByRole('textbox', { name: 'Zadání', exact: true }).fill('x + 1 = 3');
   await page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true }).fill('x = 2');

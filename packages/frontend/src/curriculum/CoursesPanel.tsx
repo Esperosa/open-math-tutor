@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
-  getTrackTopics, getTopicSkills, getSkillTemplates, instantiateTemplate, nextUnlockedSkill,
-  isMastered, type CourseCatalog, type CurriculumContext, type Locale, type ProblemTemplate, type Skill,
+  getTrackTopics, getTopicSkills, instantiateTemplate, nextUnlockedSkill, pickTemplateForDifficulty,
+  isMastered, type CourseCatalog, type CurriculumContext, type Locale, type Skill,
 } from '@openmathtutor/shared';
 import type { MessageKey } from '../i18n';
 import type { MasteryMap } from '../curriculumStorage';
@@ -15,13 +15,6 @@ interface Props {
   locale: Locale;
   onStartLesson: (lesson: LessonStart) => void;
   activeSkillId: string | null;
-}
-
-function pickTemplate(catalog: CourseCatalog, skillId: string, difficultyLevel: number): ProblemTemplate | null {
-  const exact = getSkillTemplates(catalog, skillId, difficultyLevel);
-  const pool = exact.length > 0 ? exact : getSkillTemplates(catalog, skillId);
-  if (pool.length === 0) return null;
-  return pool[Math.floor(Math.random() * pool.length)] ?? null;
 }
 
 function masteryLabel(t: Record<MessageKey, string>, skill: Skill, mastery: MasteryMap, unlocked: boolean): string {
@@ -45,7 +38,7 @@ export function CoursesPanel({ catalog, mastery, t, locale, onStartLesson, activ
     if (!track || !topic) return;
     const state = mastery[skill.id];
     const difficultyLevel = state?.difficultyLevel ?? 1;
-    const template = pickTemplate(catalog, skill.id, difficultyLevel);
+    const template = pickTemplateForDifficulty(catalog, skill.id, difficultyLevel);
     if (!template) return;
     const statementText = instantiateTemplate(template);
     onStartLesson({

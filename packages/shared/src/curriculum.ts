@@ -95,3 +95,32 @@ export function nextUnlockedSkill(topicSkills: readonly Skill[], masteredSkillId
   }
   return null;
 }
+
+/** First topic in a track (in order) that still has an unlocked, unmastered skill — where lesson mode should resume. */
+export function nextUnlockedTopic(catalog: CourseCatalog, trackId: string, masteredSkillIds: ReadonlySet<string>): Topic | null {
+  for (const topic of getTrackTopics(catalog, trackId)) {
+    if (nextUnlockedSkill(getTopicSkills(catalog, topic.id), masteredSkillIds)) return topic;
+  }
+  return null;
+}
+
+/** Picks a template for `skillId` at `difficultyLevel`, falling back to any template for that skill if none match exactly. */
+export function pickTemplateForDifficulty(
+  catalog: CourseCatalog,
+  skillId: string,
+  difficultyLevel: number,
+  random: () => number = Math.random,
+): ProblemTemplate | null {
+  const exact = getSkillTemplates(catalog, skillId, difficultyLevel);
+  const pool = exact.length > 0 ? exact : getSkillTemplates(catalog, skillId);
+  if (pool.length === 0) return null;
+  return pool[Math.floor(random() * pool.length)] ?? null;
+}
+
+/** How far a student has gotten through a track: skills mastered out of the track's total. */
+export function trackProgress(catalog: CourseCatalog, trackId: string, masteredSkillIds: ReadonlySet<string>): { masteredCount: number; totalCount: number } {
+  const skillIds = new Set(getTrackTopics(catalog, trackId).flatMap(topic => getTopicSkills(catalog, topic.id).map(s => s.id)));
+  let masteredCount = 0;
+  for (const id of skillIds) if (masteredSkillIds.has(id)) masteredCount++;
+  return { masteredCount, totalCount: skillIds.size };
+}

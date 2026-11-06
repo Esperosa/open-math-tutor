@@ -3,10 +3,17 @@ import { newBoard, renderableActions, type BoardState } from './boardState';
 export interface Settings {
   locale: Locale; theme: 'light' | 'dark'; auto: boolean; voiceEnabled: boolean; voiceURI: string;
   rate: number; provider: ProviderId | ''; model: string; showAI: boolean;
+  /** Track the student picked in the onboarding screen. */
+  activeTrackId: string;
+  /** Shown once until the student picks a track or explicitly skips. */
+  onboardingDismissed: boolean;
 }
 export interface Saved { version: 1; boards: BoardState[]; activeId: string; settings: Settings }
 const KEY = 'openmathtutor.frontend.v1';
-export const defaultSettings: Settings = { locale: 'cs', theme: 'light', auto: false, voiceEnabled: false, voiceURI: '', rate: 1, provider: '', model: '', showAI: true };
+export const defaultSettings: Settings = {
+  locale: 'cs', theme: 'light', auto: false, voiceEnabled: false, voiceURI: '', rate: 1, provider: '', model: '', showAI: true,
+  activeTrackId: '', onboardingDismissed: false,
+};
 export function load(): Saved {
   try {
     const raw = localStorage.getItem(KEY);
