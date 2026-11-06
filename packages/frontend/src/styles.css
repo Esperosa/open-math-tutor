@@ -149,8 +149,13 @@ body { overflow: hidden; }
 .rail { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1); }
 .rail-btn { width: 44px; padding: 0; display: grid; place-items: center; border-color: transparent; background: transparent; }
 .rail-btn.active { background: var(--accent); color: var(--paper); border-color: var(--accent); }
-.row { display: flex; gap: var(--space-2); margin-top: var(--space-3); flex-wrap: wrap; }
-.row button { flex: 1; font-size: 12px; }
+    .row { display: flex; gap: var(--space-2); margin-top: var(--space-3); flex-wrap: wrap; }
+    .row button { flex: 1; font-size: 12px; }
+    /* Offline Piper voice card under the voice select: size hint, progress, cancel */
+    .piper-voice { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+    .piper-voice p { margin: 0; }
+    .piper-voice progress { width: 100%; height: 8px; accent-color: var(--accent); }
+    .piper-voice .row { margin-top: 0; }
 .track-breadcrumb { margin-bottom: 0; }
 .status-dot { margin-right: 0; }
 .math-annotation, .graph-annotation { z-index: 2; }

@@ -38,7 +38,7 @@ Pointa celé aplikace: student píše a kreslí na tabuli (pero, prst, myš) a a
 | 7.1 | Vzory papíru tabule: čistý, kostičkovaný, linkovaný, tečkovaný, školní s okrajem; sledují posun a zoom | ✅ (výběr v Nastavení) |
 | 7.2 | Úvodní karta zadání se nesmí překrývat s menu plátna | ✅ karta se skryje při otevřeném menu |
 | 7.3 | Víc a lepších hlasů: online hlasy prohlížeče (např. Microsoft Natural v Edge) jako volitelná možnost s upozorněním na odesílání textu do cloudu | ✅ |
-| 7.4 | Kvalitní open-source hlasy v prohlížeči (Piper přes @diffusionstudio/vits-web, česká `cs_CZ-jirka` a anglické hlasy), stahování modelu jednou s varováním o velikosti, licence hlasů ověřit a uvést v NOTICE.md | ❌ naplánováno |
+| 7.4 | Kvalitní open-source hlasy v prohlížeči (Piper přes @diffusionstudio/vits-web, česká `cs_CZ-jirka` a anglické hlasy), stahování modelu jednou s varováním o velikosti, licence hlasů ověřit a uvést v NOTICE.md | ✅ skupina „Kvalitní hlasy (Piper, offline)“: `cs_CZ-jirka`, `en_US-lessac`, `en_US-amy`, `en_GB-alba`; stažení jednou (≈60 MB) do OPFS s průběhem a zrušením, pak offline přehrávání ve workeru + Web Audio, záloha na systémový hlas; licence v NOTICE.md |
 | 7.5 | Průchod celým UI/UX znovu a poctivé označení nedodělků (dřívější „hotovo“ neplatí tam, kde to uživatel vidí jinak) | 🟡 průběžně |
 
 ---

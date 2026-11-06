@@ -15,6 +15,7 @@
     "test:pwa": "playwright test --config playwright.pwa.config.ts"
   },
   "dependencies": {
+    "@diffusionstudio/vits-web": "^1.0.3",
     "@excalidraw/excalidraw": "0.18.1",
     "@openmathtutor/content": "0.1.0",
     "@openmathtutor/shared": "0.1.0",

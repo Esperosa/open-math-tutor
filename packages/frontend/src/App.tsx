@@ -17,6 +17,8 @@ import { messages, errorKeys, type MessageKey } from './i18n';
 import { BOARD_PATTERNS, DEFAULT_TOOLS, load, save, type Saved, type Settings } from './storage';
 import { StrokeSettler } from './settle';
 import { useMic, useVoice } from './useVoice';
+import { cancelPiperSpeech } from './piperTts';
+import { downloadPercent, estimateBytes, formatSize } from './piperVoices';
 import { loadProfile, saveProfile } from './profileStorage';
 import { localTeacherActions } from './localTeacher';
 import { computeLineVerdicts, effectiveStatement, markPerStep, writtenLines } from './lines';
@@ -146,7 +148,7 @@ export function App() {
     document.addEventListener('pointerdown', away); document.addEventListener('keydown', esc, true);
     return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc, true); };
   }, []);
-  const voice = useVoice(settings);
+  const voice = useVoice(settings, uri => configure({ voiceURI: uri }));
   const mic = useMic(settings.locale);
   const [settler] = useState(() => new StrokeSettler(() => void analyze.current()));
   const analyze = useRef<() => Promise<void>>(async () => {});
@@ -176,6 +178,7 @@ export function App() {
     pending.current = null;
     request?.controller.abort();
     if (request) void bridge.cancel(request.provider, request.id, AbortSignal.timeout(5000)).catch(() => {});
+    cancelPiperSpeech();
     if ('speechSynthesis' in window) speechSynthesis.cancel();
     setRunning(false);
     if (notify) setStatus('cancelled');
@@ -751,7 +754,20 @@ export function App() {
         <label className="check-label"><input type="checkbox" checked={settings.auto} onChange={e => configure({ auto: e.target.checked })} />{t.consent}</label>
         <button onClick={() => { configure({ activeTrackId: '', onboardingDismissed: false }); setSettingsOpen(false); }}>{t.pickCourseAgain}</button>
         <label>{t.voiceChoice}<select value={voice.voices.some(v => v.voiceURI === settings.voiceURI) ? settings.voiceURI : ''} onChange={e => configure({ voiceURI: e.target.value })}>
-          <option value="">{t.choose}</option>{voice.voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</select></label>
+          <option value="">{t.choose}</option>
+          {voice.systemVoices.length > 0 && <optgroup label={t.voiceSystemGroup}>{voice.systemVoices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</optgroup>}
+          <optgroup label={t.voicePiperGroup}>{voice.piperVoices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</optgroup></select></label>
+        {voice.piper.voice && <div className="piper-voice" data-testid="piper-voice">
+          {voice.piper.status === 'ready'
+            ? <p className="muted" data-testid="piper-ready">{t.piperReady}</p>
+            : voice.piper.status === 'downloading'
+              ? <><progress max={100} value={downloadPercent(voice.piper.loaded, voice.piper.total)} aria-label={t.piperDownload} />
+                  <p className="muted" data-testid="piper-progress">{t.piperProgress.replace('{done}', formatSize(voice.piper.loaded, settings.locale)).replace('{total}', formatSize(voice.piper.total, settings.locale))}</p>
+                  <div className="row"><button onClick={voice.piper.cancel}>{t.piperCancel}</button></div></>
+              : <><p className="muted">{t.piperSize.replace('{mb}', formatSize(estimateBytes(voice.piper.voice), settings.locale))}</p>
+                  {voice.piper.error && <p className="warning" role="alert" data-testid="piper-error">{t[voice.piper.error]}</p>}
+                  <div className="row"><button className="primary" data-testid="piper-download" onClick={voice.piper.start}>{t.piperDownload}</button></div></>}
+        </div>}
         <label>{t.rate} ({settings.rate})<input type="range" min="0.5" max="1.5" step="0.1" value={settings.rate} onChange={e => configure({ rate: Number(e.target.value) })} /></label>
         <label className="check"><input type="checkbox" checked={settings.onlineVoices} onChange={e => configure({ onlineVoices: e.target.checked, voiceURI: '' })} /> {t.onlineVoices}</label>
         {voice.warning && <p className="warning" role="alert">{t[voice.warning]}</p>}
