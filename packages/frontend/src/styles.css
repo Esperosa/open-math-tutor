@@ -383,7 +383,8 @@ body { overflow: hidden; }
 .tutor-handwriting > span { grid-area: 1 / 1; }
 .tutor-text-space { visibility: hidden; }
 .tutor-hud.tutor-visiting, .tutor-hud.tutor-visiting * { pointer-events: none !important; }
-.tutor-visiting .tutor-bubble .row, .tutor-visiting .link-btn { visibility: hidden; }
+.tutor-visiting .tutor-choices, .tutor-visiting .tutor-bubble .row, .tutor-visiting .link-btn { display: none !important; }
+.tutor-visiting .tutor-bubble { width: max-content; max-width: min(320px, calc(100vw - 32px)); min-height: 0; }
 .tutor-visiting .tutor-button { background: transparent; border-color: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 @media (max-width: 700px) {
   .tutor-hud { left: auto; right: 12px; width: calc(100vw - 112px); max-width: 320px; }
@@ -424,7 +425,7 @@ body { overflow: hidden; }
 
 /* Speech bubble, stronger: clear outline, solid fill, lift */
 .tutor-bubble { border: 2px solid color-mix(in srgb, var(--ink) 62%, transparent); border-radius: 24px; background: #fff; box-shadow: 0 10px 28px rgba(20, 30, 30, .22), 0 2px 0 rgba(20, 30, 30, .06);
-  padding: var(--space-3) var(--space-4); margin-bottom: 16px; }
+  padding: var(--space-3) var(--space-4); margin-bottom: 16px; width: max-content; max-width: 100%; min-height: 0; box-sizing: border-box; }
 .tutor-bubble::after { right: 28px; bottom: -13px; width: 20px; height: 20px; background: #fff; border-right: 2px solid color-mix(in srgb, var(--ink) 62%, transparent);
   border-bottom: 2px solid color-mix(in srgb, var(--ink) 62%, transparent); border-bottom-right-radius: 5px; }
 .tutor-bubble-wrong, .tutor-bubble-wrong::after { background: #fff3f1; }
@@ -486,9 +487,9 @@ body:has(.excalidraw .dropdown-menu) .hud-top-left { opacity: 0; pointer-events:
 /* Teacher ink lives in Excalidraw; these are only small, keyboard-accessible
    deletion handles. They never intercept the student's text or pen strokes. */
 .teacher-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
-.teacher-note-delete { position: absolute; pointer-events: auto; width: 28px; height: 28px; padding: 0; border: 1px solid transparent; background: transparent; color: #087f8c; opacity: 0.5; border-radius: 50%; line-height: 1; }
-.teacher-note-delete:hover, .teacher-note-delete:focus-visible { opacity: 1; border-color: currentColor; background: var(--surface, #fff); }
-[data-theme="dark"] .teacher-note-delete { color: #79d5df; }
+.teacher-note-delete { position: absolute; pointer-events: auto; width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(8, 127, 140, 0.35); background: var(--surface, #fff); color: #087f8c; opacity: 0.85; border-radius: 50%; line-height: 1; box-shadow: 0 1px 3px rgba(0,0,0,0.15); cursor: pointer; transition: opacity 0.15s, transform 0.15s, border-color 0.15s; }
+.teacher-note-delete:hover, .teacher-note-delete:focus-visible { opacity: 1; border-color: #087f8c; background: var(--surface, #fff); transform: scale(1.1); }
+[data-theme="dark"] .teacher-note-delete { background: #1f2a2a; color: #79d5df; border-color: rgba(121, 213, 223, 0.4); }
 
 /* ---- live mentor: gaze, states, micro-animations, conversation ---- */
 .tutor-track { transform: translate(calc(var(--gaze-x, 0) * 2.4px), calc(var(--gaze-y, 0) * 1.6px)); transition: transform 140ms ease-out; }
@@ -569,3 +570,4 @@ body:has(.excalidraw .dropdown-menu) .hud-top-left { opacity: 0; pointer-events:
 .chat-form button { min-height: 38px; padding: 0 12px; }
 .chat-mic { width: 40px; min-height: 40px; padding: 0; border-radius: 50%; display: grid; place-items: center; }
 @media (max-width: 700px) { .chat { max-height: 52vh; } .chat-log { max-height: 26vh; } }
+

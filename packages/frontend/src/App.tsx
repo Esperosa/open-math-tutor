@@ -159,6 +159,7 @@ export function App() {
   const [lessonSkillId, setLessonSkillId] = useState<string | null>(null);
   const [sources, setSources] = useState(loadSources);
   const locateStep = useCallback((id: string) => editor.current?.stepViewportRect(id) ?? null, []);
+  const locateObstacles = useCallback(() => editor.current?.contentViewportRects() ?? [], []);
   const provider = providers.find(p => p.id === settings.provider);
   const model = provider?.models.find(m => m.id === settings.model);
   const canRequest = connected && !!provider?.detect.installed && !!provider.authStatus.authenticated && !!model;
@@ -826,7 +827,7 @@ export function App() {
           <h2 className="h2-muted">{t.annotations}</h2><p className="muted">{t.annotationReveal}</p><ul className="annotations-list">{board.annotations.map((a, i) => <li key={a.id} data-testid="annotation-item">
             <span>{t.aiBadge} {i + 1}</span><button onClick={() => { stop(false); updateBoard(removeAnnotation(board, a.id)); }}>{t.undoAnnotation} {i + 1}</button></li>)}</ul></section>
       </aside>
-      <TutorHud key={board.id} locateStep={locateStep} t={t} locale={settings.locale} activity={activity} slow={slow} celebrate={message?.kind === 'solved'}
+      <TutorHud key={board.id} locateStep={locateStep} locateObstacles={locateObstacles} writing={phase === 'writing'} t={t} locale={settings.locale} activity={activity} slow={slow} celebrate={message?.kind === 'solved'}
         quiet={settingsOpen || calcOpen || !!openPanel} mood={mood} speaking={voice.speaking} message={shownMessage} menuOpen={tutorMenu} running={running} canRequest={canRequest}
         answerChips={answeredByAi ? ['understand', 'lost'] : undefined} onChip={chatChip}
         chat={{ open: chatOpen, onToggle: toggleChat, locale: settings.locale, thread: chat.thread, chips, busy: running, slow, large: chatLarge,
@@ -845,3 +846,4 @@ export function App() {
     </div>
   </div>;
 }
+
