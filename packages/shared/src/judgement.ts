@@ -27,9 +27,13 @@ export function judgeLines(statement: string, lines: readonly JudgedLine[], expe
     // Arithmetic correctness alone is not task correctness for a word problem.
     if (expected?.wordProblem && verdict.status === 'ok' && !final) verdict = { status: 'unknown' };
     if (expected?.wordProblem && expected.givens?.length && verdict.status === 'ok') {
-      const computations = line.latexGuess.split('=').slice(0, -1).filter(part => /\d\s*[+\-*/:]/.test(part));
+      const computations = line.latexGuess.split('=').slice(0, -1).filter(part => /[+\-*/:]/.test(part) && /\d/.test(part));
       const permitted = [...expected.givens, ...conversionNumbers(task, expected.unit)];
-      if (computations.some(part => numbersIn(part).some(n => !permitted.some(g => Math.abs(n - Math.abs(g)) < 1e-9)))) {
+      if (computations.some(part => {
+        const operands = numbersIn(part);
+        return operands.some(n => !permitted.some(g => Math.abs(n - Math.abs(g)) < 1e-9))
+          || !operands.some(n => expected.givens!.some(g => Math.abs(n - Math.abs(g)) < 1e-9));
+      })) {
         verdict = { status: 'unknown' };
       }
     }

@@ -142,7 +142,11 @@ export function answerFromLine(line: string): number | null {
   }
   const prefix = (/^[\d\s.,+\-−*×·/^()%]+/.exec(tail)?.[0] ?? "").replace(/·/g, "*").replace(/\s*%\s*$/, "").trim();
   if (prefix && /\d/.test(prefix)) {
-    try { return calcEvaluate(prefix); } catch (e) { if (!(e instanceof CalcError)) throw e; }
+    try { return calcEvaluate(prefix); } catch (e) {
+      if (!(e instanceof CalcError)) throw e;
+      // An invalid expression is not its first number (notably 4/0 != 4).
+      return null;
+    }
   }
   const tokens = tail.match(NUMBER);
   return tokens?.length ? numberValue(tokens[0]!) : null;
