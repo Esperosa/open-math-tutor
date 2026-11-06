@@ -48,7 +48,19 @@ switches UI state on these codes, so they must be exact string matches.
 Body: `ContinueLessonRequest`. Response: `AnalyzeBoardResponse`. Same error
 contract as above. Used for the manual "Zkontrolovat" (`check`), "Poradit"
 (`hint`), "Ukaž další krok" (`next_step`), "Vysvětli jinak"
-(`explain_differently`) buttons via `mode`.
+(`explain_differently`) buttons via `mode`, plus two curriculum-era modes:
+
+- `"ask"` — free-text student question (`studentMessage`), e.g. "nechápu
+  proč se mění znaménko". May carry `retrievedContext` (top-k chunks from
+  the student's own uploaded sources, for the NotebookLM-style custom
+  track) — these are untrusted document text, never treated as verified
+  math fact; any mathematical claim in the response still only becomes
+  "correct" via the independent `/verify-step` call, never via retrieval
+  alone.
+- `"next_problem"` — proactive lesson-mode step: the request carries
+  `curriculumContext` (`trackId`/`topicId`/`skillId`/`difficultyLevel`) so
+  the provider can introduce or continue teaching that skill rather than
+  only reacting to the board.
 
 ## `POST /providers/:id/cancel`
 
