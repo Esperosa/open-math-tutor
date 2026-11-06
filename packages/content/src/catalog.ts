@@ -226,6 +226,24 @@ const tracks: Track[] = [
     topicIds: [TOPIC_NUMBERS, TOPIC_LINEAR, TOPIC_LINEAR_ADVANCED, TOPIC_FRACTIONS, "mocniny-a-vyrazy", "soustavy-rovnic"],
   },
   {
+    id: "fyzika",
+    title: { cs: "Fyzika — výpočty a schémata", en: "Physics — calculations and diagrams" },
+    description: {
+      cs: "Rychlost, síla, práce, tlak a elektřina: číselné úlohy s okamžitou kontrolou výsledku a kreslení schémat. Vlastní výběr látky, ne oficiální osnova.",
+      en: "Speed, force, work, pressure and electricity: numeric problems with instant answer checking and diagram drawing. A selection of our own, not an official syllabus.",
+    },
+    examFamily: "fyzika", subject: "physics", calculator: "scientific", unofficial: true, topicIds: ["fy-mechanika", "fy-elektrina"],
+  },
+  {
+    id: "chemie",
+    title: { cs: "Chemie — výpočty a vzorce", en: "Chemistry — calculations and formulas" },
+    description: {
+      cs: "Molární hmotnost, látkové množství, koncentrace a stechiometrie s kontrolou výsledku, plus vyčíslování rovnic a kreslení vzorců. Vlastní výběr látky, ne oficiální osnova.",
+      en: "Molar mass, amount of substance, concentration and stoichiometry with answer checking, plus balancing equations and drawing formulas. A selection of our own, not an official syllabus.",
+    },
+    examFamily: "chemie", subject: "chemistry", calculator: "scientific", unofficial: true, topicIds: ["ch-latkove-mnozstvi"],
+  },
+  {
     id: "vs-analyza",
     title: { cs: "VŠ — Matematická analýza", en: "University — Calculus" },
     description: {

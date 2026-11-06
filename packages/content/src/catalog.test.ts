@@ -156,3 +156,24 @@ describe("catalog walkability per track", () => {
     });
   }
 });
+
+describe("expected answers", () => {
+  it("every answerTemplate evaluates to a finite number at min, mid and max of the generator ranges", async () => {
+    const { calcEvaluate } = await import("@openmathtutor/shared");
+    for (const template of catalog.problemTemplates.filter(t => t.answerTemplate)) {
+      for (const pick of [(min: number) => min, (min: number, max: number) => Math.round((min + max) / 2), (_min: number, max: number) => max]) {
+        let formula = template.answerTemplate!;
+        for (const [name, [min, max]] of Object.entries(template.generatorRanges ?? {})) formula = formula.split(`{${name}}`).join(`(${pick(min, max)})`);
+        expect(Number.isFinite(calcEvaluate(formula)), `${template.id}: ${formula}`).toBe(true);
+      }
+    }
+  });
+  it("physics and chemistry tracks are mostly answer-checked and say which skills are drawings", async () => {
+    const { skillCheckLevel } = await import("@openmathtutor/shared");
+    for (const trackId of ["fyzika", "chemie"]) {
+      const skills = getTrackTopics(catalog, trackId).flatMap(tp => tp.skillIds).map(id => catalog.skills.find(s => s.id === id)!);
+      expect(skills.filter(s => skillCheckLevel(catalog, s) === "answer").length).toBeGreaterThanOrEqual(4);
+      for (const skill of skills.filter(s => skillCheckLevel(catalog, s) === "none")) expect(skill.drawing === true || skill.id === "ch-balance", skill.id).toBe(true);
+    }
+  });
+});

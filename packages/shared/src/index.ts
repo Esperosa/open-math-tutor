@@ -7,3 +7,6 @@ export * from "./mastery.js";
 export * from "./retrieval.js";
 export * from "./stepCheck.js";
 export * from "./calc.js";
+export * from "./answers.js";
+export * from "./coach.js";
+export * from "./learnerProfile.js";

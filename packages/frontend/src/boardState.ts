@@ -1,3 +1,4 @@
+import type { ExpectedAnswer } from '@openmathtutor/shared';
 import { validateBoardActions, type BoardAction, type AnalyzeBoardResponse, type RecognizedStep } from '@openmathtutor/shared';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import type { BinaryFiles } from '@excalidraw/excalidraw/types';
@@ -13,6 +14,13 @@ export interface BoardState {
   elements: readonly ExcalidrawElement[]; files: BinaryFiles;
   steps: Step[]; annotations: BoardAction[]; history: Explanation[];
   activeStepId: string | null;
+  /** Lesson context: which skill this problem practises and the programmatically computed answer, if any. */
+  skillId?: string;
+  expected?: ExpectedAnswer;
+  /** First judgement of the finished problem (used once for mastery). */
+  outcome?: 'solved' | 'failed';
+  /** Lines the coach has already reacted to, so a reload does not judge them again. */
+  handled?: string[];
 }
 export function newBoard(): BoardState {
   return { id: crypto.randomUUID(), revision: 0, statement: '', topic: '', elements: [], files: {},

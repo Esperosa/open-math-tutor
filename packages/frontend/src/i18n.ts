@@ -60,6 +60,11 @@ export const cs = {
   hintCourses: 'Vyber kurz, téma a dovednost, nebo hledej (Ctrl+K). Appka ti dá úlohu na míru.', hintAsk: 'Zeptej se na cokoli, nebo nahraj fotku úlohy.', hintMaterials: 'Nahraj vlastní poznámky, appka z nich bude čerpat.',
   hintExercises: 'Přepínej mezi příklady, přidej nový nebo smaž ten aktuální.', hintHistory: 'Všechno, co ti AI vysvětlila, i její poznámky na tabuli.', hintNotes: 'Co ti jde a co ne, export zápisků a studijní text pro tebe.',
   hintSettings: 'Jazyk, vzhled, model AI, hlas a soukromí.', hintCalc: 'Kalkulačka podle toho, co je u zkoušky povoleno.',
+  coachLive: 'Průběžně', coachFinal: 'Až na konec', coachOff: 'Vypnuto', coachModeLabel: 'Jak mám hlídat tvoje počítání',
+  coachLiveHint: 'Kontroluju každý řádek hned, jak ho napíšeš.', coachFinalHint: 'Počkám, až napíšeš výsledek, a pak zkontroluju postup.', coachOffHint: 'Nebudu zasahovat, dokud si neřekneš.',
+  tutorMenu: 'Učitel', nextProblem: 'Další příklad', askTeacher: 'Ať se podívá učitel', tutorSpeaks: 'Učitel mluví nahlas', micAsk: 'Zeptat se hlasem', micListening: 'Poslouchám…',
+  taskEmpty: 'Klikni na tabuli a napiš příklad. Já ho budu hlídat.', taskEdit: 'Upravit zadání', taskDone: 'Hotovo', tutorThinking: 'Přemýšlím…',
+  whoScience: 'Chci počítat a kreslit fyziku nebo chemii', whoScienceHint: 'Rychlost, síla, elektřina, mol, roztoky. Výsledky kontroluju hned.',
   onboardingSkip: 'Přeskočit, chci jen volnou tabuli', trackComplete: 'vše zvládnuto', changeTrack: 'Změnit kurz',
 } as const;
 export type MessageKey = keyof typeof cs;
@@ -123,6 +128,11 @@ export const en: Record<MessageKey, string> = {
   hintCourses: 'Pick a course, topic and skill, or search (Ctrl+K). You get a problem made for you.', hintAsk: 'Ask anything, or upload a photo of a problem.', hintMaterials: 'Upload your own notes; the app draws on them.',
   hintExercises: 'Switch between problems, add a new one or delete the current one.', hintHistory: 'Everything the AI explained, and its notes on the board.', hintNotes: 'What goes well and what does not, notes export and a study text for you.',
   hintSettings: 'Language, look, AI model, voice and privacy.', hintCalc: 'A calculator matching what the exam allows.',
+  coachLive: 'As I go', coachFinal: 'At the end', coachOff: 'Off', coachModeLabel: 'How should I watch your work',
+  coachLiveHint: 'I check every line as soon as you write it.', coachFinalHint: 'I wait until you write a result, then check the working.', coachOffHint: 'I stay quiet until you ask.',
+  tutorMenu: 'Teacher', nextProblem: 'Next problem', askTeacher: 'Let the teacher look', tutorSpeaks: 'Teacher speaks aloud', micAsk: 'Ask by voice', micListening: 'Listening…',
+  taskEmpty: 'Click the board and write a problem. I will keep an eye on it.', taskEdit: 'Edit the task', taskDone: 'Done', tutorThinking: 'Thinking…',
+  whoScience: 'I want to calculate and draw physics or chemistry', whoScienceHint: 'Speed, force, electricity, moles, solutions. I check results at once.',
   onboardingSkip: 'Skip, I just want the free board', trackComplete: 'all done', changeTrack: 'Change track',
 };
 export const messages: Record<Locale, Record<MessageKey, string>> = { cs, en };

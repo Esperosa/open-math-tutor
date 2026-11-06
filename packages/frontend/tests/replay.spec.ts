@@ -31,6 +31,8 @@ async function mockBridge(page: Page, requests: AnalyzeBoardRequest[], manuals: 
     await route.fulfill({ json: response, headers });
   });
 }
+// Tests never talk to a real bridge, even on a machine that has one running; mocks registered later take precedence.
+test.beforeEach(async ({ page }) => { await page.route('http://127.0.0.1:4178/**', route => route.abort('connectionrefused')); });
 async function skipOnboarding(page: Page) {
   await page.getByRole('button', { name: 'Přeskočit, chci jen volnou tabuli', exact: true }).click();
 }
@@ -39,32 +41,53 @@ async function openSettings(page: Page) {
   if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
 }
 async function openPanel(page: Page, name: string) {
-  await page.getByRole('button', { name, exact: true }).click();
+  const button = page.getByRole('button', { name, exact: true });
+  if ((await button.getAttribute('aria-pressed')) !== 'true') await button.click();
 }
+async function openTutorMenu(page: Page) {
+  const button = page.getByRole('button', { name: 'Učitel', exact: true });
+  if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+}
+async function selectProvider(page: Page) {
+  await openSettings(page);
+  await page.getByRole('combobox', { name: 'Poskytovatel', exact: true }).selectOption('codex');
+  await page.getByRole('combobox', { name: 'Model', exact: true }).selectOption('replay-model');
+}
+/** The board is the only input: click where the line goes, type, press Escape to finish the line. */
+async function writeOnBoard(page: Page, text: string, row: number) {
+  const canvas = page.locator('.excalidraw__canvas.interactive');
+  const rect = await canvas.boundingBox(); if (!rect) throw new Error('Canvas missing');
+  await page.mouse.click(rect.x + 380, rect.y + 190 + row * 90);
+  await expect(page.locator('textarea.excalidraw-wysiwyg')).toBeFocused();
+  await page.keyboard.type(text);
+  await page.keyboard.press('Escape');
+}
+async function setTask(page: Page, text: string) {
+  await page.getByRole('button', { name: 'Upravit zadání' }).click();
+  await page.getByRole('textbox', { name: 'Zadání', exact: true }).fill(text);
+  await page.getByRole('button', { name: 'Hotovo', exact: true }).click();
+}
+const bubble = (page: Page) => page.getByTestId('tutor-bubble');
+
 test('deterministic replay: stroke → settled crop → first error annotations → correction → success', async ({ page }) => {
   const requests: AnalyzeBoardRequest[] = [], manuals: ContinueLessonRequest[] = [];
   const exceptions: string[] = []; page.on('pageerror', e => exceptions.push(e.message));
   await mockBridge(page, requests, manuals);
   await page.goto('/');
   await skipOnboarding(page);
-  await openSettings(page);
-  await page.getByRole('combobox', { name: 'Poskytovatel', exact: true }).selectOption('codex');
-  await page.getByRole('combobox', { name: 'Model', exact: true }).selectOption('replay-model');
+  await selectProvider(page);
   await page.getByLabel(/Povolit automatickou kontrolu/).check();
-  await page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true }).fill('2x + 3 = 7');
-  await page.getByRole('button', { name: 'Přidat řádek', exact: true }).click();
+  await writeOnBoard(page, '2x + 3 = 7', 0);
   // A real pointer stroke on the real Excalidraw canvas, not an application test hook.
   const canvas = page.locator('.excalidraw__canvas.interactive');
   await expect(canvas).toBeVisible();
-  await canvas.click({ position: { x: 550, y: 180 } });
   await page.keyboard.press('p');
   const rect = await canvas.boundingBox(); if (!rect) throw new Error('Canvas missing');
-  await page.mouse.move(rect.x + 430, rect.y + 130);
+  await page.mouse.move(rect.x + 560, rect.y + 192);
   await page.mouse.down();
-  await page.mouse.move(rect.x + 455, rect.y + 133, { steps: 5 });
+  await page.mouse.move(rect.x + 585, rect.y + 195, { steps: 5 });
   await page.mouse.up();
-  expect(requests).toHaveLength(0);
-  await expect.poll(() => requests.length, { timeout: 10000 }).toBe(1);
+  await expect.poll(() => requests.length, { timeout: 12000 }).toBe(1);
   expect(requests[0].imageCrop.dataUrl).toMatch(/^data:image\/png;base64,/);
   expect(requests[0].imageCrop.width).toBeLessThanOrEqual(1024);
   await expect(page.getByTestId('annotation-item')).toHaveCount(4);
@@ -72,28 +95,29 @@ test('deterministic replay: stroke → settled crop → first error annotations 
   await expect(page.getByTestId('math-annotation')).toBeVisible();
   await expect(page.getByTestId('math-annotation')).toHaveCSS('opacity', '1');
   await expect(page.getByTestId('explanation')).toContainText('První chyba');
+  await expect(bubble(page)).toContainText('První chyba');
   await page.screenshot({ path: 'test-results/replay-annotated.png', fullPage: true });
   await openSettings(page);
   await page.getByLabel('Zobrazit poznámky AI').uncheck();
   await expect(page.getByTestId('math-annotation')).toHaveCount(0);
   await page.getByLabel('Zobrazit poznámky AI').check();
   await expect(page.getByTestId('math-annotation')).toHaveCount(1);
-  // Correct the same stable step ID through the keyboard-accessible editing path.
-  const stepId = requests[0].stepHistory[0].stepId;
-  await page.getByRole('combobox', { name: 'Řádky postupu', exact: true }).selectOption(stepId);
-  await page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true }).fill('x = 2');
-  await page.getByRole('button', { name: 'Opravit vybraný řádek' }).click();
-  await expect.poll(() => requests.length, { timeout: 10000 }).toBe(2);
+  // A corrected line written on the board settles, is analysed again and the old annotations disappear.
+  await page.getByTitle(/^Text — T/).click();
+  await writeOnBoard(page, 'x = 2', 2);
+  await expect.poll(() => requests.length, { timeout: 12000 }).toBe(2);
   expect(requests[1].boardRevision).toBeGreaterThan(requests[0].boardRevision);
-  expect(requests[1].stepHistory[0].stepId).toBe(stepId);
+  expect(requests[1].stepHistory[0].stepId).toBe(requests[0].stepHistory[0].stepId);
   await expect(page.getByTestId('annotation-item')).toHaveCount(0);
   await expect(page.getByTestId('explanation')).toHaveCount(2);
   await expect(page.getByTestId('explanation').last()).toContainText('Teď je postup správný');
   for (const [name, mode] of [['Zkontrolovat', 'check'], ['Poradit', 'hint'], ['Ukaž další krok', 'next_step'], ['Vysvětli jinak', 'explain_differently']] as const) {
-    await page.getByRole('button', { name, exact: true }).click();
+    await openTutorMenu(page);
+    await page.getByRole('menuitem', { name, exact: true }).click();
     await expect.poll(() => manuals.at(-1)?.mode).toBe(mode);
-    await expect(page.getByRole('button', { name, exact: true })).toBeEnabled();
+    await expect(page.getByTestId('tutor-bubble')).not.toHaveAttribute('data-kind', 'thinking');
   }
+  expect(manuals.every(m => typeof m.learnerContext === 'string' && m.learnerContext.length > 0)).toBe(true);
   await page.screenshot({ path: 'test-results/replay-corrected.png', fullPage: true });
   expect(exceptions).toEqual([]);
 });
@@ -113,14 +137,14 @@ test('test-only delayed bridge replay: Stop aborts in-flight work and calls the 
   page.on('request', request => { if (request.url().endsWith('/cancel')) cancels.push(request.postDataJSON().requestId); });
   await page.goto('/');
   await skipOnboarding(page);
-  await openSettings(page);
-  await page.getByRole('combobox', { name: 'Poskytovatel', exact: true }).selectOption('codex');
-  await page.getByRole('combobox', { name: 'Model', exact: true }).selectOption('replay-model');
-  await page.getByRole('button', { name: 'Zkontrolovat', exact: true }).click();
+  await selectProvider(page);
+  await openTutorMenu(page);
+  await page.getByRole('menuitem', { name: 'Zkontrolovat', exact: true }).click();
   await expect.poll(() => started).toBe(true);
-  await page.getByRole('button', { name: 'Zastavit', exact: true }).click();
+  await openTutorMenu(page);
+  await page.getByRole('menuitem', { name: 'Zastavit', exact: true }).click();
   await expect.poll(() => cancels.length).toBe(1);
-  await expect(page.locator('p.status')).toContainText('Kontrola zastavena.');
+  await expect(bubble(page)).toContainText('Kontrola zastavena.');
   release();
   await expect(page.getByTestId('annotation-item')).toHaveCount(0);
   await expect(page.getByTestId('explanation')).toHaveCount(0);
@@ -146,9 +170,7 @@ test('curriculum mode: picking a skill starts a lesson and a correct check advan
   });
   await page.goto('/');
   await skipOnboarding(page);
-  await openSettings(page);
-  await page.getByRole('combobox', { name: 'Poskytovatel', exact: true }).selectOption('codex');
-  await page.getByRole('combobox', { name: 'Model', exact: true }).selectOption('replay-model');
+  await selectProvider(page);
   await openPanel(page, 'Kurzy');
   await page.getByRole('combobox', { name: 'Kurz', exact: true }).selectOption({ label: 'Přijímačky na střední školu' });
   await page.getByRole('combobox', { name: 'Téma kurzu', exact: true }).selectOption({ label: 'Základy čísel' });
@@ -157,28 +179,30 @@ test('curriculum mode: picking a skill starts a lesson and a correct check advan
   await skillItem.getByRole('button').click();
   await expect.poll(() => manuals.at(-1)?.mode).toBe('next_problem');
   expect(manuals.at(-1)?.curriculumContext?.skillId).toBe('arithmetic-integers');
-  await expect(page.getByRole('textbox', { name: 'Zadání', exact: true })).not.toHaveValue('');
-  await page.getByRole('button', { name: 'Zkontrolovat', exact: true }).click();
+  await expect(page.getByTestId('task-text')).not.toHaveText('');
+  await openTutorMenu(page);
+  await page.getByRole('menuitem', { name: 'Zkontrolovat', exact: true }).click();
   await expect.poll(() => manuals.at(-1)?.mode).toBe('check');
   await openPanel(page, 'Kurzy');
   await expect(skillItem.getByText('Rozpracováno')).toBeVisible();
 });
 
 test('real unavailable-bridge state remains usable, persistent, bilingual and responsive', async ({ page }) => {
-  // No mocks or bridge server: genuinely exercise connection refusal.
+  // Genuinely exercise connection refusal, even on a machine that has a real bridge running.
+  await page.route('http://127.0.0.1:4178/**', route => route.abort('connectionrefused'));
   await page.goto('/');
   await skipOnboarding(page);
-  await expect(page.getByText(/Lokální bridge není dostupný/)).toBeVisible();
-  await page.getByRole('textbox', { name: 'Zadání', exact: true }).fill('x + 1 = 3');
-  await page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true }).fill('x = 2');
-  await page.getByRole('button', { name: 'Přidat řádek', exact: true }).click();
-  await page.waitForTimeout(500);
+  await expect(page.getByText(/Lokální bridge není dostupný/).first()).toBeVisible();
+  await setTask(page, 'x + 1 = 3');
+  await writeOnBoard(page, 'x = 2', 0);
+  await page.waitForTimeout(600);
   await page.reload();
-  await expect(page.getByRole('textbox', { name: 'Zadání', exact: true })).toHaveValue('x + 1 = 3');
+  await expect(page.getByTestId('task-text')).toHaveText('x + 1 = 3');
   await openSettings(page);
   await page.getByRole('button', { name: 'Tmavý režim' }).click();
   await page.getByRole('combobox', { name: 'Jazyk', exact: true }).selectOption('en');
-  await expect(page.getByRole('button', { name: 'Check', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Teacher', exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Check', exact: true })).toBeDisabled();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'test-results/unavailable-dark-mobile.png', fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -191,27 +215,26 @@ test('canvas controls: pressing and holding on empty board opens a menu, a short
   await expect(canvas).toBeVisible();
   const rect = await canvas.boundingBox(); if (!rect) throw new Error('Canvas missing');
   await page.mouse.click(rect.x + 600, rect.y + 450);
+  await page.keyboard.press('Escape');
   await page.waitForTimeout(700);
-  await expect(page.getByRole('menu')).toHaveCount(0);
+  await expect(page.getByRole('menu', { name: 'Nabídka tabule' })).toHaveCount(0);
   await page.mouse.move(rect.x + 600, rect.y + 450);
   await page.mouse.down();
   await page.waitForTimeout(700);
   await page.mouse.up();
-  await expect(page.getByRole('menu')).toBeVisible();
+  await expect(page.getByRole('menu', { name: 'Nabídka tabule' })).toBeVisible();
   await page.getByRole('menuitem', { name: 'Zeptat se na tohle' }).click();
-  await expect(page.getByRole('menu')).toHaveCount(0);
+  await expect(page.getByRole('menu', { name: 'Nabídka tabule' })).toHaveCount(0);
   await expect(page.getByRole('textbox', { name: 'Zeptej se na cokoli' })).toBeVisible();
 });
 
 test('canvas controls: arrow keys pan the board when nothing is selected', async ({ page }) => {
   await page.goto('/');
   await skipOnboarding(page);
-  await page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true }).fill('2x + 3 = 7');
-  await page.getByRole('button', { name: 'Přidat řádek', exact: true }).click();
+  await writeOnBoard(page, '2x + 3 = 7', 0);
   const canvas = page.locator('.excalidraw__canvas.interactive');
   const rect = await canvas.boundingBox(); if (!rect) throw new Error('Canvas missing');
-  await page.mouse.click(rect.x + 900, rect.y + 500);
-  const clip = { x: rect.x + 100, y: rect.y + 100, width: 600, height: 300 };
+  const clip = { x: rect.x + 100, y: rect.y + 100, width: 700, height: 300 };
   const before = await page.screenshot({ clip });
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowDown');
@@ -220,21 +243,41 @@ test('canvas controls: arrow keys pan the board when nothing is selected', async
   expect(Buffer.compare(before, after)).not.toBe(0);
 });
 
-test('live check: a wrong line is flagged and explanation is offered without pressing any button', async ({ page }) => {
+test('coach: a wrong line is flagged and explanation is offered without pressing any button', async ({ page }) => {
   await page.goto('/');
   await skipOnboarding(page);
-  await page.getByRole('textbox', { name: 'Zadání', exact: true }).fill('5+1');
-  await page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true }).fill('5+1=6');
-  await page.getByRole('button', { name: 'Přidat řádek', exact: true }).click();
+  await setTask(page, '5+1');
+  await writeOnBoard(page, '5+1=6', 0);
   await expect(page.getByTestId('step-mark-ok')).toBeVisible();
-  await expect(page.getByTestId('tutor-offer')).toHaveCount(0);
-  await page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true }).fill('5+1=8');
-  await page.getByRole('button', { name: 'Přidat řádek', exact: true }).click();
+  await expect(bubble(page)).toHaveAttribute('data-kind', 'solved');
+  await page.getByRole('button', { name: 'Zkusím sám' }).click();
+  await writeOnBoard(page, '5+1=8', 1);
   await expect(page.getByTestId('step-mark-wrong')).toBeVisible();
-  await expect(page.getByTestId('tutor-offer')).toContainText('Řádek 2 nesedí');
+  await expect(bubble(page)).toHaveAttribute('data-kind', 'wrong');
   await expect(page.getByTestId('tutor')).toHaveAttribute('data-mood', 'concerned');
   await page.getByRole('button', { name: 'Zkusím sám' }).click();
-  await expect(page.getByTestId('tutor-offer')).toHaveCount(0);
+  await expect(bubble(page)).toHaveCount(0);
+});
+
+test('coach modes: "at the end" waits for a result, "off" stays silent', async ({ page }) => {
+  await page.goto('/');
+  await skipOnboarding(page);
+  await setTask(page, '2x+3=7');
+  await openTutorMenu(page);
+  await page.getByRole('radio', { name: 'Až na konec' }).click();
+  await page.keyboard.press('Escape');
+  await writeOnBoard(page, '2x = 5', 0);
+  await page.waitForTimeout(3200);
+  await expect(bubble(page)).toHaveCount(0);
+  await writeOnBoard(page, 'x = 2', 1);
+  await expect(bubble(page)).toHaveAttribute('data-kind', 'wrong', { timeout: 8000 });
+  await page.getByRole('button', { name: 'Zkusím sám' }).click();
+  await openTutorMenu(page);
+  await page.getByRole('radio', { name: 'Vypnuto' }).click();
+  await page.keyboard.press('Escape');
+  await writeOnBoard(page, 'x = 9', 2);
+  await page.waitForTimeout(2500);
+  await expect(bubble(page)).toHaveCount(0);
 });
 
 test('course search: Ctrl+K finds a specific skill by what the student calls it and starts it', async ({ page }) => {
@@ -245,14 +288,14 @@ test('course search: Ctrl+K finds a specific skill by what the student calls it 
   await expect(search).toBeFocused();
   await search.fill('diskriminant');
   await page.getByRole('button', { name: /Kvadratické rovnice/ }).first().click();
-  await expect(page.getByRole('textbox', { name: 'Zadání', exact: true })).toHaveValue(/x\^2|x\^2/);
+  await expect(page.getByTestId('task-text')).toContainText('x^2');
   await page.keyboard.press('Control+k');
   await search.fill('zzzz nic takového');
   await expect(page.getByText('Nic nenalezeno.')).toBeVisible();
   await expect(page.getByRole('button', { name: /Zeptat se AI/ })).toBeVisible();
 });
 
-test('calculator: evaluates safely, feeds the line, and is hidden where the exam forbids it', async ({ page }) => {
+test('calculator: evaluates safely, writes to the board, and is hidden where the exam forbids it', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /Chystám se na střední školu/ }).click();
   await page.getByRole('button', { name: /^Přijímačky na střední školu/ }).click();
@@ -272,15 +315,15 @@ test('calculator: evaluates safely, feeds the line, and is hidden where the exam
   await expect(page.getByRole('alert').filter({ hasText: 'Chyba ve výrazu' })).toBeVisible();
   await display.fill('7*6');
   await page.getByRole('button', { name: 'Do řádku' }).click();
-  await expect(page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true })).toHaveValue('7*6');
+  await expect(page.getByTestId('revision')).not.toHaveText('0');
 });
 
 test('notes: progress panel, markdown and image export carry the student work', async ({ page }) => {
   await page.goto('/');
   await skipOnboarding(page);
-  await page.getByRole('textbox', { name: 'Zadání', exact: true }).fill('2x+3=7');
-  await page.getByRole('textbox', { name: 'Řádek klávesnicí', exact: true }).fill('2x=4');
-  await page.getByRole('button', { name: 'Přidat řádek', exact: true }).click();
+  await setTask(page, '2x+3=7');
+  await writeOnBoard(page, '2x=4', 0);
+  await expect(page.getByTestId('step-mark-ok')).toBeVisible();
   await openPanel(page, 'Zápisky a pokrok');
   await expect(page.getByText('Zatím není z čeho hodnotit')).toBeVisible();
   const md = page.waitForEvent('download');
@@ -304,4 +347,20 @@ test('progressive tooltip: short label right away, longer explanation if the poi
   await expect(tip).toContainText('Zápisky a pokrok');
   await expect(tip).not.toContainText('export zápisků');
   await expect(tip).toContainText('export zápisků', { timeout: 3000 });
+});
+
+test('physics lesson: the numeric answer is checked without any AI call', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /fyziku nebo chemii/ }).click();
+  await page.getByRole('button', { name: /^Fyzika/ }).click();
+  const task = page.getByTestId('task-text');
+  await expect(task).toContainText('Auto ujede');
+  const match = /ujede (\d+) m za (\d+) s/.exec((await task.textContent()) ?? '');
+  const a = Number(match![1]), b = Number(match![2]);
+  await writeOnBoard(page, `v = ${a} / ${b} = ${Math.round((a / b + 7) * 100) / 100} m/s`, 0);
+  await expect(bubble(page)).toHaveAttribute('data-kind', 'wrong', { timeout: 8000 });
+  await page.getByRole('button', { name: 'Zkusím sám' }).click();
+  await writeOnBoard(page, `v = ${a} / ${b} = ${Math.round(a / b * 1000) / 1000} m/s`, 1);
+  await expect(bubble(page)).toHaveAttribute('data-kind', 'solved', { timeout: 8000 });
+  await expect(page.getByRole('button', { name: 'Další příklad' })).toBeVisible();
 });

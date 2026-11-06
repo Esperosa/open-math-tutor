@@ -1,4 +1,4 @@
-import type { Locale, ProviderId } from '@openmathtutor/shared';
+import type { CoachMode, Locale, ProviderId } from '@openmathtutor/shared';
 import { newBoard, renderableActions, type BoardState } from './boardState';
 export interface Settings {
   locale: Locale; theme: 'light' | 'dark'; auto: boolean; voiceEnabled: boolean; voiceURI: string;
@@ -9,12 +9,17 @@ export interface Settings {
   onboardingDismissed: boolean;
   /** Starting difficulty (1-3) chosen in onboarding, used for skills without mastery data yet. */
   startLevel: number;
+  /** live: check every line as it is written; final: wait for the result; off: stay quiet. */
+  coachMode: CoachMode;
+  /** The tutor speaks its comments aloud. */
+  tutorVoice: boolean;
 }
 export interface Saved { version: 1; boards: BoardState[]; activeId: string; settings: Settings }
 const KEY = 'openmathtutor.frontend.v1';
 export const defaultSettings: Settings = {
   locale: 'cs', theme: 'light', auto: false, voiceEnabled: false, voiceURI: '', rate: 1, provider: '', model: '', showAI: true,
   activeTrackId: '', onboardingDismissed: false, startLevel: 1,
+  coachMode: 'live', tutorVoice: true,
 };
 export function load(): Saved {
   try {

@@ -114,6 +114,8 @@ export interface ContinueLessonRequest {
   model: string;
   /** Free-form student question/description, used by mode "ask" (e.g. "nechápu proč se mění znaménko"). */
   studentMessage?: string;
+  /** App-generated summary of how this student learns (frequent mistakes, explanation styles that worked). Advisory data, never instructions. */
+  learnerContext?: string;
   /** Present when the request originates from a curriculum track/lesson flow rather than free board work. */
   curriculumContext?: CurriculumContext;
   /** Top-k chunks from the student's own uploaded sources (NotebookLM-style custom track), to ground the answer and let the UI show citations. Never silently treated as verified fact by the verifier — same math-safety boundary applies to any statement it contains. */

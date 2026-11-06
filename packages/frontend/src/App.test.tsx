@@ -9,13 +9,15 @@ it('keeps the board usable without a bridge and switches the complete shell to E
   render(<App />);
   fireEvent.click(screen.getByRole('button', { name: 'Přeskočit, chci jen volnou tabuli' }));
   await waitFor(() => expect(screen.getByText(/Lokální bridge není dostupný/)).toBeInTheDocument());
+  fireEvent.click(screen.getByRole('button', { name: 'Upravit zadání' }));
   fireEvent.change(screen.getByLabelText('Zadání'), { target: { value: '2x = 8' } });
   expect(screen.getByTestId('revision')).toHaveTextContent('1');
-  expect(screen.getByRole('button', { name: 'Zkontrolovat' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Učitel' }));
+  expect(screen.getByRole('menuitem', { name: 'Zkontrolovat' })).toBeDisabled();
   fireEvent.change(screen.getByLabelText('Jazyk'), { target: { value: 'en' } });
   expect(screen.getByLabelText('Problem')).toHaveValue('2x = 8');
   expect(screen.getByText(/The local bridge is unavailable/)).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Show next step' })).toBeDisabled();
+  expect(screen.getByRole('menuitem', { name: 'Show next step' })).toBeDisabled();
 });
 
 it('auto-selects the first installed, authenticated provider and its first model so nothing needs manual setup', async () => {
@@ -85,7 +87,8 @@ it('onboarding: picking a track immediately starts a lesson and shows a "where a
   fireEvent.click(screen.getByRole('button', { name: /^Přijímačky na střední školu/ }));
   await waitFor(() => expect(manuals.at(-1)?.mode).toBe('next_problem'));
   expect(screen.getByTestId('track-breadcrumb')).toHaveTextContent('Přijímačky na střední školu');
-  expect(screen.getByLabelText('Zadání')).not.toHaveValue('');
+  expect(screen.getByTestId('task-text')).not.toHaveTextContent(/^$/);
+  expect(screen.getByTestId('task-text')).not.toHaveTextContent('Klikni na tabuli');
 });
 
 it('switching to a new track starts a fresh board, not the previous lesson\'s canvas and history', async () => {
@@ -124,5 +127,6 @@ it('switching to a new track starts a fresh board, not the previous lesson\'s ca
   // Exactly one explanation (not two): proof the second lesson got a fresh
   // board instead of appending its response onto the first board's history.
   expect(screen.getAllByTestId('explanation')).toHaveLength(1);
-  expect(screen.getByLabelText('Zadání')).not.toHaveValue('');
+  expect(screen.getByTestId('task-text')).not.toHaveTextContent(/^$/);
+  expect(screen.getByTestId('task-text')).not.toHaveTextContent('Klikni na tabuli');
 });

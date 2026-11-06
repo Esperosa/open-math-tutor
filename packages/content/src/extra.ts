@@ -15,7 +15,25 @@ type Tpl = [statement: string, ranges?: Ranges];
 interface SkillSpec {
   id: string; cs: string; en: string; prereq: string[]; topic: string; levels?: [number, number, number];
   auto?: boolean; free?: boolean; kw?: [string[], string[]]; templates: [Tpl, Tpl, Tpl];
+  /** Per-template expected answer, for skills defined with their own formulas (physics, chemistry). */
+  answers?: ([formula: string, unit?: string] | undefined)[];
+  drawing?: boolean;
 }
+
+/** Expected numeric answers (formula over the generator names, optional unit) for templates that cannot be solved from their statement text. */
+const ANSWERS: Record<string, [formula: string, unit?: string]> = {
+  "proportion-1": ["{b}/{a}*{c}", "Kč"], "proportion-2": ["{a}*{b}/{c}", "h"], "proportion-3": ["{a}*1000*{b}/100000", "km"],
+  "stats-basic-1": ["({a}+{b}+{c}+{d})/4"], "stats-basic-3": ["3*{a}-{b}-{c}"],
+  "pythagoras-1": ["{a}^2+{b}^2", "cm²"], "pythagoras-2": ["{c}^2-{a}^2", "cm²"], "pythagoras-3": ["{a}^2+{b}^2", "cm²"],
+  "circle-area-1": ["{a}^2", "π cm²"], "circle-area-3": ["{a}", "π m"],
+  "solids-volume-1": ["{a}^3", "cm³"], "solids-volume-3": ["{a}^2*{b}", "π cm³"],
+  "counting-basic-2": ["{a}*{b}"], "counting-basic-3": ["{a}*({a}-1)/2"],
+  "arith-seq-1": ["{a}+9*{b}"], "arith-seq-3": ["{a}/2*(4+({a}-1)*3)"],
+  "geom-seq-1": ["{a}*16"], "geom-seq-3": ["2^{a}-1"],
+  "finance-interest-1": ["{a}*1000*(1+{b}/100)", "Kč"], "finance-interest-2": ["{a}*(1+{b}/100)*(1-{b}/100)", "Kč"],
+  "comb-formulas-1": ["{a}*({a}-1)/2"], "comb-formulas-2": ["{a}*({a}-1)*({a}-2)*({a}-3)"],
+  "probability-basic-2": ["{a}/({a}+{b})"],
+};
 
 export const extraTopics: Topic[] = [];
 export const extraSkills: Skill[] = [];
@@ -28,11 +46,13 @@ function topic(id: string, cs: string, en: string, specs: SkillSpec[]) {
     const ids = s.templates.map((_, i) => `${s.id}-${i + 1}`);
     extraSkills.push({
       id: s.id, title: { cs: s.cs, en: s.en }, prerequisiteSkillIds: s.prereq, problemTemplateIds: ids,
-      ...(s.auto === false ? { autoCheck: false } : {}), ...(s.kw ? { keywords: { cs: s.kw[0], en: s.kw[1] } } : {}),
+      ...(s.auto === false ? { autoCheck: false } : {}), ...(s.drawing ? { drawing: true } : {}), ...(s.kw ? { keywords: { cs: s.kw[0], en: s.kw[1] } } : {}),
     });
     s.templates.forEach(([statementTemplate, generatorRanges], i) => extraTemplates.push({
       id: ids[i]!, skillId: s.id, difficultyLevel: levels[i]!, topic: id, statementTemplate,
       ...(generatorRanges ? { generatorRanges } : {}), ...(s.free === false ? {} : s.auto === false ? { freeText: true } : {}),
+      ...(ANSWERS[ids[i]!] ? { answerTemplate: ANSWERS[ids[i]!]![0], ...(ANSWERS[ids[i]!]![1] ? { answerUnit: ANSWERS[ids[i]!]![1] } : {}) } : {}),
+      ...(s.answers?.[i] ? { answerTemplate: s.answers[i]![0], ...(s.answers[i]![1] ? { answerUnit: s.answers[i]![1] } : {}) } : {}),
     }));
   }
 }
@@ -126,7 +146,7 @@ topic("goniometrie", "Goniometrie a trigonometrie", "Trigonometry", [
 topic("kombinatorika-pravdepodobnost", "Kombinatorika a pravděpodobnost", "Combinatorics and probability", [
   { id: "comb-formulas", cs: "Variace, permutace a kombinace", en: "Permutations and combinations", prereq: ["counting-basic"], topic: "kombinatorika-pravdepodobnost", ...NOAUTO,
     kw: [["variace", "kombinační číslo", "faktoriál"], ["permutation", "combination", "factorial"]],
-    templates: [["Kolika způsoby lze z {a} lidí vybrat {b}členný výbor?", { a: [6, 12], b: [2, 3] }], ["Kolik různých čtyřciferných čísel lze složit z číslic 1–{a}, když se číslice neopakují?", { a: [5, 9] }], ["Vypočítej kombinační číslo C({a}, {b}).", { a: [6, 10], b: [2, 4] }]] },
+    templates: [["Kolika způsoby lze z {a} lidí vybrat dvoučlenný výbor?", { a: [6, 12] }], ["Kolik různých čtyřciferných čísel lze složit z číslic 1–{a}, když se číslice neopakují?", { a: [5, 9] }], ["Vypočítej kombinační číslo C({a}, {b}).", { a: [6, 10], b: [2, 4] }]] },
   { id: "probability-basic", cs: "Klasická pravděpodobnost", en: "Classical probability", prereq: ["comb-formulas"], topic: "kombinatorika-pravdepodobnost", ...NOAUTO,
     kw: [["pravděpodobnost", "náhoda", "kostka", "mince"], ["probability", "dice", "coin"]],
     templates: [["Házíš dvěma kostkami. Jaká je pravděpodobnost, že součet je {a}?", { a: [4, 10] }], ["V pytlíku je {a} červených a {b} modrých kuliček. Jaká je pravděpodobnost, že náhodně vytažená je červená?", { a: [2, 9], b: [2, 9] }], ["Hodíš třikrát mincí. Jaká je pravděpodobnost, že padne právě {a} panna?", { a: [1, 3] }]] },
@@ -231,4 +251,68 @@ topic("st-statistika", "Statistika", "Statistics", [
   { id: "hypothesis-testing", cs: "Testování hypotéz", en: "Hypothesis testing", prereq: ["estimation"], topic: "st-statistika", ...NOAUTO,
     kw: [["hypotéza", "p-hodnota", "t-test", "hladina významnosti"], ["hypothesis", "p-value", "t-test", "significance"]],
     templates: [["Formuluj H0 a H1 pro tvrzení, že mince je spravedlivá, a vysvětli chybu 1. druhu.", undefined], ["Z {a} měření vyšel průměr 102 a s=6. Otestuj H0: μ=100 na hladině 5 %.", { a: [16, 40] }], ["Co znamená p-hodnota {a}? Zamítneš H0 na hladině 5 %?", { a: [1, 9] }]] },
+]);
+
+// ---------------------------------------------------------------- fyzika a chemie (číselné úlohy s programově spočtenou odpovědí)
+topic("fy-mechanika", "Mechanika", "Mechanics", [
+  { id: "fy-velocity", cs: "Rychlost, dráha a čas", en: "Speed, distance and time", prereq: [], topic: "fy-mechanika", ...NOAUTO, levels: [1, 2, 3],
+    kw: [["rychlost", "dráha", "pohyb", "v = s/t"], ["speed", "velocity", "distance"]],
+    templates: [["Auto ujede {a} m za {b} s. Jakou má průměrnou rychlost (v m/s)?", { a: [30, 300], b: [2, 12] }], ["Cyklista jede rychlostí {a} km/h po dobu {b} h. Jakou dráhu ujede (v km)?", { a: [10, 30], b: [2, 5] }], ["Vlak ujede {a} km za {b} min. Urči jeho rychlost v km/h.", { a: [20, 90], b: [10, 45] }]],
+    answers: [["{a}/{b}", "m/s"], ["{a}*{b}", "km"], ["{a}/({b}/60)", "km/h"]] },
+  { id: "fy-force", cs: "Síla a zrychlení (F = m · a)", en: "Force and acceleration (F = m · a)", prereq: ["fy-velocity"], topic: "fy-mechanika", ...NOAUTO, levels: [1, 2, 3],
+    kw: [["síla", "newton", "zrychlení", "tíha"], ["force", "newton", "acceleration", "weight"]],
+    templates: [["Těleso o hmotnosti {a} kg zrychluje o {b} m/s². Jaká síla na něj působí (v N)?", { a: [2, 20], b: [2, 9] }], ["Síla {a} N uděluje tělesu zrychlení {b} m/s². Jaká je jeho hmotnost (v kg)?", { a: [20, 60], b: [2, 5] }], ["Jakou tíhovou sílu má těleso o hmotnosti {a} kg? (g = 10 m/s²)", { a: [2, 80] }]],
+    answers: [["{a}*{b}", "N"], ["{a}/{b}", "kg"], ["{a}*10", "N"]] },
+  { id: "fy-work", cs: "Práce, výkon a energie", en: "Work, power and energy", prereq: ["fy-force"], topic: "fy-mechanika", ...NOAUTO, levels: [2, 3, 3],
+    kw: [["práce", "výkon", "joule", "watt", "energie"], ["work", "power", "joule", "watt", "energy"]],
+    templates: [["Síla {a} N posune těleso o {b} m ve směru síly. Jakou práci vykoná (v J)?", { a: [10, 80], b: [2, 15] }], ["Stroj vykoná práci {a} J za {b} s. Jaký je jeho výkon (ve W)?", { a: [200, 900], b: [2, 10] }], ["Žárovka o příkonu {a} W svítí {b} h. Kolik kWh spotřebuje?", { a: [40, 100], b: [2, 10] }]],
+    answers: [["{a}*{b}", "J"], ["{a}/{b}", "W"], ["{a}*{b}/1000", "kWh"]] },
+  { id: "fy-density-pressure", cs: "Hustota a tlak", en: "Density and pressure", prereq: ["fy-force"], topic: "fy-mechanika", ...NOAUTO, levels: [2, 3, 4],
+    kw: [["hustota", "tlak", "pascal", "hydrostatický"], ["density", "pressure", "pascal", "hydrostatic"]],
+    templates: [["Těleso má hmotnost {a} g a objem {b} cm³. Jaká je jeho hustota (v g/cm³)?", { a: [20, 90], b: [2, 10] }], ["Síla {a} N působí kolmo na plochu {b} m². Jaký je tlak (v Pa)?", { a: [100, 900], b: [2, 10] }], ["Jaký je hydrostatický tlak ve vodě v hloubce {a} m? (ρ = 1000 kg/m³, g = 10 m/s²; výsledek v kPa)", { a: [2, 20] }]],
+    answers: [["{a}/{b}", "g/cm³"], ["{a}/{b}", "Pa"], ["1000*10*{a}/1000", "kPa"]] },
+  { id: "fy-draw-forces", cs: "Nakresli síly (kresba)", en: "Draw the forces (drawing)", prereq: ["fy-force"], topic: "fy-mechanika", ...NOAUTO, drawing: true,
+    kw: [["kresba", "vektor", "síly", "nakloněná rovina"], ["drawing", "vector", "forces", "inclined plane"]],
+    templates: [["Nakresli těleso ležící na stole a všechny síly, které na něj působí.", undefined], ["Nakresli těleso na nakloněné rovině a rozlož tíhovou sílu na dvě složky.", undefined], ["Nakresli síly působící na závaží zavěšené na pružině.", undefined]] },
+]);
+topic("fy-elektrina", "Elektřina", "Electricity", [
+  { id: "fy-ohm", cs: "Ohmův zákon", en: "Ohm's law", prereq: [], topic: "fy-elektrina", ...NOAUTO, levels: [1, 2, 2],
+    kw: [["napětí", "proud", "odpor", "ohm"], ["voltage", "current", "resistance", "ohm"]],
+    templates: [["Rezistor {a} Ω je připojen na napětí {b} V. Jaký proud jím protéká (v A)?", { a: [5, 50], b: [10, 100] }], ["Obvodem protéká proud {a} A při napětí {b} V. Jaký je odpor (v Ω)?", { a: [2, 10], b: [20, 120] }], ["Rezistorem o odporu {b} Ω protéká proud {a} A. Jaké je napětí (ve V)?", { a: [2, 10], b: [5, 50] }]],
+    answers: [["{b}/{a}", "A"], ["{b}/{a}", "Ω"], ["{a}*{b}", "V"]] },
+  { id: "fy-resistors", cs: "Sériové a paralelní zapojení", en: "Series and parallel circuits", prereq: ["fy-ohm"], topic: "fy-elektrina", ...NOAUTO, levels: [2, 3, 4],
+    kw: [["rezistory", "sériově", "paralelně", "celkový odpor"], ["resistors", "series", "parallel", "total resistance"]],
+    templates: [["Dva rezistory {a} Ω a {b} Ω jsou zapojeny sériově. Jaký je celkový odpor (v Ω)?", { a: [10, 60], b: [10, 60] }], ["Dva rezistory {a} Ω a {b} Ω jsou zapojeny paralelně. Jaký je celkový odpor (v Ω)?", { a: [10, 60], b: [10, 60] }], ["Dva stejné rezistory {a} Ω zapojíš paralelně a sériově k nim připojíš rezistor {b} Ω. Jaký je celkový odpor (v Ω)?", { a: [10, 60], b: [5, 40] }]],
+    answers: [["{a}+{b}", "Ω"], ["1/(1/{a}+1/{b})", "Ω"], ["{a}/2+{b}", "Ω"]] },
+  { id: "fy-electric-power", cs: "Elektrický příkon a energie", en: "Electric power and energy", prereq: ["fy-ohm"], topic: "fy-elektrina", ...NOAUTO, levels: [2, 3, 3],
+    kw: [["příkon", "spotřeba", "kwh", "cena elektřiny"], ["power", "energy use", "kwh", "electricity cost"]],
+    templates: [["Spotřebič je připojen na napětí {a} V a protéká jím proud {b} A. Jaký je příkon (ve W)?", { a: [12, 230], b: [1, 9] }], ["Žehlička s příkonem 2000 W je zapnutá {a} h. Kolik kWh spotřebuje?", { a: [1, 6] }], ["Elektřina stojí {a} Kč za kWh. Spotřebič s příkonem 1,5 kW běží {b} h. Kolik zaplatíš (v Kč)?", { a: [5, 9], b: [2, 8] }]],
+    answers: [["{a}*{b}", "W"], ["2*{a}", "kWh"], ["{a}*1.5*{b}", "Kč"]] },
+  { id: "fy-draw-circuit", cs: "Nakresli schéma obvodu (kresba)", en: "Draw a circuit diagram (drawing)", prereq: ["fy-ohm"], topic: "fy-elektrina", ...NOAUTO, drawing: true,
+    kw: [["schéma", "obvod", "žárovka", "baterie", "ampérmetr"], ["circuit diagram", "bulb", "battery", "ammeter"]],
+    templates: [["Nakresli schéma obvodu: baterie, vypínač a žárovka zapojené za sebou.", undefined], ["Nakresli obvod se dvěma žárovkami zapojenými vedle sebe (paralelně) k jedné baterii.", undefined], ["Nakresli obvod s ampérmetrem a voltmetrem u žárovky a vyznač, jak se zapojují.", undefined]] },
+]);
+topic("ch-latkove-mnozstvi", "Látkové množství a roztoky", "Amount of substance and solutions", [
+  { id: "ch-molar-mass", cs: "Molární hmotnost", en: "Molar mass", prereq: [], topic: "ch-latkove-mnozstvi", ...NOAUTO, levels: [1, 2, 3],
+    kw: [["molární hmotnost", "relativní atomová hmotnost", "vzorec"], ["molar mass", "atomic mass", "formula"]],
+    templates: [["Vypočítej molární hmotnost vody H₂O v g/mol (Ar: H = 1, O = 16).", undefined], ["Vypočítej molární hmotnost oxidu uhličitého CO₂ v g/mol (Ar: C = 12, O = 16).", undefined], ["Vypočítej molární hmotnost kyseliny sírové H₂SO₄ v g/mol (Ar: H = 1, S = 32, O = 16).", undefined]],
+    answers: [["2*1+16", "g/mol"], ["12+2*16", "g/mol"], ["2*1+32+4*16", "g/mol"]] },
+  { id: "ch-mole", cs: "Látkové množství (n = m / M)", en: "Amount of substance (n = m / M)", prereq: ["ch-molar-mass"], topic: "ch-latkove-mnozstvi", ...NOAUTO, levels: [2, 3, 4],
+    kw: [["mol", "látkové množství", "avogadro"], ["mole", "amount of substance", "avogadro"]],
+    templates: [["Kolik molů je {a} g vody? (M = 18 g/mol)", { a: [36, 180] }], ["Kolik gramů má {a} mol chloridu sodného NaCl? (M = 58,5 g/mol)", { a: [2, 6] }], ["Kolik částic je v {a} mol látky? (N_A = 6,02·10^23 /mol; výsledek zapiš jako číslo, třeba 1,2·10^24)", { a: [2, 5] }]],
+    answers: [["{a}/18", "mol"], ["{a}*58.5", "g"], ["{a}*6.02*10^23"]] },
+  { id: "ch-concentration", cs: "Koncentrace roztoku", en: "Concentration of a solution", prereq: ["ch-mole"], topic: "ch-latkove-mnozstvi", ...NOAUTO, levels: [2, 3, 3],
+    kw: [["koncentrace", "roztok", "hmotnostní zlomek", "mol/l"], ["concentration", "solution", "mass fraction", "mol/l"]],
+    templates: [["Rozpustíš {a} mol látky v {b} l roztoku. Jaká je molární koncentrace (v mol/l)?", { a: [1, 6], b: [2, 4] }], ["Roztok má koncentraci {a} mol/l a objem {b} l. Kolik molů látky obsahuje?", { a: [1, 5], b: [2, 6] }], ["Rozpustíš {a} g soli ve {b} g vody. Jaký je hmotnostní zlomek soli v roztoku (v %)?", { a: [10, 40], b: [60, 190] }]],
+    answers: [["{a}/{b}", "mol/l"], ["{a}*{b}", "mol"], ["{a}/({a}+{b})*100", "%"]] },
+  { id: "ch-stoichiometry", cs: "Stechiometrie reakcí", en: "Reaction stoichiometry", prereq: ["ch-mole"], topic: "ch-latkove-mnozstvi", ...NOAUTO, levels: [3, 3, 4],
+    kw: [["reakce", "stechiometrie", "chemická rovnice"], ["reaction", "stoichiometry", "chemical equation"]],
+    templates: [["2 H₂ + O₂ → 2 H₂O. Z {a} mol vodíku vznikne kolik mol vody?", { a: [2, 8] }], ["2 H₂ + O₂ → 2 H₂O. Kolik gramů vody vznikne z {a} mol vodíku? (M(H₂O) = 18 g/mol)", { a: [2, 8] }], ["N₂ + 3 H₂ → 2 NH₃. Kolik mol amoniaku vznikne z {a} mol dusíku?", { a: [1, 6] }]],
+    answers: [["{a}", "mol"], ["{a}*18", "g"], ["2*{a}", "mol"]] },
+  { id: "ch-balance", cs: "Vyčíslování rovnic", en: "Balancing equations", prereq: ["ch-molar-mass"], topic: "ch-latkove-mnozstvi", ...NOAUTO,
+    kw: [["vyčíslit", "koeficienty", "chemická rovnice"], ["balance", "coefficients", "chemical equation"]],
+    templates: [["Vyčísli rovnici: H₂ + O₂ → H₂O", undefined], ["Vyčísli rovnici: Fe + O₂ → Fe₂O₃", undefined], ["Vyčísli rovnici: C₃H₈ + O₂ → CO₂ + H₂O", undefined]] },
+  { id: "ch-draw-structure", cs: "Nakresli strukturní vzorec (kresba)", en: "Draw a structural formula (drawing)", prereq: ["ch-molar-mass"], topic: "ch-latkove-mnozstvi", ...NOAUTO, drawing: true,
+    kw: [["strukturní vzorec", "vazby", "kresba", "uhlovodíky"], ["structural formula", "bonds", "drawing", "hydrocarbons"]],
+    templates: [["Nakresli strukturní vzorec vody a vyznač vazby.", undefined], ["Nakresli strukturní vzorec methanu CH₄.", undefined], ["Nakresli strukturní vzorec ethanolu C₂H₅OH.", undefined]] },
 ]);

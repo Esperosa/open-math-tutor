@@ -7,7 +7,9 @@
  * reference was chosen.
  */
 
-export type ExamFamily = "ss-prijimacky" | "vs-prijimacky" | "maturita" | "vysoka-skola" | "custom";
+export type ExamFamily = "ss-prijimacky" | "vs-prijimacky" | "maturita" | "vysoka-skola" | "fyzika" | "chemie" | "custom";
+
+export type Subject = "math" | "physics" | "chemistry";
 
 export type CalculatorPolicy = "none" | "basic" | "scientific";
 
@@ -28,6 +30,10 @@ export interface ProblemTemplate {
   topic: string;
   /** Word problem / notation that is not in the safe math grammar: statement is shown as text and never parsed. */
   freeText?: boolean;
+  /** Formula over the generator names ({a}, {b}) giving the expected numeric answer, evaluated with the calculator grammar. */
+  answerTemplate?: string;
+  /** Unit shown with the expected answer, for example m/s. */
+  answerUnit?: string;
 }
 
 export interface Skill {
@@ -38,6 +44,8 @@ export interface Skill {
   problemTemplateIds: string[];
   /** False when no local/SymPy verifier can check this skill's steps; the UI says so honestly. Default true. */
   autoCheck?: boolean;
+  /** The task is to draw something (circuit, forces, formula); the tutor cannot see drawings yet. */
+  drawing?: boolean;
   /** Extra search terms (cs/en) so a student can find this skill by what they call it. */
   keywords?: { cs: string[]; en: string[] };
 }
@@ -54,6 +62,8 @@ export interface Track {
   description: LocalizedText;
   examFamily: ExamFamily;
   topicIds: string[];
+  /** Subject the track belongs to; defaults to math. */
+  subject?: Subject;
   /** What the real exam allows; drives the in-app calculator. */
   calculator?: CalculatorPolicy;
   /** Public page the calculator/topic policy was taken from. */
@@ -164,4 +174,13 @@ export function searchCatalog(catalog: CourseCatalog, query: string, locale: "cs
   }
   const rank = { skill: 0, topic: 1, track: 2 } as const;
   return hits.sort((a, b) => rank[a.kind] - rank[b.kind]).slice(0, limit);
+}
+
+export type CheckLevel = "steps" | "answer" | "none";
+
+/** How far the app can check this skill on its own: step by step, only the final answer, or not at all. */
+export function skillCheckLevel(catalog: CourseCatalog, skill: Skill): CheckLevel {
+  if (skill.autoCheck !== false) return "steps";
+  const templates = getSkillTemplates(catalog, skill.id);
+  return templates.length > 0 && templates.every(t => t.answerTemplate !== undefined) ? "answer" : "none";
 }

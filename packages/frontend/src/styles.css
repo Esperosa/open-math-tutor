@@ -118,7 +118,7 @@ body { overflow: hidden; }
 .board-surface { position: relative; width: 100%; height: 100%; overflow: hidden; isolation: isolate; }
 .hud { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
 .hud > * { pointer-events: auto; }
-.hud-top-left, .hud-top-right, .rail, .drawer, .settings-pop, .hud-dock, .hud-chip, .task-card, .icon-btn {
+.hud-top-left, .hud-top-right, .rail, .drawer, .settings-pop, .hud-chip, .task-card, .icon-btn, .tutor-menu, .tutor-bubble {
   background: var(--glass-surface); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
   border: 1px solid var(--glass-border); border-radius: var(--radius-md); box-shadow: var(--shadow-1);
 }
@@ -147,29 +147,17 @@ body { overflow: hidden; }
 .rail { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1); }
 .rail-btn { width: 44px; padding: 0; display: grid; place-items: center; border-color: transparent; background: transparent; }
 .rail-btn.active { background: var(--accent); color: var(--paper); border-color: var(--accent); }
-.hud-dock {
-  position: absolute; left: 50%; bottom: 76px; transform: translateX(-50%); width: min(760px, calc(100vw - 460px)); min-width: 320px;
-  display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3);
-}
-.keyboard-entry { display: grid; grid-template-columns: 2fr 1fr auto; align-items: end; gap: var(--space-2); }
-.keyboard-entry input, .keyboard-entry select, .keyboard-entry button { min-height: 38px; }
-.manual-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.manual-controls button { min-height: 38px; }
-.status { min-height: 0; margin: 0; font-size: 12px; color: var(--muted); }
 .row { display: flex; gap: var(--space-2); margin-top: var(--space-3); flex-wrap: wrap; }
 .row button { flex: 1; font-size: 12px; }
 .track-breadcrumb { margin-bottom: 0; }
 .status-dot { margin-right: 0; }
 .math-annotation, .graph-annotation { z-index: 2; }
 @media (max-width: 900px) {
-  .hud-dock { left: 68px; right: 12px; width: auto; transform: none; bottom: 64px; }
   .hud-top-left { width: calc(100vw - 150px); }
   .drawer { width: calc(100vw - 80px); }
 }
 
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.hud-dock { gap: var(--space-2); padding: var(--space-2) var(--space-3); }
-.keyboard-entry { align-items: stretch; }
 
 .ctx-menu { position: absolute; z-index: 20; display: flex; flex-direction: column; min-width: 180px; padding: var(--space-1);
   background: var(--glass-surface); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
@@ -183,12 +171,6 @@ body { overflow: hidden; }
   background: var(--paper); box-shadow: var(--shadow-1); animation: ctx-in var(--duration-base) var(--ease-standard); }
 .step-mark.ok { color: var(--accent); border: 2px solid var(--accent); }
 .step-mark.wrong { color: #a32d2d; border: 2px solid #c47777; }
-.tutor-bubble { position: absolute; left: 50%; bottom: 216px; transform: translateX(-50%); width: min(520px, calc(100vw - 460px)); min-width: 300px; padding: var(--space-3) var(--space-4);
-  background: var(--glass-surface); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
-  border: 1px solid var(--glass-border); border-left: 4px solid var(--accent); border-radius: var(--radius-md); box-shadow: var(--shadow-1); animation: ctx-in var(--duration-base) var(--ease-standard); }
-.tutor-bubble p { margin: 0 0 var(--space-2); font-weight: 600; }
-.tutor-bubble .row { margin-top: 0; }
-@media (max-width: 900px) { .tutor-bubble { left: 68px; right: 12px; width: auto; transform: none; bottom: 260px; } }
 
 .search-results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .search-results button { width: 100%; text-align: left; min-height: 36px; font-size: 13px; }
@@ -223,7 +205,6 @@ body { overflow: hidden; }
   display: flex; flex-direction: column; gap: 2px; text-align: left; font-size: 12px; font-weight: 400; z-index: 30; pointer-events: none;
   background: var(--ink); color: var(--paper); border-radius: var(--radius-sm); box-shadow: var(--shadow-1); animation: ctx-in var(--duration-fast) var(--ease-standard); }
 .tip strong { font-size: 13px; }
-.tutor-corner { position: absolute; right: 16px; bottom: 76px; pointer-events: none; }
 .tutor { display: block; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .15)); }
 .tutor-eyes { transform-origin: 32px 31px; animation: tutor-blink 5s infinite; }
 .tutor-body { transform-origin: 32px 52px; }
@@ -237,4 +218,33 @@ body { overflow: hidden; }
 @keyframes tutor-tilt { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
 @keyframes tutor-write { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
 @media (prefers-reduced-motion: reduce) { .tutor *, .tutor { animation: none !important; } }
-@media (max-width: 900px) { .tutor-corner { display: none; } }
+
+/* ---- tutor (mascot, bubble, menu): bottom-right corner, never overlaps another panel ---- */
+.tutor-hud { position: absolute; right: 16px; bottom: 64px; width: 320px; display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); pointer-events: none; }
+.tutor-hud > * { pointer-events: auto; }
+.tutor-button { width: 72px; height: 72px; min-height: 0; padding: 0; border-radius: 50%; display: grid; place-items: center; background: var(--glass-surface);
+  border: 1px solid var(--glass-border); box-shadow: var(--shadow-1); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+.tutor-bubble { width: 100%; max-height: 40vh; overflow: auto; padding: var(--space-3) var(--space-4); border-left: 4px solid var(--accent); animation: ctx-in var(--duration-base) var(--ease-standard); }
+.tutor-bubble p { margin: 0 0 var(--space-2); font-weight: 500; white-space: pre-line; }
+.tutor-bubble .row { margin-top: 0; }
+.tutor-bubble-wrong { border-left-color: #c47777; }
+.tutor-bubble-thinking p, .tutor-bubble-error p { margin: 0; color: var(--muted); }
+.tutor-bubble-error { border-left-color: var(--warning); }
+.tutor-menu { width: 100%; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); animation: ctx-in var(--duration-fast) var(--ease-standard); }
+.tutor-modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-1); }
+.tutor-modes button { min-height: 36px; padding: 4px; font-size: 12px; }
+.tutor-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); }
+.tutor-actions button, .tutor-menu > button { min-height: 36px; font-size: 13px; }
+.tutor-speaking .tutor-mouth { transform-origin: 32px 39px; animation: tutor-talk .28s ease-in-out infinite alternate; }
+@keyframes tutor-talk { from { transform: scaleY(.4); } to { transform: scaleY(1.2); } }
+@media (prefers-reduced-motion: reduce) { .tutor-speaking .tutor-mouth { animation: none; } }
+
+/* ---- task card: read-only, the work happens on the board ---- */
+.task-card { position: relative; padding: var(--space-3) 40px var(--space-3) var(--space-3); }
+.task-text { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.4; white-space: pre-line; }
+.task-edit { position: absolute; top: 6px; right: 6px; min-height: 28px; width: 28px; padding: 0; border-color: transparent; background: transparent; }
+.task-card label { padding-right: 0; }
+
+/* Excalidraw's own library button would sit under our top-right buttons. */
+.excalidraw .layer-ui__wrapper__top-right { display: none !important; }
+@media (max-width: 900px) { .tutor-hud { width: min(320px, calc(100vw - 100px)); bottom: 72px; } }

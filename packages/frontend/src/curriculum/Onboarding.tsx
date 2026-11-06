@@ -15,6 +15,7 @@ interface Props {
 const GROUPS: { id: string; title: MessageKey; hint: MessageKey; trackIds: string[] }[] = [
   { id: 'zs', title: 'whoPrimary', hint: 'whoPrimaryHint', trackIds: ['ss-prijimacky'] },
   { id: 'ss', title: 'whoSecondary', hint: 'whoSecondaryHint', trackIds: ['maturita', 'vs-prijimacky'] },
+  { id: 'sci', title: 'whoScience', hint: 'whoScienceHint', trackIds: ['fyzika', 'chemie'] },
   { id: 'vs', title: 'whoUniversity', hint: 'whoUniversityHint', trackIds: ['vysoka-skola', 'vs-analyza', 'vs-linearni-algebra', 'vs-diskretni', 'vs-statistika'] },
 ];
 const LEVELS: { level: StartLevel; label: MessageKey }[] = [

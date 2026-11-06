@@ -98,3 +98,11 @@ describe('model response safety boundary', () => {
     expect(() => validateResponse(value, lesson)).toThrowError(expect.objectContaining({ code: 'invalid_response' }));
   });
 });
+
+describe('learnerContext validation', () => {
+  it('accepts a bounded summary and rejects oversized or non-text values', () => {
+    expect(validRequest({ ...lesson, mode: 'hint', learnerContext: 'Be brief.' }, false)).toBe(true);
+    expect(validRequest({ ...lesson, mode: 'hint', learnerContext: 'x'.repeat(801) }, false)).toBe(false);
+    expect(validRequest({ ...lesson, mode: 'hint', learnerContext: 42 }, false)).toBe(false);
+  });
+});

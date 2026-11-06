@@ -95,3 +95,17 @@ export function checkSteps(statement: string, steps: readonly { stepId: string; 
   }
   return result;
 }
+
+/** Root of a single-variable linear equation, or null when the equation is not linear / has no unique root. */
+export function linearSolution(statement: MathStatement): { symbol: string; value: number } | null {
+  const form = linearForm(statement);
+  if (!form || close(form.a, 0)) return null;
+  return { symbol: form.symbol, value: -form.b / form.a };
+}
+
+export function statementHasSymbols(text: string): boolean {
+  const parsed = tryParse(text);
+  if (!parsed) return false;
+  if (parsed.form === "expression") return symbolsOf(parsed.value, new Set()).size > 0;
+  return symbolsOf(parsed.value.rhs, symbolsOf(parsed.value.lhs, new Set())).size > 0;
+}

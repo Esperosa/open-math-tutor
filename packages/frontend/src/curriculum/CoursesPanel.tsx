@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import {
-  getTrackTopics, getTopicSkills, instantiateTemplate, nextUnlockedSkill, pickTemplateForDifficulty,
-  isMastered, searchCatalog, type CourseCatalog, type CurriculumContext, type Locale, type Skill,
+  getTrackTopics, getTopicSkills, instantiateProblem, nextUnlockedSkill, pickTemplateForDifficulty,
+  isMastered, searchCatalog, type CourseCatalog, type CurriculumContext, type ExpectedAnswer, type Locale, type Skill,
 } from '@openmathtutor/shared';
 import type { MessageKey } from '../i18n';
 import type { MasteryMap } from '../curriculumStorage';
 
-export interface LessonStart { skillId: string; statementText: string; topic: string; curriculumContext: CurriculumContext }
+export interface LessonStart { skillId: string; statementText: string; topic: string; curriculumContext: CurriculumContext; expected?: ExpectedAnswer }
 
 interface Props {
   catalog: CourseCatalog;
@@ -44,9 +44,9 @@ export function CoursesPanel({ catalog, mastery, t, locale, onStartLesson, activ
     const difficultyLevel = state?.difficultyLevel ?? defaultDifficulty;
     const template = pickTemplateForDifficulty(catalog, skill.id, difficultyLevel);
     if (!template) return;
-    const statementText = instantiateTemplate(template);
+    const problem = instantiateProblem(template);
     onStartLesson({
-      skillId: skill.id, statementText, topic: tp.title[locale],
+      skillId: skill.id, statementText: problem.statement, topic: tp.title[locale], ...(problem.expected ? { expected: problem.expected } : {}),
       curriculumContext: { trackId: tr.id, topicId: tp.id, skillId: skill.id, difficultyLevel: template.difficultyLevel },
     });
   }

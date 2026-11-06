@@ -37,6 +37,7 @@ export function validRequest(value: unknown, image: boolean): boolean {
   if (!image) {
     if (!oneOf(value.mode, ['check', 'hint', 'next_step', 'explain_differently', 'ask', 'next_problem'])) return false;
     if (value.studentMessage !== undefined && !text(value.studentMessage, 4000)) return false;
+    if (value.learnerContext !== undefined && !text(value.learnerContext, 800)) return false;
     const curriculum = value.curriculumContext;
     if (curriculum !== undefined && (!record(curriculum) ||
         !text(curriculum.trackId, 128) || !text(curriculum.topicId, 128) || !text(curriculum.skillId, 128) ||

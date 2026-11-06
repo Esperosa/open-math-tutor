@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ContinueLessonRequest, ProviderId } from '@openmathtutor/shared';
+import type { ContinueLessonRequest, ExpectedAnswer, ProviderId } from '@openmathtutor/shared';
 import {
-  recordAttempt, retrieveTopChunks, checkSteps, isMastered, instantiateTemplate,
-  getTopicSkills, nextUnlockedTopic, nextUnlockedSkill, pickTemplateForDifficulty,
+  recordAttempt, retrieveTopChunks, checkSteps, isMastered, instantiateProblem, expectedAnswerFor, statementHasSymbols,
+  looksLikeFinalLine, nextCoachEvent, coachLine, stepKey, recordError, recordSolved, chooseStyle, recordStyleShown,
+  resolveStyleOutcome, profileSummary, getTopicSkills, nextUnlockedTopic, nextUnlockedSkill, pickTemplateForDifficulty,
+  type ExplainStyle, type LearnerProfile,
 } from '@openmathtutor/shared';
 import { catalog } from '@openmathtutor/content';
 import type { BinaryFiles } from '@excalidraw/excalidraw/types';
@@ -13,7 +15,10 @@ import { bridge, BridgeError, type ProviderEntry } from './api';
 import { messages, errorKeys, type MessageKey } from './i18n';
 import { load, save, type Saved, type Settings } from './storage';
 import { StrokeSettler } from './settle';
-import { useVoice } from './useVoice';
+import { useMic, useVoice } from './useVoice';
+import { loadProfile, saveProfile } from './profileStorage';
+import { effectiveStatement, markPerStep, writtenLines } from './lines';
+import { TutorHud, type TutorChoice, type TutorMessage } from './TutorHud';
 import { loadMastery, saveMastery, getOrCreateMastery } from './curriculumStorage';
 import { CoursesPanel, type LessonStart } from './curriculum/CoursesPanel';
 import { Onboarding, type StartLevel } from './curriculum/Onboarding';
@@ -21,7 +26,7 @@ import { TrackBreadcrumb } from './curriculum/TrackBreadcrumb';
 import { Rail, Icon, type PanelId } from './Hud';
 import { Calculator } from './Calculator';
 import { NotesPanel } from './NotesPanel';
-import { Tutor, type TutorMood } from './Tutor';
+import type { TutorMood } from './Tutor';
 import { buildNotesHtml, buildNotesMarkdown, downloadBlob, printHtml, studyTextRequest, summarizeStrengths } from './notes';
 import { AskPanel } from './AskPanel';
 import { UploadBoard, type UploadedImage } from './UploadBoard';
@@ -29,7 +34,9 @@ import { CustomSourcesPanel } from './CustomSourcesPanel';
 import { loadSources, saveSources, addSource, removeSource, allChunks } from './customSources';
 
 type Mode = ContinueLessonRequest['mode'];
-type ContinueLessonExtra = Pick<ContinueLessonRequest, 'studentMessage' | 'curriculumContext' | 'retrievedContext'>;
+type ContinueLessonExtra = Pick<ContinueLessonRequest, 'studentMessage' | 'curriculumContext' | 'retrievedContext' | 'learnerContext'>;
+const hashKey = (key: string) => [...key].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7);
+const STYLE_MODE: Record<ExplainStyle, Mode> = { hint: 'hint', worked: 'next_step', analogy: 'explain_differently', visual: 'explain_differently' };
 interface Pending { id: string; controller: AbortController; provider: ProviderId; boardId: string; revision: number }
 export function App() {
   const [saved, setSaved] = useState<Saved>(load);
@@ -47,29 +54,26 @@ export function App() {
   const [verifierOK, setVerifierOK] = useState(true);
   const [retry, setRetry] = useState(0);
   const [saveError, setSaveError] = useState(false);
-  const [line, setLine] = useState('');
-  const [selectedStep, setSelectedStep] = useState('');
   const [rejected, setRejected] = useState(false);
   const [panel, setPanel] = useState<PanelId | null>(null);
   const [pinned, setPinned] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [calcOpen, setCalcOpen] = useState(false);
-  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
+  const [message, setMessage] = useState<TutorMessage | null>(null);
+  const [tutorMenu, setTutorMenu] = useState(false);
+  const [editingTask, setEditingTask] = useState(false);
+  const [happy, setHappy] = useState(false);
+  const [profile, setProfileState] = useState<LearnerProfile>(loadProfile);
+  const profileRef = useRef(profile); profileRef.current = profile;
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
   const leaveTimer = useRef<ReturnType<typeof setTimeout>>();
-  const verdicts = useMemo(() => checkSteps(board.statement, board.steps), [board.statement, board.steps]);
-  const lastVerdict = board.steps.length ? verdicts[board.steps[board.steps.length - 1]!.stepId]?.status : undefined;
-  const offer = useMemo(() => {
-    for (let i = board.steps.length - 1; i >= 0; i--) {
-      const step = board.steps[i]!;
-      if (verdicts[step.stepId]?.status === 'wrong' && !dismissed.has(`${step.stepId}:${step.latexGuess}`)) return { n: i + 1, key: `${step.stepId}:${step.latexGuess}` };
-    }
-    return null;
-  }, [board.steps, verdicts, dismissed]);
+  const lines = useMemo(() => writtenLines(board.steps), [board.steps]);
+  const statement = useMemo(() => effectiveStatement(board.statement, lines), [board.statement, lines]);
+  const verdicts = useMemo(() => markPerStep(checkSteps(statement, lines), lines), [statement, lines]);
   useEffect(() => {
     const away = (e: PointerEvent) => {
-      if ((e.target as Element | null)?.closest('.rail, .drawer, .settings-pop, .icon-btn')) return;
-      setPanel(null); setPinned(false); setSettingsOpen(false);
+      if ((e.target as Element | null)?.closest('.rail, .drawer, .settings-pop, .icon-btn, .tutor-hud, .calculator')) return;
+      setPanel(null); setPinned(false); setSettingsOpen(false); setTutorMenu(false);
     };
     const esc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { setPanel(null); setPinned(false); setSettingsOpen(false); }
@@ -82,6 +86,7 @@ export function App() {
     return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc); };
   }, []);
   const voice = useVoice(settings);
+  const mic = useMic(settings.locale);
   const [settler] = useState(() => new StrokeSettler(() => void analyze.current()));
   const analyze = useRef<() => Promise<void>>(async () => {});
   const [mastery, setMastery] = useState(loadMastery);
@@ -176,16 +181,15 @@ export function App() {
       const applied = applyResponse(current, response, id);
       if (applied.state !== current) updateBoard(applied.state);
       setStatus(applied.stale ? 'waiting' : 'ready'); setRejected(applied.rejected);
-      if (!applied.stale && mode === 'check' && lessonSkillId) {
+      if (!applied.stale && mode === 'check' && lessonSkillId && !current.outcome) {
         const wasCorrect = response.verifierStatus === 'correct';
-        setMastery(prev => {
-          const next = recordAttempt(getOrCreateMastery(prev, lessonSkillId, Date.now()), wasCorrect, Date.now());
-          const updated = { ...prev, [next.skillId]: next };
-          saveMastery(updated);
-          return updated;
-        });
+        recordMastery(lessonSkillId, wasCorrect);
+        updateBoard({ ...applied.state, outcome: wasCorrect ? 'solved' : 'failed' });
       }
-      if (!applied.stale && live.current.settings.voiceEnabled) voice.speak(response.ttsText);
+      if (!applied.stale) {
+        setMessage({ id: id, kind: response.verifierStatus === 'correct' ? 'solved' : 'info', text: response.pedagogicalResponse });
+        voice.speak(response.ttsText);
+      }
     } catch (error) {
       if (pending.current !== request) return;
       if (controller.signal.aborted) setStatus('timeout');
@@ -214,7 +218,7 @@ export function App() {
     else schedule(live.current.boards.find(b => b.id === live.current.activeId)!);
   }
   function switchExercise(id: string) {
-    stop(false); setLine(''); setSelectedStep('');
+    stop(false);
     const value = { ...live.current, activeId: id }; live.current = value; setSaved(value); setStatus('idle');
   }
   function hoverPanel(id: PanelId) {
@@ -232,22 +236,22 @@ export function App() {
   function createExercise() {
     stop(false); const next = newBoard();
     const value = { ...live.current, boards: [...live.current.boards, next], activeId: next.id };
-    live.current = value; setSaved(value); setLine(''); setSelectedStep(''); setStatus('idle');
+    live.current = value; setSaved(value); setStatus('idle');
   }
   function startLesson(lesson: LessonStart) {
     // A new lesson is a new problem, not an edit of the current one — reusing
     // the active board here left the previous problem's handwriting and
     // explanation history visible underneath the new statement.
-    stop(false); setLine(''); setSelectedStep('');
-    const next: BoardState = { ...newBoard(), topic: lesson.topic, statement: lesson.statementText };
+    stop(false);
+    const next: BoardState = { ...newBoard(), topic: lesson.topic, statement: lesson.statementText, skillId: lesson.skillId, ...(lesson.expected ? { expected: lesson.expected } : {}) };
+    setMessage(null);
     const value = { ...live.current, boards: [...live.current.boards, next], activeId: next.id };
     live.current = value; setSaved(value);
     setLessonSkillId(lesson.skillId);
     setStatus('idle');
     void request('next_problem', { curriculumContext: lesson.curriculumContext });
   }
-  function startTrack(trackId: string, level: StartLevel = 1) {
-    configure({ activeTrackId: trackId, onboardingDismissed: true, startLevel: level });
+  function startNext(trackId: string, level: number) {
     const masteredIds = new Set(Object.values(mastery).filter(isMastered).map(s => s.skillId));
     const topic = nextUnlockedTopic(catalog, trackId, masteredIds);
     const skill = topic ? nextUnlockedSkill(getTopicSkills(catalog, topic.id), masteredIds) : null;
@@ -255,10 +259,19 @@ export function App() {
     const difficultyLevel = mastery[skill.id]?.difficultyLevel ?? level;
     const template = pickTemplateForDifficulty(catalog, skill.id, difficultyLevel);
     if (!template) return;
+    const problem = instantiateProblem(template);
     startLesson({
-      skillId: skill.id, statementText: instantiateTemplate(template), topic: topic.title[settings.locale],
+      skillId: skill.id, statementText: problem.statement, topic: topic.title[settings.locale],
+      ...(problem.expected ? { expected: problem.expected } : {}),
       curriculumContext: { trackId, topicId: topic.id, skillId: skill.id, difficultyLevel: template.difficultyLevel },
     });
+  }
+  function startTrack(trackId: string, level: StartLevel = 1) {
+    configure({ activeTrackId: trackId, onboardingDismissed: true, startLevel: level });
+    startNext(trackId, level);
+  }
+  function nextProblem() {
+    if (settings.activeTrackId) startNext(settings.activeTrackId, settings.startLevel); else createExercise();
   }
   function changeTrack() {
     configure({ activeTrackId: '', onboardingDismissed: false });
@@ -279,12 +292,90 @@ export function App() {
   function removeCustomSource(id: string) {
     setSources(prev => { const next = removeSource(prev, id); saveSources(next); return next; });
   }
+  function recordMastery(skillId: string, wasCorrect: boolean) {
+    setMastery(prev => {
+      const next = recordAttempt(getOrCreateMastery(prev, skillId, Date.now()), wasCorrect, Date.now());
+      const updated = { ...prev, [next.skillId]: next };
+      saveMastery(updated);
+      return updated;
+    });
+  }
+  function updateProfile(change: (p: LearnerProfile) => LearnerProfile) {
+    const next = change(profileRef.current);
+    profileRef.current = next; setProfileState(next); saveProfile(next);
+  }
+  function learnerContext(style?: ExplainStyle) { return profileSummary(profileRef.current, live.current.settings.locale, style); }
+  function flashHappy() { setHappy(true); setTimeout(() => setHappy(false), 2500); }
+  /** One pass of the local coach: judge the newest unhandled line and react (speak, mark, offer, record). */
+  function runCoach() {
+    const cur = live.current;
+    const current = cur.boards.find(b => b.id === cur.activeId)!;
+    const mode = cur.settings.coachMode;
+    if (mode === 'off' || busy.current || pending.current) return;
+    const ls = writtenLines(current.steps);
+    const task = effectiveStatement(current.statement, ls);
+    const expected: ExpectedAnswer | undefined = current.expected ?? expectedAnswerFor(task);
+    const handled = new Set(current.handled ?? []);
+    const event = nextCoachEvent({ mode, statement: task, steps: ls, expected, handled });
+    if (event.kind === 'idle') return;
+    const marked: BoardState = { ...current, handled: [...(current.handled ?? []), event.key].slice(-300) };
+    const locale = cur.settings.locale;
+    const say = (kind: TutorMessage['kind']) => {
+      const text = coachLine(event, locale, hashKey(event.key));
+      if (!text) return;
+      setMessage({ id: event.key, kind, text }); voice.speak(text);
+    };
+    switch (event.kind) {
+      case 'ok_step':
+        updateProfile(p => resolveStyleOutcome(p, true)); flashHappy(); updateBoard(marked); break;
+      case 'wrong_step': case 'wrong_final': {
+        const reason = event.kind === 'wrong_step' ? event.reason : 'wrong_final';
+        updateProfile(p => resolveStyleOutcome(recordError(p, marked.skillId ?? null, reason, Date.now()), false));
+        let next = marked;
+        if (event.kind === 'wrong_final' && !next.outcome && next.skillId) { recordMastery(next.skillId, false); next = { ...next, outcome: 'failed' }; }
+        updateBoard(next); say('wrong'); break;
+      }
+      case 'solved': {
+        if (!marked.outcome && marked.skillId) recordMastery(marked.skillId, true);
+        updateProfile(p => resolveStyleOutcome(recordSolved(p, Date.now()), true));
+        updateBoard({ ...marked, outcome: 'solved' }); say('solved'); break;
+      }
+      case 'unclear': {
+        updateBoard(marked);
+        const text = ls.find(l => stepKey(l) === event.key)?.latexGuess ?? '';
+        if (looksLikeFinalLine(text, statementHasSymbols(task)) && canRequest) void request('check', { learnerContext: learnerContext() });
+        break;
+      }
+    }
+  }
+  async function tutorChoice(choice: TutorChoice) {
+    const key = message?.id ?? '';
+    if (choice === 'dismiss') { setMessage(null); return; }
+    if (choice === 'next') { nextProblem(); return; }
+    if (choice === 'ask_ai') { setMessage(null); void request('check', { learnerContext: learnerContext() }); return; }
+    const style: ExplainStyle = choice === 'hint' ? 'hint' : chooseStyle(profileRef.current, Math.random, profileRef.current.pending?.style);
+    updateProfile(p => recordStyleShown(p, style, key));
+    setMessage(null);
+    void request(STYLE_MODE[style], { learnerContext: learnerContext(style) });
+  }
+  useEffect(() => {
+    if (settings.coachMode === 'off') return;
+    const timer = setTimeout(runCoach, settings.coachMode === 'live' ? 1100 : 2200);
+    return () => clearTimeout(timer);
+    // runCoach reads live state through refs; re-arm on every committed change of the written work.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board.id, board.revision, settings.coachMode, running, connected, canRequest]);
+  useEffect(() => {
+    // A missing bridge is already shown by the top-right chip; the tutor only speaks up about failed requests.
+    const errorish = !['idle', 'ready', 'waiting', 'thinking', 'thinkingAnswer', 'bridgeUnavailable'].includes(status);
+    if (errorish) setMessage({ id: `status-${status}`, kind: status === 'cancelled' ? 'info' : 'error', text: t[status === 'bridgeUnavailable' ? 'offline' : status] });
+  }, [status, t]);
   function deleteExercise() {
     if (!window.confirm(t.eraseConfirm)) return;
     stop(false);
     const boards = live.current.boards.filter(b => b.id !== live.current.activeId);
     if (!boards.length) boards.push(newBoard());
-    const value = { ...live.current, boards, activeId: boards[0].id }; live.current = value; setSaved(value); setLine(''); setSelectedStep('');
+    const value = { ...live.current, boards, activeId: boards[0].id }; live.current = value; setSaved(value);
   }
   if (!settings.activeTrackId && !settings.onboardingDismissed) {
     return <Onboarding catalog={catalog} t={t} locale={settings.locale} onSelectTrack={startTrack} onSkip={() => configure({ onboardingDismissed: true })} />;
@@ -298,20 +389,28 @@ export function App() {
   const calcPolicy = activeTrack?.calculator ?? 'scientific';
   const alertChip = !connected ? <span role="alert">{t.bridgeUnavailable} <button onClick={() => setRetry(r => r + 1)}>{t.retry}</button></span>
     : !canRequest ? <span>{provider && !provider.models.length ? t.noModels : t.selectProvider}</span> : null;
+  const mood: TutorMood = running ? 'thinking' : message?.kind === 'wrong' ? 'concerned' : message?.kind === 'solved' || happy ? 'happy' : 'idle';
+  const shownMessage: TutorMessage | null = running ? { id: 'thinking', kind: 'thinking', text: t.tutorThinking } : message;
   return <div className="app-shell">
     <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} verdicts={verdicts} onAskHere={() => { setPanel('ask'); setPinned(true); }} /></div>
     <div className="hud" data-testid="hud">
       <div className="hud-top-left">
+        <span className="sr"><output data-testid="revision">{board.revision}</output></span>
         {settings.activeTrackId && <TrackBreadcrumb catalog={catalog} trackId={settings.activeTrackId} mastery={mastery} t={t} locale={settings.locale} onChangeTrack={changeTrack} />}
-        <div className="task-card"><label>{t.task}<textarea rows={2} maxLength={4000} value={board.statement} placeholder={t.taskPlaceholder}
-          onChange={e => { stop(false); updateBoard(editTask(board, 'statement', e.target.value)); }} /></label>
-          <label>{t.topic}<input value={board.topic} maxLength={200} placeholder={t.topicPlaceholder}
-            onChange={e => { stop(false); updateBoard(editTask(board, 'topic', e.target.value)); }} /></label></div>
+        <div className="task-card">
+          {editingTask
+            ? <><label>{t.task}<textarea rows={2} maxLength={4000} value={board.statement} placeholder={t.taskPlaceholder} autoFocus
+                onChange={e => { stop(false); updateBoard(editTask(board, 'statement', e.target.value)); }} /></label>
+                <button onClick={() => setEditingTask(false)}>{t.taskDone}</button></>
+            : <><p className="task-text" data-testid="task-text">{statement || t.taskEmpty}</p>
+                {board.topic && <small>{board.topic}</small>}
+                <button className="task-edit" aria-label={t.taskEdit} title={t.taskEdit} onClick={() => setEditingTask(true)}>✎</button></>}
+        </div>
       </div>
       <div className="hud-top-right">
         {alertChip && <div className="hud-chip" aria-live="polite">{alertChip}</div>}
-        {calcPolicy !== 'none' && <button className="icon-btn" title={`${t.calcOpen} — ${t.hintCalc}`} aria-label={t.calcOpen} aria-pressed={calcOpen} onClick={() => setCalcOpen(o => !o)}><Icon name="calc" /></button>}
-        <button className="icon-btn" title={`${t.settings} — ${t.hintSettings}`} aria-label={t.settings} aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>
+        {calcPolicy !== 'none' && <button className="icon-btn" title={`${t.calcOpen} — ${t.hintCalc}`} aria-label={t.calcOpen} aria-pressed={calcOpen} onClick={() => { setCalcOpen(o => !o); setSettingsOpen(false); }}><Icon name="calc" /></button>}
+        <button className="icon-btn" title={`${t.settings} — ${t.hintSettings}`} aria-label={t.settings} aria-expanded={settingsOpen} onClick={() => { setSettingsOpen(o => !o); setCalcOpen(false); }}>
           <span className={`status-dot ${canRequest ? 'ok' : 'idle'}`} aria-hidden="true" /><Icon name="settings" /></button>
       </div>
       <aside className={`settings-pop${settingsOpen ? ' open' : ''}`} aria-label={t.settings}>
@@ -322,7 +421,7 @@ export function App() {
           <label>{t.provider}<select value={settings.provider} onChange={e => {
             const id = e.target.value as ProviderId | '';
             // Picking a provider should also pick a usable model, not leave
-            // every action button silently disabled until the person notices.
+            // every action silently disabled until the person notices.
             const match = providers.find(p => p.id === id);
             configure({ provider: id, model: match?.models[0]?.id ?? '' });
           }}>
@@ -337,23 +436,25 @@ export function App() {
         <label className="check-label"><input type="checkbox" checked={settings.showAI} onChange={e => configure({ showAI: e.target.checked })} />{t.aiLayer}</label>
         <label className="check-label"><input type="checkbox" checked={settings.auto} onChange={e => configure({ auto: e.target.checked })} />{t.consent}</label>
         {model && !model.supportsImageInput && <p className="warning">{t.imageUnsupported}</p>}
-        <label className="check-label"><input type="checkbox" checked={settings.voiceEnabled} onChange={e => configure({ voiceEnabled: e.target.checked })} />{t.voice}</label>
         <label>{t.voiceChoice}<select value={voice.voices.some(v => v.voiceURI === settings.voiceURI) ? settings.voiceURI : ''} onChange={e => configure({ voiceURI: e.target.value })}>
           <option value="">{t.choose}</option>{voice.voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</select></label>
         <label>{t.rate} ({settings.rate})<input type="range" min="0.5" max="1.5" step="0.1" value={settings.rate} onChange={e => configure({ rate: Number(e.target.value) })} /></label>
         {voice.warning && <p className="warning" role="alert">{t[voice.warning]}</p>}
+        {saveError && <p role="alert" className="warning">{t.localSaveError}</p>}
+        {rejected && <p role="alert" className="warning">{t.rejectedActions}</p>}
         <p className="muted">{t.controlsHelp}</p>
         <p className="privacy">{t.privacy}</p>
       </aside>
       {calcOpen && calcPolicy !== 'none' && <Calculator t={t} locale={settings.locale} policy={calcPolicy} examRules={!!activeTrack?.calculator}
-        onClose={() => setCalcOpen(false)} onUse={text => setLine(text)} />}
+        onClose={() => setCalcOpen(false)} onUse={text => editor.current?.addLine(text, null)} />}
       <Rail items={[{ id: 'courses', label: t.courses, hint: t.hintCourses }, { id: 'ask', label: t.askLabel, hint: t.hintAsk }, { id: 'materials', label: t.customSources, hint: t.hintMaterials },
         { id: 'exercises', label: t.exercise, hint: t.hintExercises }, { id: 'history', label: t.history, hint: t.hintHistory }, { id: 'notes', label: t.notesRail, hint: t.hintNotes }]}
         active={openPanel} onHover={hoverPanel} onToggle={togglePanel} />
       <aside className={`drawer${openPanel ? ' open' : ''}`}
         onMouseEnter={() => clearTimeout(leaveTimer.current)} onMouseLeave={leavePanel}>
         <section hidden={openPanel !== 'courses'}>
-          <CoursesPanel catalog={catalog} mastery={mastery} t={t} locale={settings.locale} onStartLesson={startLesson} activeSkillId={lessonSkillId} defaultDifficulty={settings.startLevel} onAsk={q => { setPanel('ask'); setPinned(true); ask(q); }} />
+          <CoursesPanel catalog={catalog} mastery={mastery} t={t} locale={settings.locale} onStartLesson={startLesson} activeSkillId={lessonSkillId} defaultDifficulty={settings.startLevel}
+            onAsk={q => { setPanel('ask'); setPinned(true); ask(q); }} />
         </section>
         <section hidden={openPanel !== 'ask'}>
           <AskPanel t={t} disabled={!canRequest || running} onAsk={ask} />
@@ -377,34 +478,18 @@ export function App() {
           <ol className="history">{board.history.map(h => <li key={h.id} data-testid="explanation">
             <strong>{t[h.status]}</strong>{h.firstErrorStepId && <small>{t.firstError}: {board.steps.findIndex(s => s.stepId === h.firstErrorStepId) + 1 || '—'}</small>}
             <p>{h.text}</p>{h.clarification && <p>{h.clarification}</p>}<small>{t.revision} {h.revision}</small>
-            <button onClick={() => voice.speak(h.ttsText)} disabled={!voice.available}>{t.speak}</button>
+            <button onClick={() => voice.speak(h.ttsText, true)} disabled={!voice.available}>{t.speak}</button>
           </li>)}</ol>
           <h2 className="h2-muted">{t.annotations}</h2><p className="muted">{t.annotationReveal}</p><ul className="annotations-list">{board.annotations.map((a, i) => <li key={a.id} data-testid="annotation-item">
             <span>{t.aiBadge} {i + 1}</span><button onClick={() => { stop(false); updateBoard(removeAnnotation(board, a.id)); }}>{t.undoAnnotation} {i + 1}</button></li>)}</ul></section>
       </aside>
-      {offer && <div className="tutor-bubble" role="group" aria-live="polite" data-testid="tutor-offer">
-        <p>{t.tutorOffer.replace('{n}', String(offer.n))}</p>
-        <div className="row">
-          <button className="primary" disabled={!canRequest || running} onClick={() => { setDismissed(d => new Set(d).add(offer.key)); void request('check'); }}>{t.offerExplain}</button>
-          <button disabled={!canRequest || running} onClick={() => { setDismissed(d => new Set(d).add(offer.key)); void request('hint'); }}>{t.offerHint}</button>
-          <button onClick={() => setDismissed(d => new Set(d).add(offer.key))}>{t.offerDismiss}</button>
-        </div>
-      </div>}
-      <div className="tutor-corner"><Tutor mood={((running ? 'thinking' : offer ? 'concerned' : lastVerdict === 'ok' ? 'happy' : 'idle') satisfies TutorMood)} /></div>
-      <div className="hud-dock">
-        <form className="keyboard-entry" onSubmit={e => { e.preventDefault(); if (line.trim()) { editor.current?.addLine(line.trim(), selectedStep || null); setLine(''); setSelectedStep(''); } }}>
-          <label><span className="sr">{t.keyboardLine}</span><input value={line} onChange={e => setLine(e.target.value)} placeholder={t.linePlaceholder} maxLength={1000} /></label>
-          <label><span className="sr">{t.steps}</span><select value={selectedStep} onChange={e => { setSelectedStep(e.target.value); setLine(board.steps.find(s => s.stepId === e.target.value)?.latexGuess ?? ''); }}>
-            <option value="">{t.newLine}</option>{board.steps.map((s, i) => <option key={s.stepId} value={s.stepId}>{i + 1}. {s.latexGuess || '…'}</option>)}</select></label>
-          <button type="submit" disabled={!line.trim()}>{selectedStep ? t.replaceLine : t.addLine}</button>
-        </form>
-        <div className="manual-controls"><button disabled={!canRequest || !model?.supportsImageInput || !board.activeStepId || running} onClick={() => void request()}>{t.readBoard}</button>{(['check', 'hint', 'next_step', 'explain_differently'] as const).map(mode =>
-          <button key={mode} className={mode === 'check' ? 'primary' : ''} disabled={!canRequest || running} onClick={() => void request(mode)}>{t[mode]}</button>)}
-          <button className="stop" onClick={() => stop()} disabled={!running && !settings.voiceEnabled}>{t.stop}</button></div>
-        <p className="status" role="status">{t[status === 'bridgeUnavailable' ? 'offline' : status]} <small>{t.revision} <output data-testid="revision">{board.revision}</output></small></p>
-        {saveError && <p role="alert" className="warning">{t.localSaveError}</p>}
-        {rejected && <p role="alert" className="warning">{t.rejectedActions}</p>}
-      </div>
+      <TutorHud t={t} mood={mood} speaking={voice.speaking} message={shownMessage} menuOpen={tutorMenu} running={running} canRequest={canRequest}
+        lessonActive={!!lessonSkillId || !!board.skillId} mode={settings.coachMode} voiceOn={settings.tutorVoice} micAvailable={mic.available} listening={mic.listening}
+        onToggleMenu={() => { setTutorMenu(o => !o); setSettingsOpen(false); }}
+        onMode={mode => configure({ coachMode: mode })} onVoice={on => { if (!on) voice.cancel(); configure({ tutorVoice: on }); }}
+        onMic={() => mic.toggle(text => ask(text))}
+        onAction={action => { setTutorMenu(false); if (action === 'stop') stop(); else if (action === 'next_problem') nextProblem(); else void request(action, { learnerContext: learnerContext() }); }}
+        onChoice={choice => void tutorChoice(choice)} />
     </div>
   </div>;
 }

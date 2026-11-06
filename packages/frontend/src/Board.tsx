@@ -28,6 +28,7 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
   const viewRef = useRef(view);
   const pointerDown = useRef(false);
   const editing = useRef(false);
+  const wasEditing = useRef(false);
   const releaseFrame = useRef(0);
   const actions = useMemo(() => renderableActions(board), [board]);
   const shapes = useMemo(() => settings.showAI ? annotationElements(actions, board.steps) : [], [actions, board.steps, settings.showAI]);
@@ -38,7 +39,7 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
   function startHold(e: React.PointerEvent<HTMLDivElement>) {
     if ((e.target as Element).closest('.ctx-menu')) return;
     setMenu(null); cancelHold();
-    if (!api || e.button !== 0 || api.getAppState().activeTool.type !== 'selection' || !(e.target as Element).closest('.excalidraw__canvas')) return;
+    if (!api || e.button !== 0 || !['selection', 'text', 'hand'].includes(api.getAppState().activeTool.type) || !(e.target as Element).closest('.excalidraw__canvas')) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const px = e.clientX - rect.left, py = e.clientY - rect.top;
     hold.current = { x: e.clientX, y: e.clientY, timer: setTimeout(() => {
@@ -91,6 +92,8 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
     api.updateScene({ elements: [...student, ...shapes], captureUpdate: CaptureUpdateAction.NEVER });
   }, [api, shapes]);
   useEffect(() => () => cancelAnimationFrame(releaseFrame.current), []);
+  // The board is the only input: writing text is the default tool, so a click puts the cursor right where the student writes.
+  useEffect(() => { if (api) api.setActiveTool({ type: 'text', locked: true }); }, [api]);
   useImperativeHandle(ref, () => ({
     addLine(text, stepId) {
       if (!api) return;
@@ -129,6 +132,13 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
       viewRef.current = { x: state.scrollX, y: state.scrollY, zoom: state.zoom.value };
       setView(viewRef.current);
     }
+    // Writing is the default: when a line is finished, go back to the text tool so the next click starts the next line.
+    // A finished text stays selected, and the text tool would re-open that one instead of starting a new line: deselect it.
+    if (wasEditing.current && !state.editingTextElement) {
+      if (state.activeTool.type !== 'text') api?.setActiveTool({ type: 'text', locked: true });
+      if (Object.keys(state.selectedElementIds).length) api?.updateScene({ appState: { selectedElementIds: {} } });
+    }
+    wasEditing.current = !!state.editingTextElement;
     const busy = pointerDown.current || !!state.editingTextElement;
     if (editing.current !== busy) { editing.current = busy; onBusy(busy); }
     if (!busy && (fingerprint(elements) !== fingerprint(board.elements) || files !== board.files)) onCommit(elements, files);
