@@ -5,6 +5,7 @@ import {
 } from '@openmathtutor/shared';
 import type { MessageKey } from '../i18n';
 import type { MasteryMap } from '../curriculumStorage';
+import { useTween } from '../useTween';
 
 interface Props {
   catalog: CourseCatalog;
@@ -21,6 +22,7 @@ interface Props {
  * skill is next, and how far through the track the student has gotten. */
 export function TrackBreadcrumb({ catalog, trackId, mastery, t, locale, onChangeTrack, currentSkillId }: Props) {
   const track = catalog.tracks.find(tr => tr.id === trackId);
+  const shownPercent = useTween(track ? trackPercent(catalog, trackId, mastery) : 0);
   const masteredIds = useMemo(() => new Set(Object.values(mastery).filter(isMastered).map(s => s.skillId)), [mastery]);
   if (!track) return null;
   const current = currentSkillId ? catalog.skills.find(sk => sk.id === currentSkillId) ?? null : null;
@@ -38,7 +40,7 @@ export function TrackBreadcrumb({ catalog, trackId, mastery, t, locale, onChange
       {!topic && <> <span aria-hidden="true">›</span> {t.trackComplete}</>}
     </span>
     <span className="track-breadcrumb-progress" title={`${progress.masteredCount}/${progress.totalCount}`}>
-      <span className="mini-bar" aria-hidden="true"><span style={{ width: `${percent}%` }} /></span>{percent} %</span>
+      <span className="mini-bar" aria-hidden="true"><span style={{ width: `${percent}%` }} /></span>{shownPercent} %</span>
     <button className="track-breadcrumb-change" onClick={onChangeTrack}>{t.changeTrack}</button>
   </div>;
 }

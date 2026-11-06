@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react';
-import type { CoachMode } from '@openmathtutor/shared';
+import { useEffect, useRef, useState } from 'react';
+import type { CoachMode, Locale } from '@openmathtutor/shared';
 import type { MessageKey } from './i18n';
 import { Tutor, type TutorMood } from './Tutor';
 import { useReducedMotion } from './useReducedMotion';
 import { useTutorVisit } from './useTutorVisit';
 import type { TutorRect } from './tutorPosition';
+import { bindGaze, type BoardActivity } from './activity';
+import { ChatIcon, ChatPanel, type ChatProps } from './chat/ChatPanel';
+import { chatMessages } from './chat/messages';
+import { CHIP_LABEL, type ChipId } from './chat/replies';
 
 export interface TutorMessage {
   id: string;
@@ -16,7 +20,7 @@ export interface TutorMessage {
   reason?: 'arithmetic' | 'not_equivalent' | 'wrong_value';
 }
 export type TutorAction = 'check' | 'hint' | 'next_step' | 'explain_differently' | 'next_problem' | 'free' | 'self_done' | 'self_fail' | 'stop';
-export type TutorChoice = 'explain' | 'hint' | 'local_hint' | 'retry_line' | 'dismiss' | 'next' | 'ask_ai' | 'confirm_final' | 'report_failed';
+export type TutorChoice = 'cancel' | 'explain' | 'hint' | 'local_hint' | 'retry_line' | 'dismiss' | 'next' | 'ask_ai' | 'confirm_final' | 'report_failed';
 
 interface Props {
   t: Record<MessageKey, string>;
@@ -30,6 +34,18 @@ interface Props {
   /** The lesson's task cannot be checked automatically: offer the student to report how it went. */
   selfAssess?: boolean;
   running: boolean;
+  /** The AI request has been running for a long time. */
+  slow?: boolean;
+  locale?: Locale;
+  /** Pen/keyboard tracker; the mascot's eyes follow the last stroke. */
+  activity?: BoardActivity;
+  /** A correct final result: the mascot celebrates with confetti. */
+  celebrate?: boolean;
+  /** Conversation with the tutor; omitted where chat does not apply. */
+  chat?: ChatProps & { open: boolean; onToggle(): void };
+  /** One-tap answers shown right in the bubble after an AI answer. */
+  answerChips?: readonly ChipId[];
+  onChip?(id: ChipId): void;
   canRequest: boolean;
   lessonActive: boolean;
   mode: CoachMode;
@@ -55,12 +71,30 @@ const MODES: { mode: CoachMode; label: MessageKey }[] = [
 export function TutorHud(p: Props) {
   const { t, message } = p;
   const reduced = useReducedMotion();
-  const visit = useTutorVisit(message?.id, message?.text ?? '', message?.stepId, !!p.quiet || p.menuOpen, reduced, p.locateStep);
+  const cm = chatMessages[p.locale ?? 'cs'];
+  const chatOpen = !!p.chat?.open && !p.quiet && !p.menuOpen;
+  const visit = useTutorVisit(message?.id, message?.text ?? '', message?.stepId, !!p.quiet || p.menuOpen || chatOpen, reduced, p.locateStep);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!p.activity || !buttonRef.current || reduced) return;
+    return bindGaze(p.activity, buttonRef.current);
+  }, [p.activity, reduced]);
+  // A short wave when the tutor greets (welcome, lesson start).
+  const greeting = !!message && (message.id === 'welcome' || message.id.startsWith('lesson-'));
+  const [waving, setWaving] = useState(false);
+  useEffect(() => {
+    if (!greeting || reduced) { setWaving(false); return; }
+    setWaving(true);
+    const timer = setTimeout(() => setWaving(false), 2800);
+    return () => clearTimeout(timer);
+  }, [message?.id, greeting, reduced]);
+  const mood: TutorMood = waving && p.mood === 'idle' ? 'waving' : p.mood;
+  const travel = Math.hypot(visit.x, visit.y);
   const key = `${message?.id}:${message?.text}`;
   const [reveal, setReveal] = useState({ key, count: 1 });
   const brief = message ? briefText(message.text) : '';
   const count = reduced ? brief.length : reveal.key === key ? reveal.count : 1;
-  const visible = !!message && !p.quiet && !p.menuOpen;
+  const visible = !!message && !p.quiet && !p.menuOpen && !chatOpen;
   const writing = visible && count < brief.length;
   useEffect(() => {
     if (!visible || reduced) return;
@@ -74,11 +108,14 @@ export function TutorHud(p: Props) {
     return () => clearInterval(timer);
   }, [key, brief.length, visible, reduced]);
   return <div ref={visit.ref} className={`tutor-hud${visit.away ? ' tutor-visiting' : ''}`} data-testid="tutor-hud" data-visiting={visit.visiting} data-returning={visit.returning}
-    style={{ transform: `translate(${visit.x}px, ${visit.y}px)`, ...(visit.snap ? { transition: 'none' } : {}) }}
+    style={{ transform: `translate(${visit.x}px, ${visit.y}px)`, ...(visit.snap ? { transition: 'none' } : travel ? { transitionDuration: `${Math.round(Math.min(700, Math.max(520, 420 + travel * 0.5)))}ms` } : {}) }}
     onTransitionEnd={e => { if (e.target === e.currentTarget && e.propertyName === 'transform') visit.finishReturn(); }}>
-    {message && visible && <div className={`tutor-bubble tutor-bubble-${message.kind}`} role="group" data-testid="tutor-bubble" data-kind={message.kind}>
-      <BubbleText id={message.id} text={message.text} count={count} away={visit.away} more={t.moreText} less={t.lessText} />
+    {message && visible && <div className={`tutor-bubble tutor-bubble-${message.kind}`} role="group" data-testid="tutor-bubble" data-kind={message.kind} data-message-id={message.id}>
+      {message.kind === 'thinking'
+        ? <p className="tutor-handwriting tutor-thinking-line" role="status">{(p.slow ? cm.stillThinking : message.text).replace(/…$/, '')}<span className="think-dots" aria-hidden="true"><i /><i /><i /></span></p>
+        : <BubbleText id={message.id} text={message.text} count={count} away={visit.away} more={t.moreText} less={t.lessText} />}
       <fieldset className="tutor-choices" disabled={visit.away} aria-hidden={visit.away || undefined}>
+      {message.kind === 'thinking' && p.running && <div className="row"><button type="button" className="stop" onClick={() => p.onChoice('cancel')}>{cm.cancelRequest}</button></div>}
       {message.kind === 'check_in' && <div className="row">
         <button onClick={() => p.onChoice('report_failed')}>{t.checkInFailed}</button>
         <button onClick={() => p.onChoice('confirm_final')}>{t.checkInFinal}</button>
@@ -101,8 +138,12 @@ export function TutorHud(p: Props) {
         <button className="primary" disabled={p.running} onClick={() => p.onChoice('ask_ai')}>{t.askTeacher}</button>
         <button onClick={() => p.onChoice('dismiss')}>{t.offerDismiss}</button>
       </div>}
+      {message.kind === 'info' && !!p.answerChips?.length && <div className="row tutor-answer-chips">
+        {p.answerChips.map(id => <button key={id} type="button" className="chat-chip" data-chip={id} onClick={() => p.onChip?.(id)}>{cm[CHIP_LABEL[id]]}</button>)}
+      </div>}
       </fieldset>
     </div>}
+    {chatOpen && p.chat && <ChatPanel {...p.chat} />}
     {p.menuOpen && !p.quiet && <div className="tutor-menu" role="menu" aria-label={t.tutorMenu}>
       <div className="tutor-modes" role="radiogroup" aria-label={t.coachModeLabel}>
         {MODES.map(m => <button key={m.mode} role="radio" aria-checked={p.mode === m.mode} className={p.mode === m.mode ? 'primary' : ''} onClick={() => p.onMode(m.mode)}>{t[m.label]}</button>)}
@@ -122,9 +163,13 @@ export function TutorHud(p: Props) {
       <label className="check-label"><input type="checkbox" checked={p.voiceOn} onChange={e => p.onVoice(e.target.checked)} />{t.tutorSpeaks}</label>
       {p.micAvailable && <button role="menuitem" className={p.listening ? 'primary' : ''} aria-pressed={p.listening} onClick={p.onMic}>{p.listening ? t.micListening : t.micAsk}</button>}
     </div>}
-    <button className="tutor-button" aria-label={t.tutorMenu} aria-expanded={p.menuOpen} disabled={visit.away} onClick={p.onToggleMenu}>
-      <Tutor mood={p.mood} speaking={p.speaking} writing={writing} />
-    </button>
+    <div className="tutor-dock">
+      {p.chat && <button type="button" className="chat-toggle" aria-label={cm.chatOpen} title={cm.chatOpen} aria-expanded={chatOpen} disabled={visit.away || !!p.quiet}
+        onClick={p.chat.onToggle}><ChatIcon /></button>}
+      <button ref={buttonRef} className="tutor-button" aria-label={t.tutorMenu} aria-expanded={p.menuOpen} disabled={visit.away} onClick={p.onToggleMenu}>
+        <Tutor mood={mood} speaking={p.speaking} writing={writing} pointing={visit.visiting && !visit.returning} celebrate={p.celebrate} />
+      </button>
+    </div>
   </div>;
 }
 

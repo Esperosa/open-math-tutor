@@ -20,6 +20,14 @@ import { loadProfile, saveProfile } from './profileStorage';
 import { localTeacherActions } from './localTeacher';
 import { computeLineVerdicts, effectiveStatement, markPerStep, writtenLines } from './lines';
 import { TutorHud, type TutorChoice, type TutorMessage } from './TutorHud';
+import { useBoardActivity } from './activity';
+import { useSettledValue } from './settled';
+import { useChat } from './chat/useChat';
+import { conversationTail } from './chat/chatStore';
+import { chatMessages } from './chat/messages';
+import { answerFaq, faqById } from './chat/faq';
+import { CHIP_FAQ, CHIP_LABEL, quickReplies, type ChipId } from './chat/replies';
+import { COACH_MIN_DELAY_MS, REQUEST_SLOW_MS, REQUEST_TIMEOUT_MS } from './pacing';
 import { loadMastery, saveMastery, getOrCreateMastery } from './curriculumStorage';
 import { CoursesPanel, type LessonStart } from './curriculum/CoursesPanel';
 import { Onboarding, type StartLevel } from './curriculum/Onboarding';
@@ -38,7 +46,7 @@ import { CustomSourcesPanel } from './CustomSourcesPanel';
 import { loadSources, saveSources, addSource, removeSource, allChunks } from './customSources';
 
 type Mode = ContinueLessonRequest['mode'];
-type ContinueLessonExtra = Pick<ContinueLessonRequest, 'studentMessage' | 'curriculumContext' | 'retrievedContext' | 'learnerContext'>;
+type ContinueLessonExtra = Pick<ContinueLessonRequest, 'studentMessage' | 'curriculumContext' | 'retrievedContext' | 'learnerContext' | 'conversation'>;
 const hashKey = (key: string) => [...key].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7);
 const STYLE_MODE: Record<ExplainStyle, Mode> = { hint: 'hint', worked: 'next_step', analogy: 'explain_differently', visual: 'explain_differently' };
 interface Pending { id: string; controller: AbortController; provider: ProviderId; boardId: string; revision: number }
@@ -79,6 +87,13 @@ export function App() {
   const [testNotice, setTestNotice] = useState('');
   const [editingTask, setEditingTask] = useState(false);
   const [happy, setHappy] = useState(false);
+  const { activity, phase } = useBoardActivity();
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatLarge, setChatLarge] = useState(false);
+  const [slow, setSlow] = useState(false);
+  const [coachTick, setCoachTick] = useState(0);
+  const [aiAnswerId, setAiAnswerId] = useState('');
+  const chat = useChat(saved.activeId, saved.boards.map(b => b.id));
   const [profile, setProfileState] = useState<LearnerProfile>(loadProfile);
   const profileRef = useRef(profile); profileRef.current = profile;
   const resetting = useRef(false);
@@ -93,6 +108,7 @@ export function App() {
     if (settings.coachMode === 'final' && !lines.some(l => looksLikeFinalLine(l.latexGuess, symbols))) return {};
     return markPerStep(computeLineVerdicts(statement, lines, board.expected ?? expectedAnswerFor(statement), board.confirmedFinals), lines);
   }, [statement, lines, board.expected, board.confirmedFinals, settings.coachMode]);
+  const shownVerdicts = useSettledValue(verdicts, activity, board.id);
   useEffect(() => {
     const away = (e: PointerEvent) => {
       if ((e.target as Element | null)?.closest('.rail, .drawer, .settings-pop, .icon-btn, .tutor-hud, .calculator')) return;
@@ -192,7 +208,8 @@ export function App() {
     const id = crypto.randomUUID();
     const request: Pending = { id, controller, provider: settings.provider as ProviderId, boardId: snapshot.id, revision: snapshot.revision };
     pending.current = request; setRunning(true); setStatus(mode === 'ask' ? 'thinkingAnswer' : 'thinking'); setRejected(false);
-    const timer = setTimeout(() => { controller.abort(); void bridge.cancel(request.provider, id, AbortSignal.timeout(5000)).catch(() => {}); }, 120000);
+    const timer = setTimeout(() => { controller.abort(); void bridge.cancel(request.provider, id, AbortSignal.timeout(5000)).catch(() => {}); }, REQUEST_TIMEOUT_MS);
+    const slowTimer = setTimeout(() => { if (pending.current === request) setSlow(true); }, REQUEST_SLOW_MS);
     const base = { requestId: id, boardRevision: snapshot.revision,
       // Keep the request inside the bridge's limits: no empty lines, bounded lengths and counts.
       task: { statementText: snapshot.statement.slice(0, 2000), topic: snapshot.topic.slice(0, 100) },
@@ -216,8 +233,9 @@ export function App() {
         updateBoard({ ...applied.state, outcome: wasCorrect ? 'solved' : 'failed' });
       }
       if (!applied.stale) {
+        setAiAnswerId(id);
         setMessage({ id: id, kind: response.verifierStatus === 'correct' ? 'solved' : 'info', text: response.pedagogicalResponse,
-          stepId: response.firstErrorStepId ?? snapshot.activeStepId ?? undefined });
+          stepId: response.firstErrorStepId ?? (mode === 'ask' ? undefined : snapshot.activeStepId ?? undefined) });
         voice.speak(response.ttsText);
       }
     } catch (error) {
@@ -228,7 +246,7 @@ export function App() {
         if (error.code === 'bridgeUnavailable') setConnected(false);
       } else setStatus('unknown');
     } finally {
-      clearTimeout(timer);
+      clearTimeout(timer); clearTimeout(slowTimer); setSlow(false);
       if (pending.current === request) { pending.current = null; setRunning(false); }
     }
   }
@@ -250,7 +268,7 @@ export function App() {
       // guidance stays available while the student copies the given data.
       setMessage(m => m?.id === 'welcome' ? null : m);
     }
-    else schedule(live.current.boards.find(b => b.id === live.current.activeId)!);
+    else { schedule(live.current.boards.find(b => b.id === live.current.activeId)!); setCoachTick(n => n + 1); }
   }
   function switchExercise(id: string) {
     stop(false); setMessage(null); setTutorMenu(false);
@@ -375,11 +393,56 @@ export function App() {
     configure({ activeTrackId: '', onboardingDismissed: false });
   }
   function ask(message: string) {
+    chat.add(live.current.activeId, 'student', message);
+    askAi(message);
+  }
+  /** An AI question with a short thread of context; the student's own line is not part of the tail yet. */
+  function askAi(message: string, mode: Mode = 'ask') {
     const chunks = allChunks(sources);
     const retrievedContext = chunks.length
       ? retrieveTopChunks(chunks, message, 5).map(c => ({ sourceId: c.sourceId, sourceTitle: c.sourceTitle, chunkIndex: c.chunkIndex, text: c.text }))
       : undefined;
-    void request('ask', { studentMessage: message, retrievedContext });
+    const conversation = conversationTail(chat.thread);
+    void request(mode, { studentMessage: message, retrievedContext, learnerContext: learnerContext(), ...(conversation.length ? { conversation } : {}) });
+  }
+  /** The tutor says something outside the coach's own events (chat answers, local help). */
+  function tutorSay(text: string) {
+    setMessage({ id: `say-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, kind: 'info', text }); voice.speak(text);
+  }
+  /** A typed or spoken message: everyday app questions are answered locally, the rest goes to the AI. */
+  function sendChat(text: string) {
+    const question = text.trim().slice(0, 400);
+    if (!question) return;
+    const locale = live.current.settings.locale, cm = chatMessages[locale];
+    chat.add(live.current.activeId, 'student', question);
+    const faq = answerFaq(question, locale);
+    if (faq) { tutorSay(faq.text); return; }
+    if (!canRequest) { tutorSay(`${cm.noAi}\n${cm.noAiHow}`); return; }
+    askAi(question);
+  }
+  function chatChip(id: ChipId) {
+    const locale = live.current.settings.locale, cm = chatMessages[locale];
+    chat.add(live.current.activeId, 'student', cm[CHIP_LABEL[id]]);
+    const faq = CHIP_FAQ[id];
+    if (faq) { tutorSay(faqById(faq, locale).text); return; }
+    if (id === 'understand') { updateProfile(p => resolveStyleOutcome(p, true)); flashHappy(); tutorSay(cm.understandReply); return; }
+    if (id === 'next_problem') { nextProblem(); return; }
+    if (id === 'hint' && message?.kind === 'wrong' && message.stepId) { void tutorChoice('local_hint'); return; }
+    if (id === 'hint' && !lines.length) { tutorSay(cm.noHintYet); return; }
+    if (!canRequest) { tutorSay(id === 'lost' ? cm.lostNoAi : `${cm.noAi}\n${cm.noAiHow}`); return; }
+    if (id === 'explain') { void tutorChoice('explain'); return; }
+    if (id === 'hint') { void request('hint', { learnerContext: learnerContext(), ...tail() }); return; }
+    if (id === 'next_step') { void request('next_step', { learnerContext: learnerContext(), ...tail() }); return; }
+    if (id === 'lost') { askAi(cm.askLost, 'explain_differently'); return; }
+    askAi(id === 'why_wrong' ? cm.askWhyWrong : cm.askExample);
+  }
+  function tail(): Pick<ContinueLessonExtra, 'conversation'> {
+    const conversation = conversationTail(chat.thread);
+    return conversation.length ? { conversation } : {};
+  }
+  function toggleChat() {
+    setPanel(null); setPinned(false); setSettingsOpen(false); setCalcOpen(false); setTutorMenu(false);
+    setChatOpen(o => !o);
   }
   function uploadScan(image: UploadedImage) {
     void request(undefined, undefined, image);
@@ -491,6 +554,7 @@ export function App() {
         choice === 'report_failed' ? { kind: 'wrong_final', key, n: event.n } : event);
       return;
     }
+    if (choice === 'cancel') { stop(); return; }
     if (choice === 'dismiss') { setMessage(null); return; }
     if (choice === 'retry_line' || choice === 'local_hint') {
       const stepId = message?.stepId;
@@ -517,11 +581,23 @@ export function App() {
   }
   useEffect(() => {
     if (settings.coachMode === 'off') return;
-    const timer = setTimeout(runCoach, settings.coachMode === 'live' ? 1100 : 2200);
+    // The line counts as finished after a short pause that follows the pen-up / Escape, never mid-stroke.
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const wait = activity.remaining();
+      if (wait > 0) { timer = setTimeout(tick, wait + 10); return; }
+      runCoach();
+    };
+    timer = setTimeout(tick, Math.max(COACH_MIN_DELAY_MS, activity.remaining()));
     return () => clearTimeout(timer);
     // runCoach reads live state through refs; re-arm on every committed change of the written work.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [board.id, board.revision, settings.coachMode, running, connected, canRequest]);
+  }, [board.id, board.revision, settings.coachMode, running, connected, canRequest, coachTick]);
+  useEffect(() => {
+    // Every tutor remark is part of the board's conversation (a re-render of the same remark is not added twice).
+    if (message && message.kind !== 'thinking') chat.add(board.id, 'tutor', message.text, message.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [message?.id]);
   useEffect(() => {
     if (message?.kind !== 'info' || (!settings.activeTrackId && !settings.onboardingDismissed) || panel || settingsOpen || calcOpen) return;
     const id = message.id;
@@ -536,12 +612,12 @@ export function App() {
   function eraseEverything() {
     if (!window.confirm(t.eraseAllConfirm)) return;
     resetting.current = true;
-    for (const key of ['openmathtutor.frontend.v1', 'openmathtutor.mastery.v1', 'openmathtutor.profile.v1', 'openmathtutor.sources.v1']) localStorage.removeItem(key);
+    for (const key of ['openmathtutor.frontend.v1', 'openmathtutor.mastery.v1', 'openmathtutor.profile.v1', 'openmathtutor.sources.v1', 'openmathtutor.chat.v1']) localStorage.removeItem(key);
     location.reload();
   }
   function deleteExercise() {
     if (!window.confirm(t.eraseConfirm)) return;
-    stop(false); setMessage(null); setTutorMenu(false);
+    stop(false); setMessage(null); setTutorMenu(false); chat.clear(live.current.activeId);
     const boards = live.current.boards.filter(b => b.id !== live.current.activeId);
     if (!boards.length) boards.push(newBoard());
     const value = { ...live.current, boards, activeId: boards[0].id }; live.current = value; setSaved(value);
@@ -558,10 +634,14 @@ export function App() {
   const calcPolicy = activeTrack?.calculator ?? 'scientific';
   const alertChip = !bridgeChecked ? null : !connected ? <span role="alert">{t.bridgeUnavailable} <button onClick={() => setRetry(r => r + 1)}>{t.retry}</button></span>
     : !canRequest ? <span>{provider?.id === "google" && provider.authStatus.keyPresent === false ? t.googleKeyMissing : provider && !provider.models.length ? t.noModels : t.selectProvider}</span> : null;
-  const mood: TutorMood = running ? 'thinking' : message?.kind === 'wrong' ? 'concerned' : message?.kind === 'solved' || happy ? 'happy' : 'idle';
+  const mood: TutorMood = running ? 'thinking' : phase === 'writing' && settings.coachMode !== 'off' ? 'watching' : phase === 'checking' && settings.coachMode !== 'off' ? 'checking'
+    : message?.kind === 'wrong' ? 'concerned' : message?.kind === 'solved' || happy ? 'happy' : 'idle';
+  const cm = chatMessages[settings.locale];
+  const answeredByAi = !!aiAnswerId && message?.id === aiAnswerId;
+  const chips = running ? [] : quickReplies({ kind: message?.kind ?? null, canRequest, lessonActive: !!lessonSkillId || !!board.skillId, answeredByAi, hasLines: lines.length > 0 });
   const shownMessage: TutorMessage | null = running ? { id: 'thinking', kind: 'thinking', text: t.tutorThinking } : message;
   return <div className="app-shell">
-    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} verdicts={verdicts} onRemoveAnnotation={id => { stop(false); const current = live.current.boards.find(b => b.id === live.current.activeId)!; updateBoard(removeAnnotation(current, id)); }} onAskHere={() => { setPanel('ask'); setPinned(true); }} /></div>
+    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} verdicts={shownVerdicts} onRemoveAnnotation={id => { stop(false); const current = live.current.boards.find(b => b.id === live.current.activeId)!; updateBoard(removeAnnotation(current, id)); }} onAskHere={() => { setPanel('ask'); setPinned(true); }} /></div>
     <div className={`hud${openPanel ? ' drawer-open' : ''}${settingsOpen ? ' settings-open' : ''}`} data-testid="hud">
       <div className="hud-top-left">
         <span className="sr"><output data-testid="revision">{board.revision}</output></span>
@@ -667,14 +747,20 @@ export function App() {
           <h2 className="h2-muted">{t.annotations}</h2><p className="muted">{t.annotationReveal}</p><ul className="annotations-list">{board.annotations.map((a, i) => <li key={a.id} data-testid="annotation-item">
             <span>{t.aiBadge} {i + 1}</span><button onClick={() => { stop(false); updateBoard(removeAnnotation(board, a.id)); }}>{t.undoAnnotation} {i + 1}</button></li>)}</ul></section>
       </aside>
-      <TutorHud key={board.id} locateStep={locateStep} t={t} quiet={settingsOpen || calcOpen || !!openPanel} mood={mood} speaking={voice.speaking} message={shownMessage} menuOpen={tutorMenu} running={running} canRequest={canRequest}
+      <TutorHud key={board.id} locateStep={locateStep} t={t} locale={settings.locale} activity={activity} slow={slow} celebrate={message?.kind === 'solved'}
+        quiet={settingsOpen || calcOpen || !!openPanel} mood={mood} speaking={voice.speaking} message={shownMessage} menuOpen={tutorMenu} running={running} canRequest={canRequest}
+        answerChips={answeredByAi ? ['understand', 'lost'] : undefined} onChip={chatChip}
+        chat={{ open: chatOpen, onToggle: toggleChat, locale: settings.locale, thread: chat.thread, chips, busy: running, slow, large: chatLarge,
+          micAvailable: mic.available, listening: mic.listening, onChip: chatChip, onSend: sendChat, onMic: () => mic.toggle(text => { setChatOpen(true); sendChat(text); }),
+          onCollapse: () => setChatOpen(false), onToggleSize: () => setChatLarge(v => !v), onCancel: () => stop(),
+          onClear: () => { if (window.confirm(cm.chatClearConfirm)) chat.clear(board.id); } }}
         lessonActive={!!lessonSkillId || !!board.skillId} selfAssess={!!board.skillId && !board.expected && !board.outcome} mode={settings.coachMode} voiceOn={settings.tutorVoice} micAvailable={mic.available} listening={mic.listening}
         onToggleMenu={() => openOnly('tutor')}
         notesVisible={settings.showAI} hasNotes={!!board.annotations.length}
         onToggleNotes={() => configure({ showAI: !settings.showAI })}
         onClearNotes={() => { stop(false); updateBoard({ ...board, annotations: [] }); }}
         onMode={mode => { configure({ coachMode: mode }); if (mode === 'off') setMessage(null); }} onVoice={on => { if (!on) voice.cancel(); configure({ tutorVoice: on }); }}
-        onMic={() => mic.toggle(text => ask(text))}
+        onMic={() => mic.toggle(text => { setChatOpen(true); sendChat(text); })}
         onAction={action => { setTutorMenu(false); if (action === 'stop') stop(); else if (action === 'next_problem') nextProblem(); else if (action === 'free') createExercise(); else if (action === 'self_done' || action === 'self_fail') selfAssess(action === 'self_done'); else void request(action, { learnerContext: learnerContext() }); }}
         onChoice={choice => void tutorChoice(choice)} />
     </div>

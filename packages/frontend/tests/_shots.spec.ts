@@ -1,0 +1,24 @@
+import { expect, test } from '@playwright/test';
+test('shots', async ({ page }) => {
+  await page.route('http://127.0.0.1:4178/**', route => route.abort('connectionrefused'));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Přeskočit, chci jen volnou tabuli', exact: true }).click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'test-results/shot-1-wave.png' });
+  await page.getByRole('button', { name: 'Upravit zadání' }).click();
+  await page.getByRole('textbox', { name: 'Zadání', exact: true }).fill('5+1');
+  await page.getByRole('button', { name: 'Hotovo', exact: true }).click();
+  await page.mouse.click(560, 360);
+  await page.keyboard.type('5+1=8'); await page.keyboard.press('Escape');
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: 'test-results/shot-2-wrong.png' });
+  await page.getByRole('button', { name: 'Povídat si s učitelem' }).click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'test-results/shot-3-chat.png' });
+  await page.getByRole('button', { name: 'Napsat zprávu' }).click();
+  await page.getByRole('textbox', { name: 'Zpráva učiteli' }).fill('co znamená ✓ a ✗?');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: 'test-results/shot-4-faq.png' });
+  await expect(page.getByTestId('chat-log')).toContainText('řádku vidíš');
+});
