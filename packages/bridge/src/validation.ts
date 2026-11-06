@@ -1,0 +1,79 @@
+import {
+  ProviderError, validateBoardActions,
+  type AnalyzeBoardRequest, type AnalyzeBoardResponse, type ContinueLessonRequest,
+  type RecognizedStep,
+} from '@openmathtutor/shared';
+
+export function record(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+export const text = (v: unknown, max = 500): v is string =>
+  typeof v === 'string' && v.length > 0 && v.length <= max;
+export const revision = (v: unknown): v is number => Number.isSafeInteger(v) && (v as number) >= 0;
+export const oneOf = (value: unknown, allowed: readonly string[]): value is string =>
+  typeof value === 'string' && allowed.includes(value);
+
+function steps(value: unknown, expected?: number): value is RecognizedStep[] {
+  return Array.isArray(value) && value.length <= 100 && value.every(s =>
+    record(s) && text(s.stepId, 128) && text(s.latexGuess, 300) && revision(s.boardRevision) &&
+    (expected === undefined || s.boardRevision === expected));
+}
+
+export function validRequest(value: unknown, image: true): value is AnalyzeBoardRequest;
+export function validRequest(value: unknown, image: false): value is ContinueLessonRequest;
+export function validRequest(value: unknown, image: boolean): boolean {
+  if (!record(value) || !text(value.requestId, 128) || !revision(value.boardRevision) ||
+      !oneOf(value.locale, ['cs', 'en']) || !text(value.model, 128) ||
+      !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]*$/.test(value.model) || !record(value.task) ||
+      !text(value.task.topic, 100) || !steps(value.stepHistory)) return false;
+  for (const key of ['statementText', 'statementLatex']) {
+    if (value.task[key] !== undefined && !text(value.task[key], 2000)) return false;
+  }
+  if (!image) return oneOf(value.mode, ['check', 'hint', 'next_step', 'explain_differently']);
+  const crop = value.imageCrop;
+  return record(crop) && Number.isInteger(crop.width) && Number.isInteger(crop.height) &&
+    (crop.width as number) > 0 && (crop.width as number) <= 4096 &&
+    (crop.height as number) > 0 && (crop.height as number) <= 4096 &&
+    text(crop.dataUrl, 6_000_000) &&
+    /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(crop.dataUrl) &&
+    crop.dataUrl.slice(crop.dataUrl.indexOf(',') + 1).length % 4 === 0;
+}
+
+/** Shared requests have no board viewport. Never guess its bounds: bridge accepts
+ * only step-targeted annotations; absolute-coordinate actions are rejected until
+ * a viewport contract is available. The renderer must still check live revision. */
+export function validateResponse(value: unknown, req: AnalyzeBoardRequest | ContinueLessonRequest): AnalyzeBoardResponse {
+  const fail = () => { throw new ProviderError('invalid_response', 'Provider response failed schema, revision or board safety validation.'); };
+  if (!record(value)) return fail();
+  if (value.requestId !== req.requestId || value.boardRevision !== req.boardRevision ||
+      !steps(value.recognizedSteps, req.boardRevision) ||
+      typeof value.confidence !== 'number' || !Number.isFinite(value.confidence) || value.confidence < 0 || value.confidence > 1 ||
+      !(value.firstErrorStepId === null || text(value.firstErrorStepId, 128)) ||
+      !oneOf(value.verifierStatus, ['correct', 'incorrect', 'ambiguous', 'needs_domain_check']) ||
+      !text(value.pedagogicalResponse, 4000) || typeof value.ttsText !== 'string' || value.ttsText.length > 4000 ||
+      !(value.needsClarification === null || (record(value.needsClarification) && text(value.needsClarification.reason, 500)))) return fail();
+  const result = validateBoardActions(value.boardActions, req.boardRevision,
+    { minX: 0, minY: 0, maxX: 0, maxY: 0 });
+  if (result.errors.length || result.valid.some(a => 'anchor' in a || 'from' in a || a.type === 'erase_own_annotation')) return fail();
+  const knownSteps = new Set([...req.stepHistory, ...value.recognizedSteps].map(s => s.stepId));
+  if (value.firstErrorStepId !== null && !knownSteps.has(value.firstErrorStepId as string)) return fail();
+  if (new Set(result.valid.map(a => a.id)).size !== result.valid.length) return fail();
+  for (const action of result.valid) {
+    if (!['circle', 'highlight', 'underline'].includes(action.type) ||
+        Object.keys(action).some(key => !['id', 'boardRevision', 'type', 'targetStepId', 'style'].includes(key)) ||
+        !text(action.id, 128)) return fail();
+    if ('targetStepId' in action && !knownSteps.has(action.targetStepId)) return fail();
+    if ('style' in action && action.style !== undefined) {
+      const style: unknown = action.style;
+      if (!record(style) || Object.keys(style).some(key => !['color', 'emphasis'].includes(key)) ||
+          (style.color !== undefined && (typeof style.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(style.color))) ||
+          (style.emphasis !== undefined && !oneOf(style.emphasis, ['low', 'medium', 'high']))) return fail();
+    }
+  }
+  return { requestId: req.requestId, boardRevision: req.boardRevision,
+    recognizedSteps: value.recognizedSteps.map(({ stepId, latexGuess, boardRevision }) => ({ stepId, latexGuess, boardRevision })), confidence: value.confidence,
+    firstErrorStepId: value.firstErrorStepId as string | null,
+    verifierStatus: value.verifierStatus as AnalyzeBoardResponse['verifierStatus'],
+    pedagogicalResponse: value.pedagogicalResponse, ttsText: value.ttsText,
+    boardActions: result.valid, needsClarification: value.needsClarification as AnalyzeBoardResponse['needsClarification'] };
+}
