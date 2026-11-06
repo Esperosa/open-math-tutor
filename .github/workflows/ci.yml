@@ -13,8 +13,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
-      - run: npm install
+      # The committed lockfile is generated on Windows by maintainers; npm's
+      # optional-dependency resolution (native rollup/esbuild binaries) does
+      # not reliably add the Linux variant on top of an existing lockfile
+      # recorded from a different platform (npm/cli#4828). Resolve fresh
+      # for this runner's platform instead of trusting the committed file.
+      - run: rm -f package-lock.json && npm install
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:unit
@@ -46,7 +50,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
-      - run: npm install
+      - run: rm -f package-lock.json && npm install
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
