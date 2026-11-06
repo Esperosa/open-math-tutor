@@ -67,6 +67,7 @@ export function App() {
   const [happy, setHappy] = useState(false);
   const [profile, setProfileState] = useState<LearnerProfile>(loadProfile);
   const profileRef = useRef(profile); profileRef.current = profile;
+  const resetting = useRef(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
   const leaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const lines = useMemo(() => writtenLines(board.steps), [board.steps]);
@@ -159,11 +160,11 @@ export function App() {
     return () => controller.abort();
   }, [retry]);
   useEffect(() => {
-    const timer = setTimeout(() => setSaveError(!save(saved)), 350);
+    const timer = setTimeout(() => { if (!resetting.current) setSaveError(!save(saved)); }, 350);
     return () => clearTimeout(timer);
   }, [saved]);
   useEffect(() => {
-    const flush = () => { save(live.current); };
+    const flush = () => { if (!resetting.current) save(live.current); };
     window.addEventListener('pagehide', flush);
     return () => window.removeEventListener('pagehide', flush);
   }, []);
@@ -422,6 +423,12 @@ export function App() {
     const errorish = !['idle', 'ready', 'waiting', 'thinking', 'thinkingAnswer', 'bridgeUnavailable'].includes(status);
     if (errorish) setMessage({ id: `status-${status}`, kind: status === 'cancelled' ? 'info' : 'error', text: t[status === 'bridgeUnavailable' ? 'offline' : status] });
   }, [status, t]);
+  function eraseEverything() {
+    if (!window.confirm(t.eraseAllConfirm)) return;
+    resetting.current = true;
+    for (const key of ['openmathtutor.frontend.v1', 'openmathtutor.mastery.v1', 'openmathtutor.profile.v1', 'openmathtutor.sources.v1']) localStorage.removeItem(key);
+    location.reload();
+  }
   function deleteExercise() {
     if (!window.confirm(t.eraseConfirm)) return;
     stop(false);
@@ -498,6 +505,7 @@ export function App() {
         {rejected && <p role="alert" className="warning">{t.rejectedActions}</p>}
         <p className="muted">{t.controlsHelp}</p>
         <p className="privacy">{t.privacy}</p>
+        <button className="stop" onClick={eraseEverything}>{t.eraseAll}</button>
       </aside>
       {calcOpen && calcPolicy !== 'none' && <Calculator t={t} locale={settings.locale} policy={calcPolicy} examRules={!!activeTrack?.calculator}
         onClose={() => setCalcOpen(false)} onUse={text => editor.current?.addLine(text, null)} />}

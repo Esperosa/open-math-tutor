@@ -430,3 +430,15 @@ test('coach "off" really is off: no marks, no bubble', async ({ page }) => {
   await expect(page.getByTestId('step-mark-wrong')).toHaveCount(0);
   await expect(bubble(page)).toHaveCount(0);
 });
+
+test('settings: "delete all saved data" really starts from scratch', async ({ page }) => {
+  await page.goto('/');
+  await skipOnboarding(page);
+  await setTask(page, '2+2');
+  await page.waitForTimeout(500);
+  await openSettings(page);
+  page.once('dialog', dialog => void dialog.accept());
+  await page.getByRole('button', { name: 'Smazat všechna uložená data' }).click();
+  await expect(page.getByRole('heading', { name: 'Na co se připravuješ?' })).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('openmathtutor.frontend.v1') ?? '{"boards":[{"statement":""}]}').boards[0].statement)).toBe('');
+});

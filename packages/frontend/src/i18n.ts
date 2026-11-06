@@ -72,6 +72,7 @@ export const cs = {
   testSheetName: 'Jméno', testSheetDate: 'Datum', testPoints: 'Body', testAnswers: 'Klíč správných odpovědí', hintPlan: 'Cesta kurzem, procenta a test na doma.', topicDoneHint: 'Celé téma máš zvládnuté. V Plánu můžeš sestavit test.',
   freeProblem: 'Vlastní příklad', emptyExercise: 'prázdná tabule', moreText: 'Více', lessText: 'Méně',
   pickCourseAgain: 'Vybrat jiný kurz nebo předmět',
+  eraseAll: 'Smazat všechna uložená data', eraseAllConfirm: 'Opravdu smazat všechny tabule, pokrok a profil z tohoto prohlížeče?',
   onboardingSkip: 'Přeskočit, chci jen volnou tabuli', trackComplete: 'vše zvládnuto', changeTrack: 'Změnit kurz',
 } as const;
 export type MessageKey = keyof typeof cs;
@@ -147,6 +148,7 @@ export const en: Record<MessageKey, string> = {
   testSheetName: 'Name', testSheetDate: 'Date', testPoints: 'Points', testAnswers: 'Answer key', hintPlan: 'The path through the course, percentages and a test for home.', topicDoneHint: 'You have the whole topic down. Build a test in the Plan.',
   freeProblem: 'My own problem', emptyExercise: 'empty board', moreText: 'More', lessText: 'Less',
   pickCourseAgain: 'Pick another course or subject',
+  eraseAll: 'Delete all saved data', eraseAllConfirm: 'Really delete all boards, progress and the learner profile from this browser?',
   onboardingSkip: 'Skip, I just want the free board', trackComplete: 'all done', changeTrack: 'Change track',
 };
 export const messages: Record<Locale, Record<MessageKey, string>> = { cs, en };
