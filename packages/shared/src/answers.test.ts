@@ -48,7 +48,7 @@ describe("instantiateProblem", () => {
   it("computes the expected answer from answerTemplate", () => {
     const problem = instantiateProblem(velocity, () => 0);
     expect(problem.statement).toBe("Auto ujede 120 m za 8 s. Urči rychlost.");
-    expect(problem.expected).toEqual({ value: 15, unit: "m/s", tolerance: 1e-9 });
+    expect(problem.expected).toEqual({ value: 15, unit: "m/s", tolerance: 1e-9, wordProblem: true });
   });
   it("derives the answer for plain arithmetic templates and gives none for free text without a formula", () => {
     const arithmetic: ProblemTemplate = { id: "a", skillId: "s", difficultyLevel: 1, topic: "t", statementTemplate: "{a}+{b}", generatorRanges: { a: [2, 2], b: [3, 3] } };
@@ -59,10 +59,10 @@ describe("instantiateProblem", () => {
 
 describe("audit regressions", () => {
   it("whole-number answers are exact, rounded ones keep a 1 % tolerance", () => {
-    const whole = instantiateProblem({ id: "w", skillId: "s", difficultyLevel: 1, topic: "t", freeText: true, statementTemplate: "x", answerTemplate: "3024" }).expected!;
+    const whole = instantiateProblem({ id: "w", skillId: "s", difficultyLevel: 1, topic: "t", statementTemplate: "x", answerTemplate: "3024" }).expected!;
     expect(checkAnswerLine(whole, "3000")).toBe("wrong");
     expect(checkAnswerLine(whole, "3024")).toBe("correct");
-    const rounded = instantiateProblem({ id: "r", skillId: "s", difficultyLevel: 1, topic: "t", freeText: true, statementTemplate: "x", answerTemplate: "10/3" }).expected!;
+    const rounded = instantiateProblem({ id: "r", skillId: "s", difficultyLevel: 1, topic: "t", statementTemplate: "x", answerTemplate: "10/3" }).expected!;
     expect(checkAnswerLine(rounded, "3,33")).toBe("correct");
   });
   it("catches a wrong unit but tolerates a missing one and notation variants", () => {
@@ -109,7 +109,7 @@ describe("audit round 2", () => {
     expect(answerFromLine("2,5e-3")).toBeCloseTo(0.0025, 12);
   });
   it("answers built from floating point arithmetic stay exact when they are whole numbers", () => {
-    const t: ProblemTemplate = { id: "f", skillId: "s", difficultyLevel: 1, topic: "t", freeText: true, statementTemplate: "x", answerTemplate: "0.1*600" };
+    const t: ProblemTemplate = { id: "f", skillId: "s", difficultyLevel: 1, topic: "t", statementTemplate: "x", answerTemplate: "0.1*600" };
     const e = instantiateProblem(t).expected!;
     expect(e.tolerance).toBe(1e-9);
     expect(checkAnswerLine(e, "60,3")).toBe("wrong");
@@ -119,5 +119,32 @@ describe("audit round 2", () => {
     expect(prettySigns("y=1x+2")).toBe("y=x+2");
     expect(prettySigns("2(x-0)=8")).toBe("2x=8");
     expect(prettySigns("21x+1")).toBe("21x+1");
+  });
+});
+
+describe("audit round 3", () => {
+  const force = { value: 50, unit: "N", tolerance: 1e-9, wordProblem: true };
+  it("given data and intermediate results in a word problem are not wrong answers", () => {
+    expect(checkAnswerLine(force, "m = 5 kg")).toBe("none");
+    expect(checkAnswerLine(force, "81/3 = 27")).toBe("none");
+    expect(checkAnswerLine(force, "F = 40 N")).toBe("wrong");
+    expect(checkAnswerLine(force, "F = m*a = 5*10 = 50 N")).toBe("correct");
+  });
+  it("a chain starting with a single symbol is a result, even after lines with symbols", () => {
+    expect(looksLikeFinalLine("F = m*a = 5*10 = 50 N", true)).toBe(true);
+    expect(looksLikeFinalLine("S = π·6² = 36π cm²", true)).toBe(true);
+    expect(looksLikeFinalLine("2x = 4 = 4", true)).toBe(false);
+  });
+  it("a percent sign is a unit", () => {
+    expect(checkAnswerLine({ value: 39, unit: "%", tolerance: 1e-9 }, "39 %")).toBe("correct");
+    expect(checkAnswerLine({ value: 39, unit: "%", tolerance: 1e-9 }, "w = 39%")).toBe("correct");
+    expect(answerFromLine("50%*80")).toBe(40);
+  });
+  it("drops meaningless zeros from statements", () => {
+    expect(prettySigns("2-0-6")).toBe("2-6");
+    expect(prettySigns("7*(-9-0)")).toBe("7*(-9)");
+    expect(prettySigns("4x+0=8x+0")).toBe("4x=8x");
+    expect(prettySigns("10+5")).toBe("10+5");
+    expect(prettySigns("2+0.5")).toBe("2+0.5");
   });
 });

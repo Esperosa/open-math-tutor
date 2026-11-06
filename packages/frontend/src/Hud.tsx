@@ -44,7 +44,7 @@ export function Rail({ items, active, onHover, onToggle }: RailProps) {
       aria-label={item.label} aria-pressed={active === item.id}
       onMouseEnter={() => { onHover(item.id); tips.enter(item.id); }} onMouseLeave={tips.leave} onClick={() => onToggle(item.id)}>
       <Icon name={item.id} />
-      {tips.tip?.id === item.id && <span className="tip" role="tooltip"><strong>{item.label}</strong>{tips.tip.long && <span>{item.hint}</span>}</span>}
+      {active !== item.id && tips.tip?.id === item.id && <span className="tip" role="tooltip"><strong>{item.label}</strong>{tips.tip.long && <span>{item.hint}</span>}</span>}
     </button>)}
   </nav>;
 }

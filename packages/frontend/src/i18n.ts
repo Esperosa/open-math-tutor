@@ -77,6 +77,7 @@ export const cs = {
   lessonStart: 'Pojďme na: {skill}. Piš řešení rovnou na tabuli, já ti ho pohlídám.', lessonDrawing: 'Tohle je kresba: {skill}. Nakresli ji na tabuli. Kresbu zatím neumím posoudit sám, na konci mi řekni, jak to dopadlo.',
   lessonUnchecked: 'Pojďme na: {skill}. Tuhle úlohu neumím kontrolovat automaticky. Piš postup na tabuli a na konci mi řekni, jak to dopadlo.',
   selfDone: 'Zvládl(a) jsem to', selfFail: 'Nešlo mi to', selfNoted: 'Zapsáno. Pokračujeme?',
+  backToCourse: 'Zpět do kurzu',
   onboardingSkip: 'Přeskočit, chci jen volnou tabuli', trackComplete: 'vše zvládnuto', changeTrack: 'Změnit kurz',
 } as const;
 export type MessageKey = keyof typeof cs;
@@ -157,6 +158,7 @@ export const en: Record<MessageKey, string> = {
   lessonStart: 'Let us do: {skill}. Write your working right on the board and I will keep an eye on it.', lessonDrawing: 'This one is a drawing: {skill}. Draw it on the board. I cannot judge drawings myself yet, so tell me how it went at the end.',
   lessonUnchecked: 'Let us do: {skill}. I cannot check this one automatically. Write your working on the board and tell me how it went at the end.',
   selfDone: 'I managed it', selfFail: 'I struggled', selfNoted: 'Noted. Shall we continue?',
+  backToCourse: 'Back to the course',
   onboardingSkip: 'Skip, I just want the free board', trackComplete: 'all done', changeTrack: 'Change track',
 };
 export const messages: Record<Locale, Record<MessageKey, string>> = { cs, en };

@@ -69,6 +69,7 @@ export function App() {
   const profileRef = useRef(profile); profileRef.current = profile;
   const resetting = useRef(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => { clearTimeout(hoverTimer.current); clearTimeout(leaveTimer.current); }, []);
   const leaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const lines = useMemo(() => writtenLines(board.steps), [board.steps]);
   const statement = useMemo(() => effectiveStatement(board.statement, lines), [board.statement, lines]);
@@ -306,7 +307,7 @@ export function App() {
   function buildTest(scope: { topicId?: string }, mode: 'print' | 'download') {
     const trackId = settings.activeTrackId;
     if (!trackId) return;
-    const test = generateTest(catalog, { trackId, ...scope }, 2);
+    const test = generateTest(catalog, { trackId, ...scope }, 2, Math.random, settings.locale);
     const trackTitle = catalog.tracks.find(tr => tr.id === trackId)?.title[settings.locale] ?? '';
     const topicTitle = scope.topicId ? catalog.topics.find(tp => tp.id === scope.topicId)?.title[settings.locale] : undefined;
     const html = buildTestHtml(test, `${t.testTitle}: ${topicTitle ?? trackTitle}`, t, settings.locale);
@@ -375,7 +376,7 @@ export function App() {
       if (event.kind === 'solved' && marked.skillId) {
         const topic = catalog.topics.find(tp => tp.skillIds.includes(marked.skillId!));
         const after = { ...masteryRef.current, [marked.skillId]: recordAttempt(getOrCreateMastery(masteryRef.current, marked.skillId, Date.now()), true, Date.now()) };
-        if (topic && !marked.outcome && topicMastered(catalog, topic.id, after)) text += ` ${messages[locale].topicDoneHint}`;
+        if (topic && marked.outcome !== 'solved' && topicMastered(catalog, topic.id, after)) text += ` ${messages[locale].topicDoneHint}`;
       }
       setMessage({ id: event.key, kind, text }); voice.speak(text);
     };
@@ -391,14 +392,14 @@ export function App() {
         updateBoard(next); say('wrong'); break;
       }
       case 'solved': {
-        if (!marked.outcome && marked.skillId) recordMastery(marked.skillId, true);
+        if (marked.outcome !== 'solved' && marked.skillId) recordMastery(marked.skillId, true);
         updateProfile(p => resolveStyleOutcome(recordSolved(p, Date.now()), true));
         updateBoard({ ...marked, outcome: 'solved' }); say('solved'); break;
       }
       case 'unclear': {
         updateBoard(marked);
         const text = ls.find(l => stepKey(l) === event.key)?.latexGuess ?? '';
-        if (!looksLikeFinalLine(text, statementHasSymbols(task))) break; // an intermediate line nobody can check locally: stay quiet
+        if (expected || !looksLikeFinalLine(text, statementHasSymbols(task))) break; // data line or intermediate result: stay quiet
         if (cur.settings.auto && canRequest) void request('check', { learnerContext: learnerContext() });
         else say('unclear');
         break;
@@ -467,7 +468,10 @@ export function App() {
     <div className={`hud${openPanel ? ' drawer-open' : ''}`} data-testid="hud">
       <div className="hud-top-left">
         <span className="sr"><output data-testid="revision">{board.revision}</output></span>
-        {settings.activeTrackId && <TrackBreadcrumb catalog={catalog} trackId={settings.activeTrackId} mastery={mastery} t={t} locale={settings.locale} onChangeTrack={changeTrack} />}
+        {settings.activeTrackId && !board.skillId && <div className="track-breadcrumb" data-testid="free-chip">
+          <span className="track-breadcrumb-path"><strong>{t.freeProblem}</strong></span>
+          <button className="track-breadcrumb-change" onClick={nextProblem}>{t.backToCourse}</button></div>}
+        {settings.activeTrackId && !!board.skillId && <TrackBreadcrumb catalog={catalog} trackId={settings.activeTrackId} mastery={mastery} t={t} locale={settings.locale} onChangeTrack={changeTrack} />}
         <div className="task-card">
           {editingTask
             ? <><label>{t.task}<textarea rows={2} maxLength={4000} value={board.statement} placeholder={t.taskPlaceholder} autoFocus
@@ -564,7 +568,7 @@ export function App() {
       <TutorHud t={t} quiet={settingsOpen || calcOpen || !!openPanel} mood={mood} speaking={voice.speaking} message={shownMessage} menuOpen={tutorMenu} running={running} canRequest={canRequest}
         lessonActive={!!lessonSkillId || !!board.skillId} selfAssess={!!board.skillId && !board.expected && !board.outcome} mode={settings.coachMode} voiceOn={settings.tutorVoice} micAvailable={mic.available} listening={mic.listening}
         onToggleMenu={() => openOnly('tutor')}
-        onMode={mode => configure({ coachMode: mode })} onVoice={on => { if (!on) voice.cancel(); configure({ tutorVoice: on }); }}
+        onMode={mode => { configure({ coachMode: mode }); if (mode === 'off') setMessage(null); }} onVoice={on => { if (!on) voice.cancel(); configure({ tutorVoice: on }); }}
         onMic={() => mic.toggle(text => ask(text))}
         onAction={action => { setTutorMenu(false); if (action === 'stop') stop(); else if (action === 'next_problem') nextProblem(); else if (action === 'free') createExercise(); else if (action === 'self_done' || action === 'self_fail') selfAssess(action === 'self_done'); else void request(action, { learnerContext: learnerContext() }); }}
         onChoice={choice => void tutorChoice(choice)} />

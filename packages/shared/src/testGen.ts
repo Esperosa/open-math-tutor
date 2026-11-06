@@ -14,7 +14,7 @@ export interface TestItem {
 export interface GeneratedTest { trackId: string; topicId: string | null; items: TestItem[] }
 
 /** Builds a printable test from the catalog with no AI: per skill the templates are used from easy to hard, each with fresh numbers. */
-export function generateTest(catalog: CourseCatalog, scope: { trackId: string; topicId?: string }, perSkill = 2, random: () => number = Math.random): GeneratedTest {
+export function generateTest(catalog: CourseCatalog, scope: { trackId: string; topicId?: string }, perSkill = 2, random: () => number = Math.random, locale: "cs" | "en" = "cs"): GeneratedTest {
   const skills = scope.topicId ? getTopicSkills(catalog, scope.topicId)
     : getTrackTopics(catalog, scope.trackId).flatMap(topic => getTopicSkills(catalog, topic.id));
   const seen = new Set<string>();
@@ -27,7 +27,7 @@ export function generateTest(catalog: CourseCatalog, scope: { trackId: string; t
     for (let i = 0; i < Math.min(perSkill, templates.length); i++) {
       const template = templates[Math.min(templates.length - 1, Math.round(i * (templates.length - 1) / Math.max(1, perSkill - 1)))]!;
       const problem = instantiateProblem(template, random);
-      items.push({ n: items.length + 1, skillId: skill.id, skillTitle: skill.title.cs, statement: problem.statement,
+      items.push({ n: items.length + 1, skillId: skill.id, skillTitle: skill.title[locale], statement: problem.statement,
         ...(problem.expected ? { expected: problem.expected } : {}), ...(template.answerNote ? { answerNote: template.answerNote } : {}), drawing: skill.drawing === true });
     }
   }

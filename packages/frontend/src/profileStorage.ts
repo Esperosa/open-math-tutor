@@ -11,7 +11,10 @@ export function loadProfile(): LearnerProfile {
     if (parsed.version !== 1 || !EXPLAIN_STYLES.every(s => Number.isSafeInteger(parsed.styles?.[s]?.shown) && Number.isSafeInteger(parsed.styles[s].helped))) return emptyProfile();
     const plain = (v: unknown) => typeof v === 'object' && v !== null && !Array.isArray(v);
     const base = emptyProfile();
-    return { ...base, ...parsed, errors: plain(parsed.errors) ? parsed.errors : base.errors, skillErrors: plain(parsed.skillErrors) && Object.values(parsed.skillErrors).every(plain) ? parsed.skillErrors : base.skillErrors, days: plain(parsed.days) ? parsed.days : base.days };
+    const pendingOk = parsed.pending && EXPLAIN_STYLES.includes(parsed.pending.style) && typeof parsed.pending.key === 'string';
+    const numbers = (v: unknown) => plain(v) && Object.values(v as object).every(n => Number.isFinite(n));
+    const daysOk = plain(parsed.days) && Object.values(parsed.days).every(d => plain(d) && Number.isFinite((d as { solved: number }).solved) && Number.isFinite((d as { wrong: number }).wrong));
+    return { ...base, ...parsed, errors: numbers(parsed.errors) ? parsed.errors : base.errors, pending: pendingOk ? parsed.pending : undefined, skillErrors: plain(parsed.skillErrors) && Object.values(parsed.skillErrors).every(plain) ? parsed.skillErrors : base.skillErrors, days: daysOk ? parsed.days : base.days };
   } catch { return emptyProfile(); }
 }
 

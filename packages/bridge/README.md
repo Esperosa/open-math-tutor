@@ -1,4 +1,5 @@
 # Local bridge and desktop shell
+> Poznámka: počty testů v tomto souboru jsou historické záznamy z prvního sestavení; aktuální stav je v REQUIREMENTS.md.
 
 **Status: Claude subscription-powered text tutoring verified; the full board-image
 tutoring loop is still blocked.** Remaining provider limitations below are

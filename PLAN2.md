@@ -28,7 +28,7 @@ a každá končí testy, živým ověřením a commitem. Konec: smyčka nezávis
   Whisper je vědomě mimo (stahování modelu); mikrofon se skryje, když prohlížeč řeč nezná.
 
 ## D. Paměť o studentovi a styl vysvětlování
-- `profile.ts` (localStorage): chyby podle typu a dovednosti, historie dnů, úspěšnost stylů
+- `learnerProfile.ts` + `profileStorage.ts` (localStorage): chyby podle typu a dovednosti, historie dnů, úspěšnost stylů
   vysvětlení (nápověda, vzorový příklad, analogie, obrázek).
 - Výběr stylu: skóre úspěšnosti s malou průzkumnou složkou; výsledek se zapíše podle toho, zda
   další řádek po vysvětlení vyšel. Student se na nic neptá.

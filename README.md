@@ -92,7 +92,7 @@ UI pro cokoliv, co vyžaduje vaše vlastní přihlášení.
   a rozsvítí se automaticky, jakmile některý provider tuto cestu doloží.
 - **Vědomě mimo tuto fázi**: Android/Capacitor obálka, iOS build, režim
   "Sign in with ChatGPT", skutečná animace psaní perem tah po tahu (místo
-  postupného vykreslení KaTeX), geometrie/kvadratické rovnice/odmocniny
+- Geometrie, kvadratické rovnice a vyšší matematika jsou v katalogu jako dovednosti, ale bez automatické kontroly kroků (SymPy verifikátor zatím zná jen aritmetiku, zlomky, procenta a lineární rovnice); výsledky číselných úloh se kontrolují programově.
   (verifikátor zatím podporuje jen aritmetiku, zlomky, procenta, závorky
   a lineární rovnice).
 
@@ -101,3 +101,13 @@ UI pro cokoliv, co vyžaduje vaše vlastní přihlášení.
 MIT pro vlastní kód tohoto projektu. Licence použitých komponent (Excalidraw,
 SymPy, KaTeX, Electron, oficiální CLI nástroje poskytovatelů) jsou
 zdokumentované v [ARCHITECTURE.md](ARCHITECTURE.md) a `NOTICE.md`.
+
+
+## Mentor mode (jak appka učí)
+
+- **Jen tabule:** student klikne na tabuli a píše; zadání je karta jen ke čtení.
+- **Lokální trenér:** každý napsaný řádek se kontroluje v prohlížeči (`packages/shared/src/coach.ts`, `stepCheck.ts`, `answers.ts`) bez AI. Režimy: průběžně / až na konec / vypnuto (nabídka maskota).
+- **AI jen jako nástroj:** volá se na výslovnou žádost (nabídka maskota, "Vysvětli"), u neověřitelného výsledku jen s povolením v Nastavení. Start lekce AI nevolá.
+- **Paměť o studentovi:** `learnerProfile.ts` si tiše pamatuje typy chyb a které styly vysvětlení fungují; stručný souhrn jde AI jako `learnerContext`.
+- **Plán a testy:** zásuvka "Plán a cesta" (procenta z mastery) a sestavení testu na doma s klíčem odpovědí (tisk / PDF).
+- **Předměty:** matematika, VŠ předměty, fyzika a chemie; úlohy s kresbou jsou označené a AI kresby zatím nevidí.

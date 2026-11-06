@@ -44,6 +44,9 @@ export function load(): Saved {
         && saved.settings && ['cs', 'en'].includes(saved.settings.locale)) {
         saved.boards = saved.boards.map(sanitizeBoard).map(b => ({ ...b, annotations: renderableActions(b) }));
         saved.settings = { ...defaultSettings, ...saved.settings };
+        if (!['live', 'final', 'off'].includes(saved.settings.coachMode)) saved.settings.coachMode = defaultSettings.coachMode;
+        if (!['light', 'dark'].includes(saved.settings.theme)) saved.settings.theme = defaultSettings.theme;
+        if (!Number.isFinite(saved.settings.rate)) saved.settings.rate = defaultSettings.rate;
         if (!saved.boards.some(b => b.id === saved.activeId)) saved.activeId = saved.boards[0].id;
         return saved;
       }

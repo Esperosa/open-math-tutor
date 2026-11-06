@@ -59,7 +59,7 @@ export function recordStyleShown(profile: LearnerProfile, style: ExplainStyle, k
 
 /** The line written after an explanation was fine (helped) or still wrong (did not help). */
 export function resolveStyleOutcome(profile: LearnerProfile, helped: boolean): LearnerProfile {
-  if (!profile.pending) return profile;
+  if (!profile.pending || !profile.styles[profile.pending.style]) return { ...profile, pending: undefined };
   const { style } = profile.pending;
   const { pending: _pending, ...rest } = profile;
   void _pending;

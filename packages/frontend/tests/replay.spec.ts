@@ -343,6 +343,7 @@ test('notes: progress panel, markdown and image export carry the student work', 
 test('progressive tooltip: short label right away, longer explanation if the pointer stays', async ({ page }) => {
   await page.goto('/');
   await skipOnboarding(page);
+  await openPanel(page, 'Kurzy');
   await page.getByRole('button', { name: 'Zápisky a pokrok' }).hover();
   const tip = page.getByRole('tooltip');
   await expect(tip).toContainText('Zápisky a pokrok');
@@ -461,4 +462,36 @@ test('a drawing task says plainly that it cannot be checked and offers a self-re
   await expect(bubble(page)).toContainText('Zapsáno');
   await openPanel(page, 'Plán a cesta');
   await expect(page.getByTestId('plan-percent')).not.toHaveText('0 %');
+});
+
+test('word problem: given data and intermediate lines are not judged, a correct answer after a slip still earns progress', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /fyziku nebo chemii/ }).click();
+  await page.getByRole('button', { name: /^Fyzika/ }).click();
+  const match = /ujede (\d+) m za (\d+) s/.exec((await page.getByTestId('task-text').textContent()) ?? '');
+  const a = Number(match![1]), b = Number(match![2]);
+  await page.keyboard.press('Escape');
+  await writeOnBoard(page, `s = ${a} m`, 0);
+  await writeOnBoard(page, `t = ${b} s`, 1);
+  await page.waitForTimeout(2800);
+  await expect(page.getByTestId('step-mark-wrong')).toHaveCount(0);
+  await expect(bubble(page)).not.toHaveAttribute('data-kind', 'wrong');
+  await writeOnBoard(page, `v = ${a} / ${b} = ${Math.round(a / b + 9)} m/s`, 2);
+  await expect(bubble(page)).toHaveAttribute('data-kind', 'wrong', { timeout: 8000 });
+  await page.getByRole('button', { name: 'Zkusím sám' }).click();
+  await writeOnBoard(page, `v = ${a} / ${b} = ${Math.round(a / b)} m/s`, 3);
+  await expect(bubble(page)).toHaveAttribute('data-kind', 'solved', { timeout: 8000 });
+  await openPanel(page, 'Plán a cesta');
+  await expect(page.getByTestId('plan-percent')).not.toHaveText('0 %');
+});
+
+test('free example is labelled as such and the course is one click away', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /fyziku nebo chemii/ }).click();
+  await page.getByRole('button', { name: /^Fyzika/ }).click();
+  await openTutorMenu(page);
+  await page.getByRole('menuitem', { name: 'Vlastní příklad' }).click();
+  await expect(page.getByTestId('free-chip')).toBeVisible();
+  await page.getByRole('button', { name: 'Zpět do kurzu' }).click();
+  await expect(page.getByTestId('track-breadcrumb')).toBeVisible();
 });

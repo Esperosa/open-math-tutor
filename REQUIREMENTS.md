@@ -27,7 +27,7 @@ Značky: ✅ hotovo a ověřeno · 🟡 částečně / probíhá · ❌ zatím n
 | 1.13 | Odstupňované nápovědy, ne rovnou celé řešení | ✅ prompt přepsán: u Zkontrolovat/Poradit jen nápověda a naváděcí otázka, celé řešení až na "Ukaž další krok" nebo výslovnou žádost |
 | 1.14 | Hlas (speechSynthesis, cs-CZ) | ✅ |
 | 1.15 | MVP matematický rozsah (aritmetika, zlomky, procenta, závorky, lineární rovnice) | ✅ |
-| 1.16 | Testy (unit/integration/e2e) | ✅ shared 71, content 34, bridge 161, frontend 61, verifier 161, e2e 19 |
+| 1.16 | Testy (unit/integration/e2e) | ✅ shared 79, content 34, bridge 161, frontend 61, verifier 161, e2e 22 |
 | 1.17 | Bezpečnost (žádný shell z LLM, CSP, origin kontrola) | ✅ |
 | 1.18 | Dokumentace, licence, README cz/en | ✅ |
 

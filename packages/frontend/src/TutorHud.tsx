@@ -71,7 +71,7 @@ export function TutorHud(p: Props) {
         {p.selfAssess && <button role="menuitem" className="primary" onClick={() => p.onAction('self_done')}>{t.selfDone}</button>}
         {p.selfAssess && <button role="menuitem" onClick={() => p.onAction('self_fail')}>{t.selfFail}</button>}
         <button role="menuitem" onClick={() => p.onAction('free')}>{t.freeProblem}</button>
-        <button role="menuitem" className="stop" disabled={!p.running} onClick={() => p.onAction('stop')}>{t.stop}</button>
+        {p.running && <button role="menuitem" className="stop" onClick={() => p.onAction('stop')}>{t.stop}</button>}
       </div>
       <label className="check-label"><input type="checkbox" checked={p.voiceOn} onChange={e => p.onVoice(e.target.checked)} />{t.tutorSpeaks}</label>
       {p.micAvailable && <button role="menuitem" className={p.listening ? 'primary' : ''} aria-pressed={p.listening} onClick={p.onMic}>{p.listening ? t.micListening : t.micAsk}</button>}

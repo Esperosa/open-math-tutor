@@ -15,6 +15,8 @@ export interface ExpectedAnswer {
   unit?: string;
   /** Relative tolerance for the comparison (rounded physics answers need more than exact arithmetic). */
   tolerance: number;
+  /** A word problem: lines with other numbers are usually given data or intermediate results, not wrong answers. */
+  wordProblem?: boolean;
 }
 
 export interface InstantiatedProblem { statement: string; expected?: ExpectedAnswer }
@@ -39,7 +41,7 @@ export function expectedAnswerFor(statementText: string): ExpectedAnswer | undef
 /** "1+-8" reads badly on a task card: write the sign the way a person would. */
 export function prettySigns(statement: string): string {
   return statement.replace(/\+-/g, "-").replace(/--/g, "+").replace(/([*/^])-(\d+(?:[.,]\d+)?)/g, "$1(-$2)")
-    .replace(/\(([a-z])[+-]0\)/g, "$1").replace(/(^|[^\d.,\p{L}])1([a-z])(?![\p{L}])/gu, "$1$2");
+    .replace(/\(([a-z])[+-]0\)/g, "$1").replace(/[+-]0(?=[=+\-)]|$)/g, "").replace(/(^|[^\d.,\p{L}])1([a-z])(?![\p{L}])/gu, "$1$2");
 }
 
 function substitute(text: string, values: Record<string, number>): string {
@@ -69,7 +71,7 @@ export function instantiateProblem(template: ProblemTemplate, random: () => numb
       try {
         const raw = calcEvaluate(substitute(template.answerTemplate, values));
         const value = Math.round(raw * 1e9) / 1e9;
-        expected = { value, ...(template.answerUnit ? { unit: template.answerUnit } : {}), tolerance: Number.isInteger(value) ? 1e-9 : 0.01 };
+        expected = { value, ...(template.answerUnit ? { unit: template.answerUnit } : {}), tolerance: Number.isInteger(value) ? 1e-9 : 0.01, ...(template.freeText ? { wordProblem: true } : {}) };
       } catch (e) { if (!(e instanceof CalcError)) throw e; }
     } else if (!template.freeText) expected = expectedAnswerFor(statement);
     last = expected ? { statement, expected } : { statement };
@@ -106,7 +108,7 @@ export function answerFromLine(line: string): number | null {
     const value = Number(sci[1]!.replace("−", "-").replace(",", ".")) * Math.pow(10, Number((sci[2] ?? sci[3]!).replace("−", "-")));
     if (Number.isFinite(value)) return value;
   }
-  const prefix = (/^[\d\s.,+\-−*×·/^()%]+/.exec(tail)?.[0] ?? "").replace(/·/g, "*").trim();
+  const prefix = (/^[\d\s.,+\-−*×·/^()%]+/.exec(tail)?.[0] ?? "").replace(/·/g, "*").replace(/\s*%\s*$/, "").trim();
   if (prefix && /\d/.test(prefix)) {
     try { return calcEvaluate(prefix); } catch (e) { if (!(e instanceof CalcError)) throw e; }
   }
@@ -129,6 +131,8 @@ export function looksLikeFinalLine(line: string, taskHasSymbols: boolean): boole
   const rest = m[1]!;
   if (rest !== "" && !/^[\p{L}°%µΩ][\p{L}°%µΩ/²³^·\-\d\s.]*$/u.test(rest)) return false;
   if (eq < 0) return true;
+  const firstLeft = text.slice(0, text.indexOf("=")).trim();
+  if (/^[\p{L}](?:_?[\p{L}\d]{0,3})?(?:\([^)]{0,12}\))?$/u.test(firstLeft)) return true;
   const left = text.slice(0, eq).trim();
   if (left === "") return true;
   if (/^[\p{L}](?:_?[\p{L}\d]{0,3})?(?:\([^)]{0,12}\))?$/u.test(left)) return true;
@@ -152,8 +156,12 @@ export function checkAnswerLine(expected: ExpectedAnswer, line: string): AnswerV
   const given = answerFromLine(line);
   if (given === null) return "none";
   const scale = Math.max(Math.abs(expected.value), 1e-12);
-  if (Math.abs(given - expected.value) > expected.tolerance * scale + 1e-12) return "wrong";
   const unit = unitFromLine(line);
+  if (Math.abs(given - expected.value) > expected.tolerance * scale + 1e-12) {
+    if (!expected.wordProblem) return "wrong";
+    const explicit = !!unit && !!expected.unit && normalizeUnit(unit) === normalizeUnit(expected.unit);
+    return explicit ? "wrong" : "none";
+  }
   const written = normalizeUnit(unit);
   if (written && expected.unit && written !== normalizeUnit(expected.unit)) return "unit";
   return "correct";

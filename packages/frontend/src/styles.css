@@ -296,3 +296,14 @@ body { overflow: hidden; }
 .calc-grid .stop { margin: 0; }
 .excalidraw .HintViewer { display: none !important; }
 @media (max-width: 900px) { .calculator { right: 12px; top: 72px; } .drawer { width: calc(100vw - 80px); } }
+
+/* round 3 geometry: settings never reach the mascot's corner; on phones the icons and cards sit below the toolbar */
+.settings-pop { max-height: calc(100vh - 64px - 160px); }
+.search-results { margin-top: var(--space-2); }
+@media (max-width: 700px) {
+  .hud-top-right { top: 70px; }
+  .hud-top-left { top: 70px; width: calc(100vw - 150px); }
+  .settings-pop { top: 124px; max-height: calc(100vh - 124px - 160px); }
+  .calculator { top: 124px; }
+  .drawer { top: 124px; }
+}
