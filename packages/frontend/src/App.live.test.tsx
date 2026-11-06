@@ -54,7 +54,6 @@ it('answers app questions locally, says plainly that the AI is missing for the r
   fireEvent.click(screen.getByRole('button', { name: c.chipFaqMarks }));
   const log = screen.getByTestId('chat-log');
   await waitFor(() => expect(within(log).getByText(/řádku vidíš/)).toBeInTheDocument());
-  fireEvent.click(screen.getByRole('button', { name: c.composeOpen }));
   const input = screen.getByRole('textbox', { name: c.composeLabel });
   fireEvent.change(input, { target: { value: 'Proč se mění znaménko u zlomku?' } });
   fireEvent.submit(input.closest('form')!);
@@ -75,7 +74,6 @@ it('a thank-you typed into the chat is answered locally, with no AI connected', 
   render(<App />);
   fireEvent.click(screen.getByRole('button', { name: c.chatOpen }));
   fireEvent.click(screen.getByRole('button', { name: c.chipFaqMarks }));
-  fireEvent.click(screen.getByRole('button', { name: c.composeOpen }));
   const input = screen.getByRole('textbox', { name: c.composeLabel });
   fireEvent.change(input, { target: { value: 'díky' } });
   fireEvent.submit(input.closest('form')!);
@@ -106,7 +104,6 @@ it('a chat answer still arrives when the student starts writing in the meantime,
   const asked = connectedBridge(400);
   render(<App />);
   fireEvent.click(screen.getByRole('button', { name: c.chatOpen }));
-  fireEvent.click(screen.getByRole('button', { name: c.composeOpen }));
   const input = screen.getByRole('textbox', { name: c.composeLabel });
   await waitFor(() => expect(screen.queryByText(c.chipFaqMarks)).not.toBeNull());
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 100)); }); // the providers have loaded

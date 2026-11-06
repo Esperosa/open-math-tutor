@@ -31,7 +31,7 @@ const MicIcon = () => <Svg><rect x="9" y="3" width="6" height="11" rx="3" /><pat
 /** The conversation window: history, one-tap answers, and a message field that stays folded away until asked for. */
 export function ChatPanel(p: ChatProps) {
   const c = chatMessages[p.locale];
-  const [composing, setComposing] = useState(false);
+  const [composing, setComposing] = useState(true);
   const [draft, setDraft] = useState('');
   const log = useRef<HTMLOListElement>(null);
   const input = useRef<HTMLInputElement>(null);

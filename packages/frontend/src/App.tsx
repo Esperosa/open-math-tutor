@@ -356,7 +356,7 @@ export function App() {
     setLessonSkillId(lesson.skillId);
     setStatus('idle');
     const skill = catalog.skills.find(sk => sk.id === lesson.skillId);
-    const intro = lesson.expected ? t.lessonStart : skill?.drawing ? t.lessonDrawing : t.lessonUnchecked;
+    const intro = lesson.expected ? t.lessonStart : skill?.drawing ? t.lessonDrawing : (canRequest && live.current.settings.auto ? t.lessonAiChecked : t.lessonUnchecked);
     const greeting = intro.replace('{skill}', skill?.title[settings.locale] ?? lesson.topic);
     setMessage({ id: `lesson-${next.id}`, kind: 'info', text: greeting });
     voice.speak(greeting);

@@ -27,7 +27,7 @@ export const BOARD_PATTERNS: readonly BoardPattern[] = ['plain', 'grid', 'lines'
 export interface Saved { version: 1; boards: BoardState[]; activeId: string; settings: Settings }
 const KEY = 'openmathtutor.frontend.v1';
 export const defaultSettings: Settings = {
-  locale: 'cs', theme: 'light', auto: false, voiceEnabled: false, voiceURI: '', rate: 1, provider: '', model: '', showAI: true,
+  locale: 'cs', theme: 'light', auto: true, voiceEnabled: false, voiceURI: '', rate: 1, provider: '', model: '', showAI: true,
   activeTrackId: '', onboardingDismissed: false, startLevel: 1,
   coachMode: 'live', tutorVoice: false, onlineVoices: false, boardPattern: 'plain', defaultTool: 'freedraw',
 };
@@ -62,6 +62,8 @@ export function load(): Saved {
         if (!['live', 'final', 'off'].includes(saved.settings.coachMode)) saved.settings.coachMode = defaultSettings.coachMode;
         // The tutor is silent by default; a one-time reset mutes users who had the old default (voice on).
         if (!localStorage.getItem('openmathtutor.voice-default.v2')) { saved.settings.tutorVoice = false; localStorage.setItem('openmathtutor.voice-default.v2', '1'); }
+        // AI checking of lessons the app cannot verify itself is on by default once connected; one-time switch for older saves.
+        if (!localStorage.getItem('openmathtutor.auto-default.v2')) { saved.settings.auto = true; localStorage.setItem('openmathtutor.auto-default.v2', '1'); }
         if (!BOARD_PATTERNS.includes(saved.settings.boardPattern)) saved.settings.boardPattern = defaultSettings.boardPattern;
         if (!DEFAULT_TOOLS.includes(saved.settings.defaultTool)) saved.settings.defaultTool = defaultSettings.defaultTool;
         if (!['light', 'dark'].includes(saved.settings.theme)) saved.settings.theme = defaultSettings.theme;

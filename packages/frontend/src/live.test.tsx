@@ -112,13 +112,11 @@ it('waves while greeting, then settles; no wave for ordinary remarks or with red
 const chatProps = (over: Partial<ChatProps> = {}): ChatProps => ({ locale: 'cs', thread: [], chips: ['hint', 'faq_marks'], busy: false, slow: false, large: false,
   micAvailable: true, listening: false, onChip: vi.fn(), onSend: vi.fn(), onMic: vi.fn(), onCollapse: vi.fn(), onToggleSize: vi.fn(), onClear: vi.fn(), onCancel: vi.fn(), ...over });
 
-it('the chat shows the history, keeps typing folded away until asked for, and sends on submit', () => {
+it('the chat shows the history, has the message field ready, and sends on submit', () => {
   const props = chatProps({ thread: [{ id: '1', role: 'tutor', text: 'Ten výsledek nesedí.', at: 1 }, { id: '2', role: 'student', text: 'proč?', at: 2 }] });
   render(<ChatPanel {...props} />);
   expect(screen.getByRole('log', { name: c.chatLog })).toHaveTextContent('Ten výsledek nesedí.');
   expect(screen.getAllByRole('listitem').map(li => li.getAttribute('data-role'))).toEqual(['tutor', 'student']);
-  expect(screen.queryByRole('textbox')).toBeNull(); // not a permanent text field
-  fireEvent.click(screen.getByRole('button', { name: c.composeOpen }));
   const input = screen.getByRole('textbox', { name: c.composeLabel });
   expect(input).toHaveFocus();
   expect(screen.getByRole('button', { name: c.composeSend })).toBeDisabled();
