@@ -1,3 +1,4 @@
+import katex from 'katex';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BoardAction, ContinueLessonRequest, ExpectedAnswer, ProviderId } from '@openmathtutor/shared';
 import {
@@ -75,6 +76,48 @@ function providerStatusLabel(p: ProviderEntry, t: Record<MessageKey, string>): s
   return "";
 }
 
+
+function renderMathStatement(raw: string): string | null {
+  if (!raw) return null;
+  if (!/[/^=<>≤≥·]/.test(raw) && !/lim/i.test(raw)) return null;
+
+  let prefix = '';
+  let math = raw;
+
+  const colonIdx = raw.indexOf(':');
+  if (colonIdx !== -1 && /[a-zA-Z\u00C0-\u024F]/.test(raw.slice(0, colonIdx))) {
+    prefix = raw.slice(0, colonIdx + 1) + ' ';
+    math = raw.slice(colonIdx + 1).trim();
+  } else {
+    const wordPrefixMatch = /^([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽa-záčďéěíňóřšťúůýž\s]+?)\s+([0-9a-zA-Z(].*)$/.exec(raw);
+    if (wordPrefixMatch && !/[=<>+\-*/^]/.test(wordPrefixMatch[1])) {
+      prefix = wordPrefixMatch[1] + ' ';
+      math = wordPrefixMatch[2];
+    }
+  }
+
+  let suffix = '';
+  if (math.endsWith('.')) {
+    suffix = '.';
+    math = math.slice(0, -1);
+  }
+
+  let latex = math.trim();
+  latex = latex.replace(/lim\s*\(([a-z]+)\s*(?:→|->)\s*(?:∞|\\infty)\)/gi, '\\lim_{$1 \\to \\infty}');
+  latex = latex.replace(/\(([^)]+)\)\/\(([^)]+)\)/g, '\\frac{$1}{$2}');
+  latex = latex.replace(/\(([^)]+)\)\/([0-9a-zA-Z]+)/g, '\\frac{$1}{$2}');
+  latex = latex.replace(/([0-9a-zA-Z]+)\/\(([^)]+)\)/g, '\\frac{$1}{$2}');
+  latex = latex.replace(/(\b[0-9a-zA-Z]+)\/(\b[0-9a-zA-Z]+)/g, '\\frac{$1}{$2}');
+  latex = latex.replace(/\*/g, ' \\cdot ');
+
+  try {
+    const rendered = katex.renderToString(latex, { throwOnError: false, displayMode: false, strict: 'ignore' });
+    return (prefix ? `${prefix}` : '') + rendered + suffix;
+  } catch {
+    return null;
+  }
+}
+
 export function App() {
   const [saved, setSaved] = useState<Saved>(load);
   const live = useRef(saved); live.current = saved;
@@ -107,6 +150,7 @@ export function App() {
   const [calcOpen, setCalcOpen] = useState(false);
   const [message, setMessage] = useState<TutorMessage | null>(() => ({ id: 'welcome', kind: 'info', text: t.taskEmpty }));
   const [tutorMenu, setTutorMenu] = useState(false);
+
   const [bridgeChecked, setBridgeChecked] = useState(false);
   const [testNotice, setTestNotice] = useState('');
   const [editingTask, setEditingTask] = useState(false);
@@ -127,6 +171,13 @@ export function App() {
   const leaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const lines = useMemo(() => writtenLines(board.steps), [board.steps]);
   const statement = useMemo(() => effectiveStatement(board.statement, lines), [board.statement, lines]);
+  const formattedTaskHtml = useMemo(() => renderMathStatement(statement), [statement]);
+  const displayTopic = useMemo(() => {
+    const tp = (board.skillId ? catalog.topics.find(t => t.skillIds.includes(board.skillId!)) : undefined)
+      ?? catalog.topics.find(t => t.id === board.topic || t.title.cs === board.topic || t.title.en === board.topic);
+    return tp ? tp.title[settings.locale] : board.topic;
+  }, [board.skillId, board.topic, settings.locale]);
+
   const verdicts = useMemo(() => {
     if (settings.coachMode === 'off') return {};
     const symbols = statementHasSymbols(statement);
@@ -714,8 +765,12 @@ export function App() {
             ? <><label>{t.task}<textarea rows={2} maxLength={4000} value={board.statement} placeholder={t.taskPlaceholder} autoFocus
                 onChange={e => { stop(false); updateBoard(editTask(board, 'statement', e.target.value)); }} /></label>
                 <button onClick={() => setEditingTask(false)}>{t.taskDone}</button></>
-            : <><p className="task-text" data-testid="task-text">{statement || t.taskEmpty}</p>
-                {board.topic && <small>{board.topic}</small>}
+            : <><p className="task-text" data-testid="task-text">
+                {formattedTaskHtml
+                  ? <><span className="sr">{statement}</span><span aria-hidden="true" dangerouslySetInnerHTML={{ __html: formattedTaskHtml }} /></>
+                  : (statement || t.taskEmpty)}
+              </p>
+                {displayTopic && <small>{displayTopic}</small>}
                 <button className="task-edit" aria-label={t.taskEdit} title={t.taskEdit} onClick={() => setEditingTask(true)}>✎</button></>}
         </div>
       </div>
@@ -727,11 +782,12 @@ export function App() {
           <span className="ai-status-label" aria-hidden="true">{canRequest ? t.aiConnected : t.aiOffline}</span></span>
         {calcPolicy !== 'none' && <button className="icon-btn" title={`${t.calcOpen} — ${t.hintCalc}`} aria-label={t.calcOpen} aria-pressed={calcOpen} onClick={() => openOnly('calc')}><Icon name="calc" /></button>}
         <button className="icon-btn" title={`${t.settings} — ${t.hintSettings}`} aria-label={t.settings} aria-expanded={settingsOpen} onClick={() => openOnly('settings')}>
-          <span className={`status-dot ${canRequest ? 'ok' : 'idle'}`} aria-hidden="true" /><Icon name="settings" /></button>
+          <Icon name="settings" /></button>
         </div>
         {alertChip && <div className="hud-chip" aria-live="polite">{alertChip}</div>}
       </div>
       <aside className={`settings-pop${settingsOpen ? ' open' : ''}`} aria-label={t.settings}>
+        <div className="settings-header"><h2>{t.settings}</h2><button className="close-btn" aria-label={t.close} onClick={() => setSettingsOpen(false)}>×</button></div>
         <label>{t.language}<select value={settings.locale} onChange={e => configure({ locale: e.target.value as Settings['locale'], voiceURI: '' })}>
           <option value="cs">Čeština</option><option value="en">English</option></select></label>
         <button onClick={() => configure({ theme: settings.theme === 'light' ? 'dark' : 'light' })}>{settings.theme === 'light' ? t.dark : t.light}</button>
@@ -742,7 +798,7 @@ export function App() {
           <div className="pattern-picker">{DEFAULT_TOOLS.map(tool => <button key={tool} role="radio" aria-checked={settings.defaultTool === tool} data-tool={tool}
             onClick={() => configure({ defaultTool: tool })}><span>{tool === 'freedraw' ? t.toolPen : t.toolText}</span></button>)}</div></div>
         {connected && <>
-          <label>{t.provider}<select value={settings.provider} onChange={e => {
+          <label><span>{t.aiProvider}</span><select aria-label={t.provider} value={settings.provider} onChange={e => {
             const id = e.target.value as ProviderId | '';
             // Picking a provider should also pick a usable model, not leave
             // every action silently disabled until the person notices.
@@ -750,7 +806,8 @@ export function App() {
             configure({ provider: id, model: match?.models[0]?.id ?? '' });
           }}>
           <option value="">{t.choose}</option>{providers.map(p => <option key={p.id} value={p.id}>{p.id === "google" ? t.googleProvider : p.id}{providerStatusLabel(p, t)}</option>)}</select></label>
-          <label>{t.model}<select value={settings.model} onChange={e => configure({ model: e.target.value })}><option value="">{t.choose}</option>
+          <small className="muted">{t.aiRunsLocally}</small>
+          <label><span>{t.aiModel}</span><select aria-label={t.model} value={settings.model} onChange={e => configure({ model: e.target.value })}><option value="">{t.choose}</option>
             {provider?.models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
           {provider && provider.id === "google" && !provider.authStatus.authenticated && provider.authStatus.keyPresent === false &&
             <p className="muted" role="alert">{t.googleKeyMissing}</p>}

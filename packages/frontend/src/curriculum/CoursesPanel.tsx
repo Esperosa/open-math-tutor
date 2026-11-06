@@ -78,15 +78,28 @@ export function CoursesPanel({ catalog, mastery, t, locale, onStartLesson, activ
       {!hits.length && <li className="muted">{t.searchNone}</li>}
       {onAsk && <li><button className="primary" onClick={() => { onAsk(query.trim()); setQuery(''); }}>{t.searchAskAI.replace('{q}', query.trim())}</button></li>}
     </ul>}
-    <label>{t.track}<select value={trackId} onChange={e => { setTrackId(e.target.value); setTopicId(''); }}>
-      <option value="">{t.choose}</option>
-      {catalog.tracks.map(tr => <option key={tr.id} value={tr.id}>{tr.title[locale]}</option>)}
-    </select></label>
+    {!catalog.tracks.length ? (
+      <p className="muted courses-empty-guide">{t.coursesEmptyGuide}</p>
+    ) : (
+      <label>{t.track}<select value={trackId} onChange={e => { setTrackId(e.target.value); setTopicId(''); }}>
+        <option value="">{t.choose}</option>
+        {catalog.tracks.map(tr => <option key={tr.id} value={tr.id}>{tr.title[locale]}</option>)}
+      </select></label>
+    )}
+    {!track && catalog.tracks.length > 0 && (
+      <p className="muted courses-guide">{t.coursesGuide}</p>
+    )}
     {track && <p className="muted">{track.description[locale]}{track.unofficial && <> <em>({t.unofficialSyllabus})</em></>}</p>}
-    {track && <label>{t.lessonTopic}<select value={topicId} onChange={e => setTopicId(e.target.value)}>
-      <option value="">{t.choose}</option>
-      {topics.map(tp => <option key={tp.id} value={tp.id}>{tp.title[locale]}</option>)}
-    </select></label>}
+    {track && (
+      topics.length === 0 ? (
+        <p className="muted topics-empty-guide">{t.topicsEmptyGuide}</p>
+      ) : (
+        <label>{t.lessonTopic}<select value={topicId} onChange={e => setTopicId(e.target.value)}>
+          <option value="">{t.choose}</option>
+          {topics.map(tp => <option key={tp.id} value={tp.id}>{tp.title[locale]}</option>)}
+        </select></label>
+      )
+    )}
     {topic && <ul className="skills-list">
       {skills.map(skill => {
         const unlocked = skill.prerequisiteSkillIds.every(id => masteredIds.has(id));
