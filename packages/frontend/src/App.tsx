@@ -142,7 +142,9 @@ export function App() {
       // just logged in — a provider can be fully authenticated and still be
       // fail-closed for every request), and has models. Never override a
       // provider the person already picked themselves.
-      if (!live.current.settings.provider) {
+      const chosen = entries.find(p => p.id === live.current.settings.provider);
+      // A saved provider that can never tutor (e.g. fail-closed Codex) is replaced by one that can.
+      if (!live.current.settings.provider || (chosen && !chosen.authStatus.tutoringAvailable && entries.some(p => p.detect.installed && p.authStatus.authenticated && p.authStatus.tutoringAvailable && p.models.length > 0))) {
         const ready = entries.find(p => p.detect.installed && p.authStatus.authenticated && p.authStatus.tutoringAvailable && p.models.length > 0)
           ?? entries.find(p => p.detect.installed && p.authStatus.authenticated && p.models.length > 0);
         if (ready) {

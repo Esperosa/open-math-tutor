@@ -1,3 +1,4 @@
+import { Icon } from './Hud';
 import { useRef, useState } from 'react';
 import type { MessageKey } from './i18n';
 import { extractText, TextExtractError } from './textExtract';
@@ -30,8 +31,8 @@ export function CustomSourcesPanel({ t, sources, onAdd, onRemove }: Props) {
   return <section className="custom-sources">
     <h2>{t.customSources}</h2>
     <p className="muted">{t.customSourcesHelp}</p>
-    <label className="upload-board">
-      {busy ? t.sourceProcessing : t.addSource}
+    <label className="upload-board" data-hint="PDF · TXT">
+      <Icon name="materials" /><span className="upload-title">{busy ? t.sourceProcessing : t.addSource}</span>
       <input ref={input} type="file" accept=".txt,.pdf,text/plain,application/pdf" disabled={busy}
         onChange={e => {
           const file = e.target.files?.[0];

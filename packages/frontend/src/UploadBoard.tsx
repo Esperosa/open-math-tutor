@@ -1,3 +1,4 @@
+import { Icon } from './Hud';
 import { useRef } from 'react';
 import type { MessageKey } from './i18n';
 
@@ -34,8 +35,8 @@ export function UploadBoard({ t, disabled, onUpload }: Props) {
     const { width, height } = await imageSize(dataUrl);
     onUpload({ dataUrl, width, height });
   }
-  return <label className="upload-board">
-    {t.uploadScan}
+  return <label className="upload-board" data-hint="PNG · JPG · WebP">
+    <Icon name="materials" /><span className="upload-title">{t.uploadScan}</span>
     <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" disabled={disabled}
       onChange={e => {
         const file = e.target.files?.[0];
