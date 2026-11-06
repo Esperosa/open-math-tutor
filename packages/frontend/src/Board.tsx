@@ -2,8 +2,9 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { CaptureUpdateAction, Excalidraw, MainMenu, convertToExcalidrawElements, exportToBlob, exportToCanvas, exportToSvg } from '@excalidraw/excalidraw';
 import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 import type { ExcalidrawElement, NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
-import katex from 'katex';
-import { annotationElements } from './annotations';
+import { createStepLocatorRegistry, textStepLocator, type StepLocator } from './stepLocator';
+import { useReducedMotion } from './useReducedMotion';
+import { annotationElements, revealNotes } from './annotations';
 import { GraphPlot } from './GraphPlot';
 import { fingerprint, isStudent, renderableActions, type BoardState } from './boardState';
 import type { Settings } from './storage';
@@ -12,8 +13,11 @@ import type { StepVerdict } from '@openmathtutor/shared';
 import type { TutorRect } from './tutorPosition';
 
 export interface BoardHandle {
+  registerStepLocator(locator: StepLocator): () => void;
   stepViewportRect(stepId: string): TutorRect | null;
   addLine(text: string, stepId: string | null): void;
+  /** Remove the student's own ink of one written line (one row of a multiline text keeps its siblings). */
+  removeStepLine(stepId: string): boolean;
   crop(state: BoardState): Promise<{ dataUrl: string; width: number; height: number }>;
   exportImage(kind: 'png' | 'svg'): Promise<Blob | null>;
 }
@@ -23,8 +27,9 @@ interface Props {
   onBusy(busy: boolean): void;
   onAskHere?(): void;
   verdicts?: Record<string, StepVerdict>;
+  onRemoveAnnotation?(id: string): void;
 }
-export const Board = forwardRef<BoardHandle, Props>(function Board({ board, settings, onCommit, onBusy, onAskHere, verdicts }, ref) {
+export const Board = forwardRef<BoardHandle, Props>(function Board({ board, settings, onCommit, onBusy, onAskHere, verdicts, onRemoveAnnotation }, ref) {
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   const surface = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
@@ -34,7 +39,21 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
   const wasEditing = useRef(false);
   const releaseFrame = useRef(0);
   const actions = useMemo(() => renderableActions(board), [board]);
-  const shapes = useMemo(() => settings.showAI ? annotationElements(actions, board.steps) : [], [actions, board.steps, settings.showAI]);
+  const reduced = useReducedMotion();
+  const boardRef = useRef(board); boardRef.current = board;
+  const [locatorVersion, setLocatorVersion] = useState(0);
+  const registry = useMemo(() => createStepLocatorRegistry((id, symbol) =>
+    textStepLocator(boardRef.current.steps, api?.getSceneElements() ?? boardRef.current.elements)(id, symbol)), [api]);
+  const notes = useMemo(() => annotationElements(actions, registry.locate,
+    board.elements.filter(e => !e.isDeleted && isStudent(e)).map(e => {
+      const w = Math.abs(e.width), h = Math.abs(e.height), c = Math.abs(Math.cos(e.angle)), s = Math.abs(Math.sin(e.angle));
+      const width = w * c + h * s, height = w * s + h * c;
+      return { x: e.x + w / 2 - width / 2, y: e.y + h / 2 - height / 2, width, height };
+    // locatorVersion: an external locator was (un)registered, so positions must be recomputed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    })), [actions, board.elements, registry, locatorVersion]);
+  const writingStarts = useRef(new Map<string, { signature: string; start: number }>());
+  const [writing, setWriting] = useState<Set<string>>(new Set());
   const t = messages[settings.locale];
   const [menu_, setMenu] = useState<{ x: number; y: number; px: number; py: number; selected: boolean } | null>(null);
   const hold = useRef<{ timer: ReturnType<typeof setTimeout>; x: number; y: number } | null>(null);
@@ -89,35 +108,50 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
     appState: { scrollX: 0, scrollY: 0, viewBackgroundColor: '#ffffff' } });
   useEffect(() => {
     if (!api) return;
-    // Excalidraw owns the live student scene. Never feed a lagging React snapshot back into it:
-    // a final pointer-up mutation could otherwise ping-pong with the previous version indefinitely.
-    const student = api.getSceneElementsIncludingDeleted().filter(isStudent);
-    api.updateScene({ elements: [...student, ...shapes], captureUpdate: CaptureUpdateAction.NEVER });
-  }, [api, shapes]);
+    let cursor = Date.now();
+    const ids = new Set(notes.map(n => n.action.id));
+    for (const id of writingStarts.current.keys()) if (!ids.has(id)) writingStarts.current.delete(id);
+    for (const note of notes) {
+      const signature = JSON.stringify({ ...note.action, boardRevision: 0 });
+      const old = writingStarts.current.get(note.action.id);
+      if (old?.signature !== signature) {
+        writingStarts.current.set(note.action.id, { signature, start: cursor });
+        cursor += note.duration + 90;
+      }
+    }
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const paint = () => {
+      const active = new Set<string>();
+      const shapes = settings.showAI ? notes.flatMap(note => {
+        const elapsed = reduced ? Infinity : Date.now() - writingStarts.current.get(note.action.id)!.start;
+        if (elapsed < note.duration) active.add(note.action.id);
+        return revealNotes([note], elapsed);
+      }) : [];
+      // Read live student elements each frame; never write a lagging React copy
+      // over a pen stroke or feed teacher frames into OCR/revision tracking.
+      const student = api.getSceneElementsIncludingDeleted().filter(isStudent);
+      api.updateScene({ elements: [...student, ...shapes], captureUpdate: CaptureUpdateAction.NEVER });
+      setWriting(active);
+      if (!active.size && timer) clearInterval(timer);
+    };
+    paint();
+    if (!reduced && settings.showAI) timer = setInterval(paint, 32);
+    return () => clearInterval(timer);
+  }, [api, notes, reduced, settings.showAI]);
   useEffect(() => () => { cancelAnimationFrame(releaseFrame.current); if (hold.current) clearTimeout(hold.current.timer); }, []);
   // The board is the only input: writing text is the default tool, so a click puts the cursor right where the student writes.
   useEffect(() => { if (api) api.setActiveTool({ type: 'text', locked: true }); }, [api]);
   useImperativeHandle(ref, () => ({
+    registerStepLocator(locator) {
+      const unregister = registry.registerStepLocator(locator);
+      setLocatorVersion(v => v + 1);
+      return () => { unregister(); setLocatorVersion(v => v + 1); };
+    },
     stepViewportRect(stepId) {
       if (!api || !surface.current) return null;
-      const step = board.steps.find(s => s.stepId === stepId || stepId.startsWith(`${s.stepId}#`));
-      if (!step) return null;
-      const ids = new Set(step.elementIds);
-      const elements = api.getSceneElements().filter(e => !e.isDeleted && ids.has(e.id));
-      if (!elements.length || elements.some(e => e.angle !== 0)) return null; // don't guess at rotated handwriting
-      const x = Math.min(...elements.map(e => e.x)), y = Math.min(...elements.map(e => e.y));
-      const width = Math.max(...elements.map(e => e.x + e.width)) - x;
-      let height = Math.max(...elements.map(e => e.y + e.height)) - y;
-      let lineY = y;
-      const index = stepId === step.stepId ? null : Number(stepId.slice(step.stepId.length + 1));
-      if (index !== null) {
-        if (elements.length !== 1 || elements[0].type !== 'text') return null;
-        const parts = elements[0].text.split('\n').map((text, line) => ({ text, line })).filter(p => p.text.trim());
-        const part = parts[index];
-        if (!part) return null;
-        height /= elements[0].text.split('\n').length;
-        lineY += part.line * height;
-      }
+      const box = registry.locate(stepId);
+      if (!box) return null;
+      const { x, y: lineY, width, height } = box;
       const state = api.getAppState(), rect = surface.current.getBoundingClientRect();
       return { x: rect.left + (x + state.scrollX) * state.zoom.value, y: rect.top + (lineY + state.scrollY) * state.zoom.value,
         width: width * state.zoom.value, height: height * state.zoom.value };
@@ -134,9 +168,35 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
       api.updateScene({ elements: structuredClone(next), captureUpdate: CaptureUpdateAction.IMMEDIATELY });
       onCommit(next, api.getFiles());
     },
+    removeStepLine(stepId) {
+      if (!api) return false;
+      const step = board.steps.find(s => s.stepId === stepId || stepId.startsWith(`${s.stepId}#`));
+      if (!step) return false;
+      const ids = new Set(step.elementIds);
+      const all = api.getSceneElementsIncludingDeleted().filter(isStudent);
+      const own = all.filter(e => ids.has(e.id) && !e.isDeleted);
+      if (!own.length) return false;
+      const index = stepId === step.stepId ? null : Number(stepId.slice(step.stepId.length + 1));
+      const text = own.length === 1 && own[0].type === 'text' ? own[0] : null;
+      const rows = text ? text.text.split('\n') : [];
+      const target = text && index !== null ? rows.map((row, n) => ({ row, n })).filter(r => r.row.trim())[index]?.n : undefined;
+      const rest = target === undefined ? '' : rows.filter((_, n) => n !== target).join('\n');
+      const bump = (e: ExcalidrawElement) => ({ ...e, isDeleted: true, version: e.version + 1, versionNonce: Math.floor(Math.random() * 2 ** 31) });
+      const next = all.flatMap<ExcalidrawElement>(e => {
+        if (!ids.has(e.id) || e.isDeleted) return [e];
+        if (text && e.id === text.id && rest.trim()) {
+          return convertToExcalidrawElements([{ type: 'text', id: e.id, x: text.x, y: text.y, text: rest,
+            fontSize: text.fontSize, fontFamily: text.fontFamily, strokeColor: text.strokeColor }], { regenerateIds: false });
+        }
+        return [bump(e)];
+      });
+      api.updateScene({ elements: structuredClone(next), captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+      onCommit(next, api.getFiles());
+      return true;
+    },
     async exportImage(kind) {
       if (!api) return null;
-      const elements = api.getSceneElements();
+      const elements = [...api.getSceneElements().filter(isStudent), ...(settings.showAI ? notes.flatMap(n => n.elements) : [])];
       if (!elements.length) return null;
       const appState = { exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false };
       if (kind === 'png') return exportToBlob({ elements, files: api.getFiles(), mimeType: 'image/png', exportPadding: 32, appState });
@@ -153,7 +213,7 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
         appState: { exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false } });
       return { dataUrl: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height };
     },
-  }), [api, board, onCommit]);
+  }), [api, board, onCommit, registry, notes, settings.showAI]);
   function change(elements: readonly ExcalidrawElement[], state: AppState, files: BinaryFiles) {
     if (viewRef.current.x !== state.scrollX || viewRef.current.y !== state.scrollY || viewRef.current.zoom !== state.zoom.value) {
       viewRef.current = { x: state.scrollX, y: state.scrollY, zoom: state.zoom.value };
@@ -194,16 +254,16 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
       UIOptions={{ canvasActions: { loadScene: false, saveToActiveFile: false, export: false, saveAsImage: false, toggleTheme: false } }}>
       {menu}
     </Excalidraw>
-    <div className="math-layer" aria-live="polite">
-      {settings.showAI && actions.filter(a => a.type === 'write_math').map(a => {
-        if (a.type !== 'write_math') return null;
-        // Incremental reveal of a KaTeX render, NOT stroke-by-stroke pen-path animation.
-        const html = katex.renderToString(a.latex, { throwOnError: false, trust: false, strict: 'error', maxExpand: 100, maxSize: 10, output: 'htmlAndMathml' });
-        return <div key={a.id} className="math-annotation" data-testid="math-annotation" style={{
-          left: (a.anchor.x + view.x) * view.zoom, top: (a.anchor.y + view.y) * view.zoom,
-          transform: `scale(${view.zoom})`,
-        }}><small>{t.aiBadge}</small><span dangerouslySetInnerHTML={{ __html: html }} /></div>;
-      })}
+    <div className="teacher-layer" aria-label={t.annotations}>
+      {settings.showAI && notes.map(note => <button key={note.action.id}
+        type="button" className="teacher-note-delete" data-testid={note.action.type === 'write_math' ? 'math-annotation' : 'teacher-annotation'}
+        data-action-type={note.action.type} data-annotation-id={note.action.id} data-writing={writing.has(note.action.id)}
+        data-scene-box={JSON.stringify(note.box)}
+        aria-label={`${t.eraseTeacherNote}: ${note.text || note.action.type}`} title={t.eraseTeacherNote}
+        onClick={() => onRemoveAnnotation?.(note.action.id)}
+        style={{ left: (note.deleteBox.x + view.x) * view.zoom, top: (note.deleteBox.y + view.y) * view.zoom }}>
+        <span aria-hidden="true">×</span><span className="sr">{note.text}</span>
+      </button>)}
     </div>
     <div className="graph-layer" aria-live="polite">
       {settings.showAI && actions.filter(a => a.type === 'plot_function').map(a => a.type === 'plot_function' && (

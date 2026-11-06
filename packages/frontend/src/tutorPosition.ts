@@ -9,8 +9,10 @@ export function clearTutorRoute(from: TutorRect, to: TutorRect, obstacles: Tutor
     height: Math.max(from.y + from.height, to.y + to.height) - Math.min(from.y, to.y) };
   return !obstacles.some(o => overlaps(route, o, 0));
 }
-/** Only visit a visible row if both the destination and the straight CSS-transform route are clear. */
-export function tutorDestination(home: TutorRect, row: TutorRect | null, viewport: { width: number; height: number }, obstacles: TutorRect[], from = home): TutorRect | null {
+/** Only visit a visible row if both the destination and the straight CSS-transform route are clear.
+ * A candidate the mascot could visit but never leave for home wins only when the visit already
+ * stands on it, so a natural end keeps its animated return instead of a silent snap. */
+export function tutorDestination(home: TutorRect, row: TutorRect | null, viewport: { width: number; height: number }, obstacles: TutorRect[], from = home, standingAt: TutorRect | null = null): TutorRect | null {
   if (!row || ![row.x, row.y, row.width, row.height].every(Number.isFinite) || row.width <= 0 || row.height <= 0 ||
     row.x < 0 || row.y < 0 || row.x + row.width > viewport.width || row.y + row.height > viewport.height) return null;
   const y = Math.max(GAP, Math.min(viewport.height - home.height - GAP, row.y + row.height / 2 - home.height + 40));
@@ -19,10 +21,15 @@ export function tutorDestination(home: TutorRect, row: TutorRect | null, viewpor
     { ...home, x: row.x - home.width - 24, y },
     { ...home, x: row.x, y: row.y + row.height + 24 },
   ];
-  return candidates.find(c => {
-    if (c.x < GAP || c.y < GAP || c.x + c.width > viewport.width - GAP || c.y + c.height > viewport.height - GAP || overlaps(c, row)) return false;
-    // Home has a deliberate 6px gap above Excalidraw's footer. Require actual
-    // clearance along the route, and the larger reading margin at destination.
-    return !obstacles.some(o => overlaps(c, o)) && clearTutorRoute(from, c, obstacles);
-  }) ?? null;
+  const fits = (c: TutorRect) =>
+    c.x < GAP || c.y < GAP || c.x + c.width > viewport.width - GAP || c.y + c.height > viewport.height - GAP || overlaps(c, row);
+  const reachable = (c: TutorRect) =>
+    clearTutorRoute(from, c, obstacles);
+  const returnable = (c: TutorRect) =>
+    clearTutorRoute(c, home, obstacles);
+  const placed = candidates.filter(c => !fits(c) && !obstacles.some(o => overlaps(c, o)));
+  // Home has a deliberate 6px gap above Excalidraw's footer. Require actual
+  // clearance along the route, and the larger reading margin at destination.
+  const standing = placed.find(c => Math.abs(c.x - (standingAt?.x ?? from.x)) < 4 && Math.abs(c.y - (standingAt?.y ?? from.y)) < 4);
+  return standing ?? placed.find(c => returnable(c) && reachable(c)) ?? placed.find(reachable) ?? null;
 }

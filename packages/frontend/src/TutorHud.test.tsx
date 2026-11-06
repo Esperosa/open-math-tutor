@@ -63,3 +63,13 @@ it('keeps all actions disabled through the return transition and cancels a visit
   expect(screen.getByTestId('tutor-hud')).toHaveAttribute('data-visiting', 'false');
   expect(vi.getTimerCount()).toBe(0);
 });
+it('offers local, AI-free hint and retry buttons on a wrong line even when no AI is available', () => {
+  vi.useFakeTimers();
+  const onChoice = vi.fn();
+  render(<TutorHud {...base} canRequest={false} onChoice={onChoice} message={{ id: 'w', kind: 'wrong', text: 'Chyba.', stepId: 'line-1' }} />);
+  act(() => vi.advanceTimersByTime(4000));
+  screen.getByRole('button', { name: messages.cs.offerRetryLine }).click();
+  screen.getByRole('button', { name: messages.cs.offerLocalHint }).click();
+  expect(onChoice.mock.calls.map(c => c[0])).toEqual(['retry_line', 'local_hint']);
+  expect(screen.getByRole('button', { name: messages.cs.offerHint })).toBeDisabled();
+});

@@ -17,6 +17,7 @@ export function useTutorVisit(id: string | undefined, text: string, stepId: stri
     setPose(HOME);
     if (!id || !stepId || blocked || !locate) return;
     let returned = false, active = false;
+    let target: TutorRect | null = null;
     let returnTimer: ReturnType<typeof setTimeout> | undefined;
     const homeRect = (el: HTMLDivElement) => ({ x: el.offsetLeft, y: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight });
     const goHome = (snap: boolean) => {
@@ -34,9 +35,10 @@ export function useTutorVisit(id: string | undefined, text: string, stepId: stri
       const el = ref.current;
       if (!el || returned) return;
       const home = homeRect(el);
-      const dest = tutorDestination(home, locate(stepId), { width: window.innerWidth, height: window.innerHeight }, controlRects(), el.getBoundingClientRect());
+      const dest = tutorDestination(home, locate(stepId), { width: window.innerWidth, height: window.innerHeight }, controlRects(), el.getBoundingClientRect(), target);
       if (!dest) { if (active) goHome(true); return; }
       active = true;
+      target = dest;
       const x = dest.x - home.x, y = dest.y - home.y;
       setPose(prev => prev.visiting && prev.x === x && prev.y === y ? prev : { x, y, visiting: true, returning: false, snap: false });
     };

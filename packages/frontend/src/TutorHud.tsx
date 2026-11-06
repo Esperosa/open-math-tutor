@@ -12,9 +12,11 @@ export interface TutorMessage {
   text: string;
   /** Exact written line (including a multiline suffix), scoped to the current board. */
   stepId?: string;
+  /** Why the local checker flagged the line; picks the local, AI-free hint. */
+  reason?: 'arithmetic' | 'not_equivalent' | 'wrong_value';
 }
 export type TutorAction = 'check' | 'hint' | 'next_step' | 'explain_differently' | 'next_problem' | 'free' | 'self_done' | 'self_fail' | 'stop';
-export type TutorChoice = 'explain' | 'hint' | 'dismiss' | 'next' | 'ask_ai' | 'confirm_final' | 'report_failed';
+export type TutorChoice = 'explain' | 'hint' | 'local_hint' | 'retry_line' | 'dismiss' | 'next' | 'ask_ai' | 'confirm_final' | 'report_failed';
 
 interface Props {
   t: Record<MessageKey, string>;
@@ -34,6 +36,10 @@ interface Props {
   voiceOn: boolean;
   micAvailable: boolean;
   listening: boolean;
+  notesVisible?: boolean;
+  hasNotes?: boolean;
+  onToggleNotes?(): void;
+  onClearNotes?(): void;
   onToggleMenu(): void;
   onMode(mode: CoachMode): void;
   onVoice(on: boolean): void;
@@ -78,6 +84,10 @@ export function TutorHud(p: Props) {
         <button onClick={() => p.onChoice('confirm_final')}>{t.checkInFinal}</button>
         <button onClick={() => p.onChoice('dismiss')}>{t.offerDismiss}</button>
       </div>}
+      {message.kind === 'wrong' && message.stepId && <div className="row">
+        <button onClick={() => p.onChoice('local_hint')}>{t.offerLocalHint}</button>
+        <button onClick={() => p.onChoice('retry_line')}>{t.offerRetryLine}</button>
+      </div>}
       {message.kind === 'wrong' && <div className="row">
         <button className="primary" disabled={!p.canRequest || p.running} onClick={() => p.onChoice('explain')}>{t.offerExplain}</button>
         <button disabled={!p.canRequest || p.running} onClick={() => p.onChoice('hint')}>{t.offerHint}</button>
@@ -105,6 +115,8 @@ export function TutorHud(p: Props) {
         {p.selfAssess && <button role="menuitem" className="primary" onClick={() => p.onAction('self_done')}>{t.selfDone}</button>}
         {p.selfAssess && <button role="menuitem" onClick={() => p.onAction('self_fail')}>{t.selfFail}</button>}
         <button role="menuitem" onClick={() => p.onAction('free')}>{t.freeProblem}</button>
+        {p.hasNotes && <button role="menuitem" onClick={p.onToggleNotes}>{p.notesVisible ? t.hideTeacherNotes : t.showTeacherNotes}</button>}
+        {p.hasNotes && <button role="menuitem" onClick={p.onClearNotes}>{t.clearTeacherNotes}</button>}
         {p.running && <button role="menuitem" className="stop" onClick={() => p.onAction('stop')}>{t.stop}</button>}
       </div>
       <label className="check-label"><input type="checkbox" checked={p.voiceOn} onChange={e => p.onVoice(e.target.checked)} />{t.tutorSpeaks}</label>
