@@ -50,8 +50,8 @@ function dense(input: Float32Array, w: Float32Array, bias: Float32Array, relu: b
 /** Full multiclass softmax (not a digits-only restricted classifier). Returns top three, unrenormalized. */
 export function classifyRaster(input: Float32Array): Candidate[] {
   if (input.length !== 784 || input.some(v => !Number.isFinite(v) || v < 0 || v > 1)) throw new RangeError('Expected 784 finite pixels in [0,1]');
-  const c1 = convolution(input, 28, 1, 8, 5, tensors['c1.weight'], tensors['c1.bias']);
-  const c2 = convolution(c1, 12, 8, 16, 3, tensors['c2.weight'], tensors['c2.bias']);
+  const c1 = convolution(input, 28, 1, 16, 5, tensors['c1.weight'], tensors['c1.bias']);
+  const c2 = convolution(c1, 12, 16, 32, 3, tensors['c2.weight'], tensors['c2.bias']);
   const d1 = dense(c2, tensors['d1.weight'], tensors['d1.bias'], true);
   const logits = dense(d1, tensors['d2.weight'], tensors['d2.bias'], false);
   const max = Math.max(...logits), exp = Array.from(logits, v => Math.exp(v - max)), total = exp.reduce((a, b) => a + b, 0);

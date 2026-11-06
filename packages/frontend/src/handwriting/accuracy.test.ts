@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { expect, it } from 'vitest';
 import { classifyRaster, MODEL_LABELS, recognizeBoardLines, recognizeSymbol } from './index';
-import { elementsToStrokes, groupLines, groupSymbols } from './strokes';
+import { elementsToStrokes } from './strokes';
 import { fixtureLabels, fractionElements, heldoutSources, rowElements, symbolElements } from './__fixtures__/generate';
 import { parseMathStatement } from '@openmathtutor/shared';
 
@@ -51,6 +51,26 @@ it('scores unseen noisy Hershey/own stroke augmentations; digits+operators >=92%
   record('synthetic', { correct, total, accuracy: correct / total, allCorrect, allTotal, perClass, confusion });
   expect(correct / total).toBeGreaterThanOrEqual(.92);
 }, 60000);
+
+it('scores UCI pendigits digits from writers never used in training (>=95%)', () => {
+  // Raw 8-point pen trajectories, not bitmaps: the same rasterizeSymbol and
+  // classifyRaster path the board uses. The official test split was never
+  // touched by train.py, so this is the writer-independent number.
+  const fixture = JSON.parse(readFileSync(new URL('./__fixtures__/pendigits.json', import.meta.url), 'utf8')) as {
+    source: string; samples: { strokes: number[][][]; width: number; label: string }[];
+  };
+  let correct = 0;
+  const confusion: Record<string, number> = {};
+  for (const [n, sample] of fixture.samples.entries()) {
+    const strokes = sample.strokes.map((points, i) => elementsToStrokes([{ id: `pen-${n}-${i}`, type: 'freedraw',
+      x: 0, y: 0, points, strokeWidth: sample.width }])[0]);
+    const prediction = recognizeSymbol(strokes)[0].label;
+    if (prediction === sample.label) correct++;
+    else confusion[`${sample.label}->${prediction}`] = (confusion[`${sample.label}->${prediction}`] ?? 0) + 1;
+  }
+  record('pendigits', { correct, total: fixture.samples.length, accuracy: correct / fixture.samples.length, confusion });
+  expect(correct / fixture.samples.length).toBeGreaterThanOrEqual(.95);
+}, 120000);
 
 it('scores digits drawn in Hershey families that were never used for training (serif and triplex)', () => {
   const perSource: Record<string, { correct: number; total: number; confusion: Record<string, number> }> = {};
@@ -132,7 +152,7 @@ it('scores whole rows whose digits come from Hershey families never used for tra
     }
   }
   record('rowsHeldoutDigits', { correct, total, accuracy: correct / total, results });
-  expect(correct / total).toBeGreaterThanOrEqual(.75);
+  expect(correct / total).toBeGreaterThanOrEqual(.90);
 }, 60000);
 
 it('keeps stable line identity through pan/movement and returns finite alternatives without modifying input', () => {

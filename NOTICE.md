@@ -12,6 +12,7 @@ on the following third-party components, each under its own license:
 | React, Vite, TypeScript | MIT | Frontend tooling |
 | pdf.js (`pdfjs-dist`) | Apache-2.0 | Local text extraction from uploaded PDF sources (NotebookLM-style custom courses) |
 | MNIST handwritten digits (LeCun, Cortes, Burges) | No formal licence; commonly listed as CC BY-SA 3.0 | Training data (train split) and held-out accuracy test (test split copy in `packages/frontend/src/handwriting/__fixtures__/`) for the local handwriting model |
+| UCI Pen-Based Recognition of Handwritten Digits (`pendigits`, F. Alimoglu, E. Alpaydin, Bogazici University) | CC BY 4.0 | Online pen trajectories from 44 writers: 30 for training, 14 unseen writers for the ≥95% accuracy test (`tools/handwriting/pendigits.py`) |
 | Hershey vector fonts (Dr. A. V. Hershey, U.S. National Bureau of Standards; `hersh.oc`) | Public domain | Stroke templates for synthetic handwriting training data and accuracy tests (`tools/handwriting/`) |
 | `codex` CLI (OpenAI) | OpenAI's own terms | Installed separately by the end user; not bundled, not modified |
 | `claude` CLI (Anthropic) | Anthropic's own terms | Installed separately by the end user; not bundled, not modified |

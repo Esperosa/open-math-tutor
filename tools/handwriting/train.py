@@ -14,7 +14,8 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
-from data import LABELS, TEMPLATES, augment, raster
+import pendigits
+from data import LABELS, TEMPLATES, augment, augment_pen, raster
 
 ROOT = Path(__file__).resolve().parent
 MODEL = ROOT.parent.parent / 'packages/frontend/src/handwriting/model'
@@ -43,16 +44,23 @@ def mnist_file(name):
 class Net(nn.Module):
     def __init__(self):
         super().__init__()
-        self.c1 = nn.Conv2d(1, 8, 5)
-        self.c2 = nn.Conv2d(8, 16, 3)
-        self.d1 = nn.Linear(400, 64)
-        self.d2 = nn.Linear(64, len(LABELS))
+        self.c1 = nn.Conv2d(1, 16, 5)
+        self.c2 = nn.Conv2d(16, 32, 3)
+        self.d1 = nn.Linear(800, 192)
+        self.d2 = nn.Linear(192, len(LABELS))
 
     def forward(self, x):
         x = F.max_pool2d(F.relu(self.c1(x)), 2)
         x = F.max_pool2d(F.relu(self.c2(x)), 2)
         x = F.relu(self.d1(x.flatten(1)))
         return self.d2(x)
+
+
+def fixed_raster(strokes):
+    """Deterministic raster of a real pen trajectory for validation and scoring."""
+    flat = np.concatenate(strokes)
+    span = max(np.ptp(flat[:, 0]), np.ptp(flat[:, 1]), 1.0)
+    return raster(strokes, span * .11)
 
 
 def export(net, metadata):
@@ -70,9 +78,10 @@ def export(net, metadata):
 def main():
     sys.stdout.reconfigure(encoding='utf-8')
     p = argparse.ArgumentParser()
-    p.add_argument('--epochs', type=int, default=24)
+    p.add_argument('--epochs', type=int, default=32)
     p.add_argument('--synthetic-per-class', type=int, default=1400)
-    p.add_argument('--threads', type=int, default=4)
+    p.add_argument('--pendigits-variants', type=int, default=6)
+    p.add_argument('--threads', type=int, default=12)
     p.add_argument('--seed', type=int, default=20261106)
     args = p.parse_args()
     start = time.perf_counter()
@@ -84,9 +93,32 @@ def main():
     rng = np.random.default_rng(args.seed)
     x = np.frombuffer(mnist_file('train-images-idx3-ubyte.gz'), np.uint8, offset=16).reshape(-1, 28, 28).copy() / 255.
     y = np.frombuffer(mnist_file('train-labels-idx1-ubyte.gz'), np.uint8, offset=8).copy()
-    # Validation is a fixed, separate slice of the original TRAIN split.
-    vx, vy = torch.tensor(x[55000:, None], dtype=torch.float32), torch.tensor(y[55000:].astype('int64'))
-    template_hash = hashlib.sha256((ROOT / 'templates.json').read_bytes() + b'punctuation-width-v2').hexdigest()[:12]
+    # Real pen trajectories. The official training file contains 30 writers; the
+    # last two (500 digits) are a fixed, writer-separated validation block.
+    psamples = pendigits.load('pendigits.tra')
+    pval, ptrain = psamples[-500:], psamples[:-500]
+    pvx = np.array([fixed_raster(strokes) for strokes, _ in pval], dtype=np.float32)
+    pvy = np.array([LABELS.index(str(label)) for _, label in pval])
+    # Validation is a fixed, separate slice of the original TRAIN split plus real
+    # pen digits; selecting on MNIST alone would ignore the harder domain.
+    vx = torch.tensor(np.concatenate([x[55000:, None], pvx[:, None]]), dtype=torch.float32)
+    vy = torch.tensor(np.concatenate([y[55000:], pvy]).astype('int64'))
+    pd_cache = CACHE / f'pendigits-{args.seed}-{args.pendigits_variants}-{len(ptrain)}-v1.npz'
+    if pd_cache.exists():
+        saved = np.load(pd_cache)
+        px, py = saved['x'], saved['y']
+    else:
+        px, py = [], []
+        prng = np.random.default_rng(args.seed + 7)
+        for strokes, label in ptrain:
+            for _ in range(args.pendigits_variants):
+                augmented, width = augment_pen(strokes, prng)
+                px.append(raster(augmented, width))
+                py.append(LABELS.index(str(label)))
+        px, py = np.array(px), np.array(py)
+        np.savez_compressed(pd_cache, x=px, y=py)
+    print('pendigits train', len(px), 'validation', len(pval), flush=True)
+    template_hash = hashlib.sha256((ROOT / 'templates.json').read_bytes() + b'handwriting-v4').hexdigest()[:12]
     cache = CACHE / f'synthetic-{template_hash}-{args.seed}-{args.synthetic_per_class}.npz'
     if cache.exists():
         saved = np.load(cache)
@@ -105,8 +137,8 @@ def main():
             print('generated', label, flush=True)
         sx, sy = np.array(sx), np.array(sy)
         np.savez_compressed(cache, x=sx, y=sy)
-    x = torch.tensor(np.concatenate([x[:55000], sx])[:, None], dtype=torch.float32)
-    y = torch.tensor(np.concatenate([y[:55000], sy]).astype('int64'))
+    x = torch.tensor(np.concatenate([x[:55000], sx, px])[:, None], dtype=torch.float32)
+    y = torch.tensor(np.concatenate([y[:55000], sy, py]).astype('int64'))
     net = Net()
     opt = torch.optim.AdamW(net.parameters(), lr=.0018, weight_decay=.0001)
     best = 0
@@ -131,13 +163,18 @@ def main():
         net.eval()
         with torch.no_grad():
             predicted = torch.cat([net(b).argmax(1) for b in vx.split(256)])
-            validation = (predicted == vy).sum().item()
-        print(f'epoch {epoch + 1} train {correct}/{total} validation {validation}/5000 elapsed {time.perf_counter() - start:.1f}s', flush=True)
+            mnist_correct = (predicted[:5000] == vy[:5000]).sum().item()
+            pendigits_correct = (predicted[5000:] == vy[5000:]).sum().item()
+            validation = mnist_correct / 5000 * .5 + pendigits_correct / len(pval) * .5
+        print(f'epoch {epoch + 1} train {correct}/{total} mnist {mnist_correct}/5000 pendigits '
+              f'{pendigits_correct}/{len(pval)} score {validation:.4f} elapsed {time.perf_counter() - start:.1f}s', flush=True)
         if validation >= best:
             best = validation
             export(net, {'seed': args.seed, 'epoch': epoch + 1, 'epochsRequested': args.epochs,
-                         'syntheticPerClass': args.synthetic_per_class, 'mnistTrain': 55000,
-                         'validationCorrect': best, 'validationTotal': 5000, 'torch': torch.__version__})
+                         'syntheticPerClass': args.synthetic_per_class, 'pendigitsVariants': args.pendigits_variants,
+                         'mnistTrain': 55000, 'pendigitsTrain': len(px), 'validationScore': best,
+                         'mnistValidationCorrect': mnist_correct, 'pendigitsValidationCorrect': pendigits_correct,
+                         'pendigitsValidationTotal': len(pval), 'torch': torch.__version__})
         for group in opt.param_groups:
             group['lr'] *= .92
     print('weights bytes', (MODEL / 'weights.json').stat().st_size, flush=True)

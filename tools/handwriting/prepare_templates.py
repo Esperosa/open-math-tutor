@@ -49,6 +49,17 @@ def main():
             if family == 'plain' and label.islower():
                 continue  # Plain has capitals only; do not silently mislabel them.
             out.append({'label': label, 'source': f'hershey-{family}:{key}', 'strokes': glyphs[key]})
+    # Extra public-domain shapes only for the digit pairs the model confuses
+    # (2/5). Other digits keep the small simplex/plain set, so their
+    # decision boundaries are not disturbed. Complex (2200) and triplex (3200)
+    # stay completely unseen for the generalisation measurement.
+    extra = [0, 500, 600, 800, 900, 1000, 1100, 1200, 1400, 2000, 2100, 2300, 2400,
+             2500, 2600, 2700, 2800, 2900, 3000, 3100, 3300, 3400, 3500, 3600, 3700, 3800, 3900]
+    for base in extra:
+        for digit in (2, 5):
+            key = base + digit
+            if key in glyphs:
+                out.append({'label': str(digit), 'source': f'hershey-extra:{key}', 'strokes': glyphs[key]})
     own = {
         '+': [[[0, 10], [20, 10]], [[10, 0], [10, 20]]],
         '-': [[[0, 10], [20, 10]]],
