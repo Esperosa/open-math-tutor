@@ -65,15 +65,17 @@ Značky: ✅ hotovo a ověřeno · 🟡 částečně / probíhá · ❌ zatím n
 | 4.4 | Hlavní má být canvas, v něm vyjížděcí panely / HUD | ❌ **neuděláno** — současné rozložení je pevná dvousloupcová mřížka, ne HUD nad tabulí |
 | 4.5 | Správná práce s view, aby se vše vešlo na obrazovku | ❌ **neuděláno** — jen základní responzivní breakpointy, ne skutečný viewport-fit systém |
 | 4.6 | Spousta věcí vidět nepotřebuji, patří do nastavení | ❌ **neuděláno** — bočník pořád ukazuje všechny sekce najednou |
-| 4.7 | Není vidět, kde přesně jsem v jakém kurzu | ❌ **neuděláno** — chybí trvalý ukazatel "jsi v kurzu X, téma Y, dovednost Z" |
+| 4.7 | Není vidět, kde přesně jsem v jakém kurzu | ✅ **hotovo a živě ověřeno** — trvalá lišta nad tabulí: kurz › téma › dovednost + počet zvládnutých |
 | 4.8 | Kompletní redesign vzhledu i UX (ne jen úpravy) | ❌ **neuděláno** — dosavadní práce byla polish, ne přestavba |
 | 4.9 | Research na styl + na appky/programy, co tohle umí (konkurenční analýza) | ❌ **zatím neuděláno** — je dalším krokem |
-| 4.10 | Nejdřív rozcestník: kdo jsem, na co se připravuju → appka vytvoří učební plán a provází mnou | ❌ **neexistuje vůbec** — toto je zásadní chybějící funkce |
-| 4.11 | Tutor-flow: já naklikám co potřebuju → appka dá úlohy → já to zkouším | 🟡 existuje jako jedna z mnoha sekcí (Kurzy), ne jako hlavní vstupní tok appky |
+| 4.10 | Nejdřív rozcestník: kdo jsem, na co se připravuju → appka vytvoří učební plán a provází mnou | ✅ **hotovo a živě ověřeno** — onboarding obrazovka při prvním spuštění (nebo po "Změnit kurz"), výběr kurzu rovnou spustí první úlohu na první odemčené dovednosti |
+| 4.11 | Tutor-flow: já naklikám co potřebuju → appka dá úlohy → já to zkouším | 🟡 zlepšeno (4.10 je teď primární vstupní tok pro nového uživatele), ale pořád jen jedno kliknutí na kurz, ne vícekrokový výběr (úroveň, cíl, časový rámec…) |
 | 4.12 | Integrovaná kalkulačka pro úlohy, co ji potřebují | ❌ **neexistuje** |
 | 4.13 | Kalkulačka s možnostmi podle úlohy / podle toho, co je u zkoušky povoleno | ❌ **neexistuje** |
 | 4.14 | Appka analyzuje, co studentovi jde a co ne | 🟡 data existují (mastery), ale bez viditelného přehledu/analýzy pro studenta |
 | 4.15 | Appka vede jako běžné výukové appky (Duolingo apod. styl), pro matiku, interaktivní a živé | ❌ **neuděláno** — toto je cíl bodů 4.3–4.11 dohromady |
+| 4.16 | Nový bug nalezený při živém testu 4.10: kurzy "Maturita" a "Vysoká škola — základy algebry" vůbec nešly spustit — appka hlásila "vše zvládnuto" u úplně nového uživatele (0 zvládnutých dovedností) | ✅ **nalezeno a opraveno** — oba kurzy přeskakovaly téma "Základy čísel", na kterém jsou ale (přímo i nepřímo) závislé všechny jejich dovednosti, takže se nikdy nic neodemklo; opraveno + přidán test, co tuhle třídu chyby hlídá pro všechny kurzy |
+| 4.17 | Nový bug nalezený při živém testu 4.10: přepnutí na jiný kurz/lekci nechalo na tabuli rozepsaný předchozí příklad i jeho historii vysvětlení | ✅ **nalezeno a opraveno** — výběr nové lekce teď vždy založí čistě novou tabuli místo přepisování té aktuální |
 
 ## 5. Vědomě mimo rozsah (ne zapomenuté, ale explicitně odložené)
 
