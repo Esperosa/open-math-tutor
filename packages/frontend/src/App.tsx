@@ -1,0 +1,215 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ContinueLessonRequest, ProviderId } from '@openmathtutor/shared';
+import type { BinaryFiles } from '@excalidraw/excalidraw/types';
+import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
+import { Board, type BoardHandle } from './Board';
+import { applyResponse, commitStudent, editTask, fingerprint, newBoard, removeAnnotation, stableMathCandidate, type BoardState } from './boardState';
+import { bridge, BridgeError, type ProviderEntry } from './api';
+import { messages, errorKeys, type MessageKey } from './i18n';
+import { load, save, type Saved, type Settings } from './storage';
+import { StrokeSettler } from './settle';
+import { useVoice } from './useVoice';
+
+type Mode = ContinueLessonRequest['mode'];
+interface Pending { id: string; controller: AbortController; provider: ProviderId; boardId: string; revision: number }
+export function App() {
+  const [saved, setSaved] = useState<Saved>(load);
+  const live = useRef(saved); live.current = saved;
+  const board = saved.boards.find(b => b.id === saved.activeId)!;
+  const settings = saved.settings;
+  const t = messages[settings.locale];
+  const editor = useRef<BoardHandle>(null);
+  const pending = useRef<Pending | null>(null);
+  const busy = useRef(false);
+  const [running, setRunning] = useState(false);
+  const [status, setStatus] = useState<MessageKey>('idle');
+  const [providers, setProviders] = useState<ProviderEntry[]>([]);
+  const [connected, setConnected] = useState(false);
+  const [verifierOK, setVerifierOK] = useState(true);
+  const [retry, setRetry] = useState(0);
+  const [saveError, setSaveError] = useState(false);
+  const [line, setLine] = useState('');
+  const [selectedStep, setSelectedStep] = useState('');
+  const [rejected, setRejected] = useState(false);
+  const voice = useVoice(settings);
+  const [settler] = useState(() => new StrokeSettler(() => void analyze.current()));
+  const analyze = useRef<() => Promise<void>>(async () => {});
+  const provider = providers.find(p => p.id === settings.provider);
+  const model = provider?.models.find(m => m.id === settings.model);
+  const canRequest = connected && !!provider?.detect.installed && !!provider.authStatus.authenticated && !!model;
+
+  const updateBoard = useCallback((next: BoardState) => {
+    const current = live.current;
+    const value = { ...current, boards: current.boards.map(b => b.id === next.id ? next : b) };
+    live.current = value; setSaved(value);
+  }, []);
+  function configure(patch: Partial<Settings>) {
+    stop(false); settler.cancel();
+    const value = { ...live.current, settings: { ...live.current.settings, ...patch } };
+    live.current = value; setSaved(value);
+  }
+  const stop = useCallback((notify = true) => {
+    settler.cancel();
+    const request = pending.current;
+    pending.current = null;
+    request?.controller.abort();
+    if (request) void bridge.cancel(request.provider, request.id, AbortSignal.timeout(5000)).catch(() => {});
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    setRunning(false);
+    if (notify) setStatus('cancelled');
+  }, [settler]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    setConnected(false);
+    void Promise.all([bridge.providers(controller.signal), bridge.health(controller.signal)]).then(([entries, health]) => {
+      setProviders(entries); setConnected(true); setVerifierOK(health.verifier === 'ok');
+      setStatus('ready');
+    }).catch(() => { if (!controller.signal.aborted) setStatus('bridgeUnavailable'); })
+      .finally(() => clearTimeout(timeout));
+    return () => controller.abort();
+  }, [retry]);
+  useEffect(() => {
+    const timer = setTimeout(() => setSaveError(!save(saved)), 350);
+    return () => clearTimeout(timer);
+  }, [saved]);
+  useEffect(() => {
+    const flush = () => { save(live.current); };
+    window.addEventListener('pagehide', flush);
+    return () => window.removeEventListener('pagehide', flush);
+  }, []);
+  useEffect(() => { document.documentElement.lang = settings.locale; document.documentElement.dataset.theme = settings.theme; }, [settings.locale, settings.theme]);
+  useEffect(() => () => { settler.cancel(); pending.current?.controller.abort(); }, [settler]);
+
+  async function request(mode?: Mode) {
+    if (!canRequest || busy.current || (!mode && !model?.supportsImageInput)) return;
+    stop(false);
+    const snapshot = live.current.boards.find(b => b.id === live.current.activeId)!;
+    const controller = new AbortController();
+    const id = crypto.randomUUID();
+    const request: Pending = { id, controller, provider: settings.provider as ProviderId, boardId: snapshot.id, revision: snapshot.revision };
+    pending.current = request; setRunning(true); setStatus('thinking'); setRejected(false);
+    const timer = setTimeout(() => { controller.abort(); void bridge.cancel(request.provider, id, AbortSignal.timeout(5000)).catch(() => {}); }, 120000);
+    const base = { requestId: id, boardRevision: snapshot.revision,
+      task: { statementText: snapshot.statement, topic: snapshot.topic },
+      stepHistory: snapshot.steps.map(({ stepId, latexGuess, boardRevision }) => ({ stepId, latexGuess, boardRevision })),
+      locale: settings.locale, model: settings.model };
+    try {
+      const imageCrop = !mode ? await editor.current?.crop(snapshot) : undefined;
+      if (pending.current !== request || controller.signal.aborted) return;
+      const response = mode ? await bridge.continue(request.provider, { ...base, mode }, controller.signal)
+        : await bridge.analyze(request.provider, { ...base, imageCrop: imageCrop! }, controller.signal);
+      if (pending.current !== request) return;
+      const current = live.current.boards.find(b => b.id === request.boardId);
+      if (!current || live.current.activeId !== request.boardId || busy.current) { setStatus('waiting'); return; }
+      const applied = applyResponse(current, response, id);
+      if (applied.state !== current) updateBoard(applied.state);
+      setStatus(applied.stale ? 'waiting' : 'ready'); setRejected(applied.rejected);
+      if (!applied.stale && live.current.settings.voiceEnabled) voice.speak(response.ttsText);
+    } catch (error) {
+      if (pending.current !== request) return;
+      if (controller.signal.aborted) setStatus('timeout');
+      else if (error instanceof BridgeError) {
+        setStatus(error.code === 'bridgeUnavailable' ? error.code : errorKeys[error.code]);
+        if (error.code === 'bridgeUnavailable') setConnected(false);
+      } else setStatus('unknown');
+    } finally {
+      clearTimeout(timer);
+      if (pending.current === request) { pending.current = null; setRunning(false); }
+    }
+  }
+  analyze.current = () => request();
+  function schedule(next: BoardState) {
+    settler.update(`${next.id}:${fingerprint(next.elements)}`, live.current.settings.auto && canRequest && !!model?.supportsImageInput && !busy.current && stableMathCandidate(next));
+  }
+  function commit(elements: readonly ExcalidrawElement[], files: BinaryFiles) {
+    const current = live.current.boards.find(b => b.id === live.current.activeId)!;
+    const next = commitStudent(current, elements, files);
+    if (next.revision === current.revision) { if (next !== current) updateBoard(next); return; }
+    stop(false); setStatus('waiting'); updateBoard(next); schedule(next);
+  }
+  function boardBusy(value: boolean) {
+    busy.current = value;
+    if (value) { stop(false); setStatus('waiting'); }
+    else schedule(live.current.boards.find(b => b.id === live.current.activeId)!);
+  }
+  function switchExercise(id: string) {
+    stop(false); setLine(''); setSelectedStep('');
+    const value = { ...live.current, activeId: id }; live.current = value; setSaved(value); setStatus('idle');
+  }
+  function createExercise() {
+    stop(false); const next = newBoard();
+    const value = { ...live.current, boards: [...live.current.boards, next], activeId: next.id };
+    live.current = value; setSaved(value); setLine(''); setSelectedStep(''); setStatus('idle');
+  }
+  function deleteExercise() {
+    if (!window.confirm(t.eraseConfirm)) return;
+    stop(false);
+    const boards = live.current.boards.filter(b => b.id !== live.current.activeId);
+    if (!boards.length) boards.push(newBoard());
+    const value = { ...live.current, boards, activeId: boards[0].id }; live.current = value; setSaved(value); setLine(''); setSelectedStep('');
+  }
+  return <div className="app-shell">
+    <header className="app-header"><strong>{t.title}</strong><span className="save-label">{t.saved}</span>
+      <label>{t.language}<select value={settings.locale} onChange={e => configure({ locale: e.target.value as Settings['locale'], voiceURI: '' })}>
+        <option value="cs">Čeština</option><option value="en">English</option></select></label>
+      <button onClick={() => configure({ theme: settings.theme === 'light' ? 'dark' : 'light' })}>{settings.theme === 'light' ? t.dark : t.light}</button>
+    </header>
+    <section className="connection" aria-live="polite">
+      {!connected ? <><span>{t.bridgeUnavailable}</span><button onClick={() => setRetry(r => r + 1)}>{t.retry}</button></> : <>
+        <label>{t.provider}<select value={settings.provider} onChange={e => configure({ provider: e.target.value as ProviderId | '', model: '' })}>
+          <option value="">{t.choose}</option>{providers.map(p => <option key={p.id} value={p.id}>{p.id}{!p.detect.installed ? ` — ${t.providerMissing}` : !p.authStatus.authenticated ? ` — ${t.authMissing}` : ''}</option>)}</select></label>
+        <label>{t.model}<select value={settings.model} onChange={e => configure({ model: e.target.value })}><option value="">{t.choose}</option>
+          {provider?.models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
+        {!canRequest && <span>{provider && !provider.models.length ? t.noModels : t.selectProvider}</span>}
+        {!verifierOK && <span role="alert">{t.healthVerifier}</span>}
+      </>}
+    </section>
+    <main className="workspace">
+      <section className="work-area">
+        <div className="problem"><label>{t.task}<textarea rows={2} maxLength={4000} value={board.statement} placeholder={t.taskPlaceholder}
+          onChange={e => { stop(false); updateBoard(editTask(board, 'statement', e.target.value)); }} /></label>
+          <label>{t.topic}<input value={board.topic} maxLength={200} placeholder={t.topicPlaceholder}
+            onChange={e => { stop(false); updateBoard(editTask(board, 'topic', e.target.value)); }} /></label></div>
+        <div className="board-toolbar"><span>{t.board} <small>{t.revision} <output data-testid="revision">{board.revision}</output></small></span>
+          <label className="check-label"><input type="checkbox" checked={settings.showAI} onChange={e => configure({ showAI: e.target.checked })} />{t.aiLayer}</label></div>
+        <Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} />
+        <form className="keyboard-entry" onSubmit={e => { e.preventDefault(); if (line.trim()) { editor.current?.addLine(line.trim(), selectedStep || null); setLine(''); setSelectedStep(''); } }}>
+          <label>{t.keyboardLine}<input value={line} onChange={e => setLine(e.target.value)} placeholder={t.linePlaceholder} maxLength={1000} /></label>
+          <label>{t.steps}<select value={selectedStep} onChange={e => { setSelectedStep(e.target.value); setLine(board.steps.find(s => s.stepId === e.target.value)?.latexGuess ?? ''); }}>
+            <option value="">{t.newLine}</option>{board.steps.map((s, i) => <option key={s.stepId} value={s.stepId}>{i + 1}. {s.latexGuess || '…'}</option>)}</select></label>
+          <button type="submit" disabled={!line.trim()}>{selectedStep ? t.replaceLine : t.addLine}</button>
+        </form>
+        <div className="manual-controls"><button disabled={!canRequest || !model?.supportsImageInput || !board.activeStepId || running} onClick={() => void request()}>{t.readBoard}</button>{(['check', 'hint', 'next_step', 'explain_differently'] as const).map(mode =>
+          <button key={mode} className={mode === 'check' ? 'primary' : ''} disabled={!canRequest || running} onClick={() => void request(mode)}>{t[mode]}</button>)}
+          <button className="stop" onClick={() => stop()} disabled={!running && !settings.voiceEnabled}>{t.stop}</button></div>
+        <p className="status" role="status">{t[status === 'bridgeUnavailable' ? 'offline' : status]}</p>
+        {saveError && <p role="alert" className="warning">{t.localSaveError}</p>}
+        {rejected && <p role="alert" className="warning">{t.rejectedActions}</p>}
+      </section>
+      <aside className="sidebar">
+        <section><h2>{t.exercise}</h2><label>{t.exercise}<select value={saved.activeId} onChange={e => switchExercise(e.target.value)}>
+          {saved.boards.map((b, i) => <option key={b.id} value={b.id}>{i + 1}. {b.statement.slice(0, 40) || '…'}</option>)}</select></label>
+          <div className="row"><button onClick={createExercise}>{t.newExercise}</button><button onClick={deleteExercise}>{t.deleteExercise}</button></div></section>
+        <section><h2>{t.history}</h2>{!board.history.length && <p className="muted">{t.emptyHistory}</p>}
+          <ol className="history">{board.history.map(h => <li key={h.id} data-testid="explanation">
+            <strong>{t[h.status]}</strong>{h.firstErrorStepId && <small>{t.firstError}: {board.steps.findIndex(s => s.stepId === h.firstErrorStepId) + 1 || '—'}</small>}
+            <p>{h.text}</p>{h.clarification && <p>{h.clarification}</p>}<small>{t.revision} {h.revision}</small>
+            <button onClick={() => voice.speak(h.ttsText)} disabled={!voice.available}>{t.speak}</button>
+          </li>)}</ol><small className="muted">{t.unverified}</small></section>
+        <section><h2>{t.annotations}</h2><p className="muted">{t.annotationReveal}</p><ul className="annotations-list">{board.annotations.map((a, i) => <li key={a.id} data-testid="annotation-item">
+          <span>{t.aiBadge} {i + 1}</span><button onClick={() => { stop(false); updateBoard(removeAnnotation(board, a.id)); }}>{t.undoAnnotation} {i + 1}</button></li>)}</ul></section>
+        <details><summary>{t.settings}</summary>
+          <label className="check-label"><input type="checkbox" checked={settings.auto} onChange={e => configure({ auto: e.target.checked })} />{t.consent}</label>
+          {model && !model.supportsImageInput && <p className="warning">{t.imageUnsupported}</p>}
+          <label className="check-label"><input type="checkbox" checked={settings.voiceEnabled} onChange={e => configure({ voiceEnabled: e.target.checked })} />{t.voice}</label>
+          <label>{t.voiceChoice}<select value={voice.voices.some(v => v.voiceURI === settings.voiceURI) ? settings.voiceURI : ''} onChange={e => configure({ voiceURI: e.target.value })}>
+            <option value="">{t.choose}</option>{voice.voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</select></label>
+          <label>{t.rate} ({settings.rate})<input type="range" min="0.5" max="1.5" step="0.1" value={settings.rate} onChange={e => configure({ rate: Number(e.target.value) })} /></label>
+        </details>
+        {voice.warning && <p className="warning" role="alert">{t[voice.warning]}</p>}
+        <p className="privacy">{t.privacy}</p>
+      </aside>
+    </main>
+  </div>;
+}
