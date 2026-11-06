@@ -260,19 +260,19 @@ export function App() {
         if (request.keep) chat.add(request.boardId, 'tutor', response.pedagogicalResponse, id);
         setStatus('waiting'); return;
       }
-      const applied = applyResponse(current, response, id);
+      const applied = applyResponse(current, response, id, settings.locale);
       if (applied.state !== current) updateBoard(applied.state);
       setStatus(applied.stale ? 'waiting' : 'ready'); setRejected(applied.rejected);
-      if (!applied.stale && mode === 'check' && current.skillId && !current.outcome && (response.verifierStatus === 'correct' || response.verifierStatus === 'incorrect')) {
-        const wasCorrect = response.verifierStatus === 'correct';
+      if (!applied.stale && mode === 'check' && current.skillId && !current.outcome && (applied.response.verifierStatus === 'correct' || applied.response.verifierStatus === 'incorrect')) {
+        const wasCorrect = applied.response.verifierStatus === 'correct';
         recordMastery(current.skillId, wasCorrect);
         updateBoard({ ...applied.state, outcome: wasCorrect ? 'solved' : 'failed' });
       }
       if (!applied.stale || request.keep) {
         setAiAnswerId(id);
-        setMessage({ id: id, kind: response.verifierStatus === 'correct' ? 'solved' : 'info', text: response.pedagogicalResponse,
-          ...(!applied.stale ? { stepId: response.firstErrorStepId ?? (mode === 'ask' ? undefined : snapshot.activeStepId ?? undefined) } : {}) });
-        voice.speak(response.ttsText);
+        setMessage({ id: id, kind: applied.response.verifierStatus === 'correct' ? 'solved' : 'info', text: applied.response.pedagogicalResponse,
+          ...(!applied.stale ? { stepId: applied.response.firstErrorStepId ?? (mode === 'ask' ? undefined : snapshot.activeStepId ?? undefined) } : {}) });
+        voice.speak(applied.response.ttsText);
       }
     } catch (error) {
       if (pending.current !== request) return;

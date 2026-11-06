@@ -37,3 +37,9 @@ it('ignores a lone pen tap and small isolated mark, not a digit or decimal', () 
   const input = [...rowElements('4=4', 7), { id: 'tap', type: 'freedraw', x: 600, y: 500, points: [[0, 0]], strokeWidth: 2 }];
   expect(recognizeBoardLines(input).map(l => l.text)).toEqual(['4=4']);
 });
+
+it('preserves an algebra variable through implicit multiplication', () => {
+  const lines = recognizeBoardLines([...rowElements('2x+3=11', 13, 50), ...rowElements('x=4', 17, 50, [0, 90])]);
+  expect(lines.map(l => l.text)).toEqual(['2*x+3=11', 'x=4']);
+  expect(lines.flatMap(l => l.symbols).some(s => s.uncertain)).toBe(false);
+});

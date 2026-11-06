@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import * as shared from '@openmathtutor/shared';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { applyResponse, commitStudent, correctInk, editTask, fingerprint, inkSymbolKey, newBoard, removeAnnotation, renderableActions, stableMathCandidate } from './boardState';
+import { recognizeBoardLines } from './handwriting';
 import { rowElements } from './handwriting/__fixtures__/generate';
 
 export function element(id = 'line', text = '2x + 3 = 8', version = 1, y = 120): ExcalidrawElement {
@@ -14,6 +15,15 @@ function response(state = fixture(), actions: shared.BoardAction[] = []): shared
     needsClarification: null, boardActions: actions };
 }
 describe('board commits and stable steps', () => {
+  it('keeps a parseable line uncertain when one symbol has weak evidence', () => {
+    const raw = rowElements('4=4', 7).map((e, i) => ({ ...e, version: 1, versionNonce: i } as unknown as ExcalidrawElement));
+    const state = commitStudent(newBoard(), raw, {}, els => sharedReading(els));
+    expect(state.steps[0].latexGuess).toBe('4=4');
+    expect(state.steps[0].uncertain).toBe(true);
+    const symbol = state.steps[0].symbols![0];
+    expect(correctInk(state, 'not-a-symbol', '7')).toBe(state);
+    expect(correctInk(state, inkSymbolKey(symbol.strokeIds, raw), '?')).toBe(state);
+  });
   it('discards the old course answer and judgement when the task is edited', () => {
     const state = { ...newBoard(), statement: '1+1', expected: { value: 2, tolerance: 1e-9 }, outcome: 'failed' as const,
       handled: ['old'], confirmedFinals: ['old'], skillId: 'old-skill' };
@@ -100,7 +110,19 @@ describe('board commits and stable steps', () => {
     expect(next.steps[0].stepId).toBe(corrected.steps[0].stepId);
   });
 });
+
+function sharedReading(els: readonly ExcalidrawElement[]) {
+  const line = recognizeBoardLines(els)[0];
+  return [{ ...line, confidence: .99, symbols: line.symbols.map((s, i) => ({ ...s, uncertain: i === 0 })) }];
+}
 describe('shared validation is the annotation trust boundary', () => {
+  it('drops even unanchored provider arithmetic and grades when any source ink is uncertain', () => {
+    const state = fixture(); state.steps[0].uncertain = true;
+    const applied = applyResponse(state, response(state, [{ id: 'invented', type: 'write_math', latex: '215+115=330', boardRevision: 1, anchor: { x: 100, y: 200 } }]), 'req');
+    expect(applied.state.annotations).toEqual([]);
+    expect(applied.state.history.at(-1)?.text).toContain('Zkontroluj, jestli jsem to přečetl správně');
+    expect(applied.state.history.at(-1)?.status).toBe('ambiguous');
+  });
   it('rejects stale requests, including request ID mismatch, without changing history', () => {
     const state = fixture();
     expect(applyResponse(state, { ...response(state), boardRevision: 0 }, 'req')).toMatchObject({ state, stale: true });

@@ -46,12 +46,13 @@ function contextualize(symbols: RecognizedSymbol[]): void {
         contextual = s.bbox.height < reference * .55 && centerY(s.bbox) < baseline - reference * .5 ? '°' : '0';
       }
     }
-    if ((best === '×' || best === 'x') && i === 0 && symbols[i + 1]?.candidates[0].label === '=') contextual = 'x';
+    const variableSlot = (i === 0 || /^\d$/.test(left?.candidates[0].label ?? '')) && ['=', '+', '-'].includes(next?.candidates[0].label ?? '');
+    if ((best === '×' || best === 'x') && variableSlot) contextual = 'x';
     if (contextual && contextual !== best) {
       s.label = contextual;
       s.uncertain = true;
     }
-    if (best === '.' || best === '·' || best === 'x' || best === '×' || '±≠π°∅'.includes(best)) s.uncertain = true;
+    if (best === '.' || best === '·' || ((best === 'x' || best === '×') && !variableSlot) || '±≠π°∅'.includes(best)) s.uncertain = true;
   }
 }
 
