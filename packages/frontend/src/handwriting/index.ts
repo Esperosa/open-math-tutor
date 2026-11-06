@@ -2,7 +2,7 @@ import { parseMathStatement } from '@openmathtutor/shared';
 import { applyCorrections } from './corrections';
 import { recognizeSymbol } from './model';
 import { parseLine } from './parse';
-import { bottom, centerY, elementsToStrokes, groupLines, groupSymbols, median } from './strokes';
+import { bottom, centerY, elementsToStrokes, groupLines, groupSymbols, median, right } from './strokes';
 import type { Alternative, BoardElement, Candidate, RecognitionOptions, RecognizedLine, RecognizedSymbol, Stroke } from './types';
 
 export type { Alternative, BBox, BoardElement, Candidate, RecognitionOptions, RecognizedLine, RecognizedSymbol, Stroke } from './types';
@@ -23,6 +23,18 @@ function contextualize(symbols: RecognizedSymbol[]): void {
   for (let i = 0; i < symbols.length; i++) {
     const s = symbols[i], best = s.candidates[0].label;
     let contextual: string | undefined;
+    const left = symbols[i - 1], next = symbols[i + 1];
+    // Tiny baseline mark BETWEEN full-height digits is decimal punctuation,
+    // regardless of whether its isolated silhouette resembles 1 or slash.
+    if (left && next && /^\d$/.test(left.label ?? left.candidates[0].label) && /^\d$/.test(next.candidates[0].label)
+      && s.bbox.height < height * .32 && s.bbox.width < height * .3
+      && centerY(s.bbox) > baseline - height * .25 && centerY(s.bbox) < baseline + height * .3
+      && s.bbox.x - right(left.bbox) < height * .7 && next.bbox.x - right(s.bbox) < height * .7
+      && Math.min(left.bbox.height, next.bbox.height) > height * .65) {
+      s.label = best === '.' ? '.' : ',';
+      s.uncertain = false;
+      continue;
+    }
     // Visually identical shapes need context. Preserve raw probabilities rather
     // than claiming the heuristic has increased neural-model certainty.
     if (best === '.' || best === '·') contextual = centerY(s.bbox) < baseline - height * .3 ? '·' : '.';
@@ -84,7 +96,14 @@ export function createHandwritingRecognizer(): {
       if (current.every(s => s.createdAt !== undefined)) current.sort((a, b) => a.createdAt! - b.createdAt! || a.order - b.order);
       current.forEach((s, order) => { s.order = order; });
       if (current.length > 2048) throw new RangeError('At most 2048 strokes per recognition');
-      const { active, ignored } = applyCorrections(current);
+      const corrected = applyCorrections(current);
+      // Stray pen taps are not mathematical rows. Keep punctuation near a
+      // real glyph (including decimal dots and division colons).
+      const tiny = (s: Stroke) => Math.max(s.bbox.width, s.bbox.height) <= Math.max(3, s.width * 2);
+      const taps = corrected.active.filter(s => tiny(s) && !corrected.active.some(o => o !== s && !tiny(o)
+        && Math.abs(centerY(s.bbox) - centerY(o.bbox)) < o.bbox.height * 1.4
+        && Math.max(s.bbox.x, o.bbox.x) - Math.min(right(s.bbox), right(o.bbox)) < Math.max(o.bbox.height, o.bbox.width) * 1.2));
+      const active = corrected.active.filter(s => !taps.includes(s)), ignored = [...corrected.ignored, ...taps];
       const usedKeys = new Set<string>();
       const recognized = groupLines(groupSymbols(active)).map(line => {
         const symbols: RecognizedSymbol[] = line.symbols.map(symbol => {

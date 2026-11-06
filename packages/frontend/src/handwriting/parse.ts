@@ -77,7 +77,7 @@ export function parseLine(symbols: readonly RecognizedSymbol[], choices?: readon
   const tokens = symbols.map((symbol, i) => {
     const choice = choices?.[i] ?? -1;
     const label = choice < 0 ? symbol.label ?? symbol.candidates[0]?.label : symbol.candidates[choice]?.label;
-    const candidate = symbol.candidates.find(c => c.label === label);
+    const candidate = symbol.candidates.find(c => c.label === label) ?? (choice < 0 && symbol.label ? symbol.candidates[0] : undefined);
     logConfidence += Math.log(Math.max(1e-12, candidate?.probability ?? 0));
     return { text: canonical(label ?? '?'), bbox: symbol.bbox };
   });

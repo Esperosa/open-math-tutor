@@ -15,6 +15,15 @@ export function applyCorrections(strokes: readonly Stroke[]): CorrectedStrokes {
   let comparisons = 0;
   for (const stroke of strokes) {
     const b = stroke.bbox;
+    const fractionPeer = (s: Stroke) => s !== stroke && s.bbox.height > b.width * .3
+      && centerX(s.bbox) > b.x && centerX(s.bbox) < right(b)
+      && Math.abs(centerY(s.bbox) - centerY(b)) < b.width * 1.5;
+    // A fraction bar can look like an underline until its denominator is
+    // written. Reconsider the complete scene, including later strokes.
+    if (isBar(b) && strokes.some(s => fractionPeer(s) && bottom(s.bbox) < b.y - stroke.width)
+      && strokes.some(s => fractionPeer(s) && s.bbox.y > bottom(b) + stroke.width)) {
+      active.push(stroke); continue;
+    }
     let length = 0;
     for (let i = 1; i < stroke.points.length; i++) length += Math.hypot(stroke.points[i][0] - stroke.points[i - 1][0], stroke.points[i][1] - stroke.points[i - 1][1]);
     const span = Math.hypot(b.width, b.height);

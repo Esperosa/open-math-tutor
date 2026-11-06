@@ -118,9 +118,20 @@ export function groupSymbols(strokes: readonly Stroke[]): StrokeSymbol[] {
   // of a glyph can match its silhouette and must stay part of that glyph.
   const tallest = Math.max(1, ...strokes.map(s => s.bbox.height));
   const radical = (s: Stroke): boolean => isRadicalStroke(s) && s.bbox.height > tallest * .4;
+  // A fraction bar is a separate layout token, never a detached serif of
+  // numerator/denominator. Decide from strokes before merging glyphs.
+  const fractionBars = new Set(strokes.filter(bar => {
+    if (!isBar(bar.bbox)) return false;
+    const peers = strokes.filter(s => s !== bar && s.bbox.height > typical * .3
+      && centerX(s.bbox) > bar.bbox.x && centerX(s.bbox) < right(bar.bbox)
+      && Math.abs(centerY(s.bbox) - centerY(bar.bbox)) < Math.max(typical, bar.bbox.width) * 1.5);
+    return peers.some(s => bottom(s.bbox) < bar.bbox.y - bar.width)
+      && peers.some(s => s.bbox.y > bottom(bar.bbox) + bar.width);
+  }));
   const groups = clusters(strokes, (a, b) => {
     if (Math.abs(a.order - b.order) > 12) return false;
     const x = a.bbox, y = b.bbox;
+    if (fractionBars.has(a) || fractionBars.has(b)) return false;
     if (radical(a) || radical(b)) return false;
     if (dividePairs.has([a.id, b.id].sort().join('\0'))) return true;
     const ox = overlapX(x, y), oy = overlapY(x, y);
