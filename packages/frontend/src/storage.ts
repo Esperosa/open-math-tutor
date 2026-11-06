@@ -13,13 +13,17 @@ export interface Settings {
   coachMode: CoachMode;
   /** The tutor speaks its comments aloud. */
   tutorVoice: boolean;
+  /** Paper under the board: plain, squared, lined, dotted or school (lined with a margin). */
+  boardPattern: BoardPattern;
 }
+export type BoardPattern = 'plain' | 'grid' | 'lines' | 'dots' | 'school';
+export const BOARD_PATTERNS: readonly BoardPattern[] = ['plain', 'grid', 'lines', 'dots', 'school'];
 export interface Saved { version: 1; boards: BoardState[]; activeId: string; settings: Settings }
 const KEY = 'openmathtutor.frontend.v1';
 export const defaultSettings: Settings = {
   locale: 'cs', theme: 'light', auto: false, voiceEnabled: false, voiceURI: '', rate: 1, provider: '', model: '', showAI: true,
   activeTrackId: '', onboardingDismissed: false, startLevel: 1,
-  coachMode: 'live', tutorVoice: false,
+  coachMode: 'live', tutorVoice: false, boardPattern: 'plain',
 };
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 const isBox = (v: unknown) => isObj(v) && ['x', 'y', 'width', 'height'].every(k => Number.isFinite(v[k]));
@@ -50,6 +54,7 @@ export function load(): Saved {
         if (!['live', 'final', 'off'].includes(saved.settings.coachMode)) saved.settings.coachMode = defaultSettings.coachMode;
         // The tutor is silent by default; a one-time reset mutes users who had the old default (voice on).
         if (!localStorage.getItem('openmathtutor.voice-default.v2')) { saved.settings.tutorVoice = false; localStorage.setItem('openmathtutor.voice-default.v2', '1'); }
+        if (!BOARD_PATTERNS.includes(saved.settings.boardPattern)) saved.settings.boardPattern = defaultSettings.boardPattern;
         if (!['light', 'dark'].includes(saved.settings.theme)) saved.settings.theme = defaultSettings.theme;
         if (!Number.isFinite(saved.settings.rate)) saved.settings.rate = defaultSettings.rate;
         if (![1, 2, 3].includes(saved.settings.startLevel)) saved.settings.startLevel = defaultSettings.startLevel;

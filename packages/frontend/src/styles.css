@@ -441,3 +441,28 @@ body { overflow: hidden; }
 .credit-compact:hover, .credit-compact:focus-visible { opacity: 1; }
 @media (max-width: 900px) { .credit-compact { display: none; } }
 .onboarding-credit { display: flex; justify-content: center; margin-top: var(--space-4); }
+
+/* Board paper: patterns follow pan and zoom through --cell / --ox / --oy set by Board */
+.board-surface { --pattern-line: rgba(70, 110, 130, .26); --pattern-margin: rgba(200, 70, 70, .55); background-color: var(--paper); }
+[data-theme="dark"] .board-surface { --pattern-line: rgba(255, 255, 255, .13); --pattern-margin: rgba(255, 130, 130, .5); }
+.board-surface .excalidraw, .board-surface .excalidraw .excalidraw-container, .board-surface .excalidraw__canvas.static { background: transparent !important; }
+.board-surface[data-pattern="grid"] { background-image: linear-gradient(var(--pattern-line) 1px, transparent 1px), linear-gradient(90deg, var(--pattern-line) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell); background-position: var(--ox) var(--oy); }
+.board-surface[data-pattern="lines"] { background-image: linear-gradient(var(--pattern-line) 1px, transparent 1px);
+  background-size: 100% calc(var(--cell) * 1.25); background-position: 0 var(--oy); }
+.board-surface[data-pattern="dots"] { background-image: radial-gradient(circle, var(--pattern-line) 1.6px, transparent 1.7px);
+  background-size: var(--cell) var(--cell); background-position: var(--ox) var(--oy); }
+.board-surface[data-pattern="school"] { background-image: linear-gradient(var(--pattern-margin), var(--pattern-margin)), linear-gradient(var(--pattern-line) 1px, transparent 1px);
+  background-size: 2px 100%, 100% calc(var(--cell) * 1.25); background-repeat: no-repeat, repeat; background-position: var(--margin-x) 0, 0 var(--oy); }
+/* Hide the task card while Excalidraw's own menu is open so they never overlap */
+body:has(.excalidraw .dropdown-menu) .hud-top-left { opacity: 0; pointer-events: none; }
+.pattern-picker { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.pattern-picker button { flex: 1 1 56px; min-height: 52px; padding: 0; position: relative; overflow: hidden; font-size: 11px; display: flex; align-items: flex-end; justify-content: center; }
+.pattern-picker button span { background: var(--glass-surface); width: 100%; padding: 1px 0; }
+.pattern-picker button[aria-checked="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.pattern-picker button { background-color: var(--paper); --cell: 12px; --ox: 0px; --oy: 0px; --margin-x: 10px; }
+.pattern-picker button[data-pattern="grid"] { background-image: linear-gradient(var(--pattern-line) 1px, transparent 1px), linear-gradient(90deg, var(--pattern-line) 1px, transparent 1px); background-size: 12px 12px; }
+.pattern-picker button[data-pattern="lines"] { background-image: linear-gradient(var(--pattern-line) 1px, transparent 1px); background-size: 100% 12px; }
+.pattern-picker button[data-pattern="dots"] { background-image: radial-gradient(circle, var(--pattern-line) 1.4px, transparent 1.5px); background-size: 12px 12px; }
+.pattern-picker button[data-pattern="school"] { background-image: linear-gradient(var(--pattern-margin), var(--pattern-margin)), linear-gradient(var(--pattern-line) 1px, transparent 1px); background-size: 2px 100%, 100% 12px; background-repeat: no-repeat, repeat; background-position: 10px 0, 0 0; }
+:root { --pattern-line: rgba(70, 110, 130, .3); --pattern-margin: rgba(200, 70, 70, .55); }

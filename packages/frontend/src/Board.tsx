@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, type CSSProperties, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { CaptureUpdateAction, Excalidraw, MainMenu, convertToExcalidrawElements, exportToBlob, exportToCanvas, exportToSvg } from '@excalidraw/excalidraw';
 import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 import type { ExcalidrawElement, NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
@@ -84,9 +84,9 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
     }
     setMenu(null);
   }
-  const menu = useMemo(() => <MainMenu><MainMenu.DefaultItems.ClearCanvas /><MainMenu.DefaultItems.ChangeCanvasBackground /></MainMenu>, []);
+  const menu = useMemo(() => <MainMenu><MainMenu.DefaultItems.ClearCanvas /></MainMenu>, []);
   const initial = useRef({ elements: structuredClone(board.elements), files: board.files,
-    appState: { scrollX: 0, scrollY: 0, viewBackgroundColor: '#ffffff' } });
+    appState: { scrollX: 0, scrollY: 0, viewBackgroundColor: 'transparent' } });
   useEffect(() => {
     if (!api) return;
     // Excalidraw owns the live student scene. Never feed a lagging React snapshot back into it:
@@ -171,7 +171,10 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({ board, sett
     if (editing.current !== busy) { editing.current = busy; onBusy(busy); }
     if (!busy && (fingerprint(elements) !== fingerprint(board.elements) || files !== board.files)) onCommit(elements, files);
   }
-  return <div ref={surface} className="board-surface" data-testid="board" aria-label={t.board}
+  const cell = 32 * view.zoom;
+  const paper = { '--cell': `${cell}px`, '--ox': `${(view.x * view.zoom) % cell}px`, '--oy': `${(view.y * view.zoom) % cell}px`,
+    '--margin-x': `${(96 + view.x) * view.zoom}px` } as CSSProperties;
+  return <div ref={surface} className="board-surface" data-testid="board" data-pattern={settings.boardPattern} style={paper} aria-label={t.board}
     onPointerDownCapture={startHold} onPointerMove={moveHold} onPointerUp={cancelHold} onPointerCancel={cancelHold}
     onKeyDown={e => {
       if (e.key === 'Escape') { setMenu(null); setTimeout(() => { if (api && !api.getAppState().editingTextElement) api.setActiveTool({ type: 'text', locked: true }); }, 0); }

@@ -13,7 +13,7 @@ import { Board, type BoardHandle } from './Board';
 import { applyResponse, commitStudent, editTask, fingerprint, newBoard, removeAnnotation, stableMathCandidate, type BoardState } from './boardState';
 import { bridge, BridgeError, type ProviderEntry } from './api';
 import { messages, errorKeys, type MessageKey } from './i18n';
-import { load, save, type Saved, type Settings } from './storage';
+import { BOARD_PATTERNS, load, save, type Saved, type Settings } from './storage';
 import { StrokeSettler } from './settle';
 import { useMic, useVoice } from './useVoice';
 import { loadProfile, saveProfile } from './profileStorage';
@@ -567,6 +567,9 @@ export function App() {
         <label>{t.language}<select value={settings.locale} onChange={e => configure({ locale: e.target.value as Settings['locale'], voiceURI: '' })}>
           <option value="cs">Čeština</option><option value="en">English</option></select></label>
         <button onClick={() => configure({ theme: settings.theme === 'light' ? 'dark' : 'light' })}>{settings.theme === 'light' ? t.dark : t.light}</button>
+        <div role="radiogroup" aria-label={t.boardPaper}><span className="muted">{t.boardPaper}</span>
+          <div className="pattern-picker">{BOARD_PATTERNS.map(pattern => <button key={pattern} role="radio" aria-checked={settings.boardPattern === pattern} data-pattern={pattern}
+            onClick={() => configure({ boardPattern: pattern })}><span>{t[({ plain: 'patternPlain', grid: 'patternGrid', lines: 'patternLines', dots: 'patternDots', school: 'patternSchool' } as const)[pattern]]}</span></button>)}</div></div>
         {connected && <>
           <label>{t.provider}<select value={settings.provider} onChange={e => {
             const id = e.target.value as ProviderId | '';
