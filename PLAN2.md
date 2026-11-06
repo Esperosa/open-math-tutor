@@ -70,6 +70,14 @@ a každá končí testy, živým ověřením a commitem. Konec: smyčka nezávis
   mají programově spočtenou odpověď (včetně jednotky), takže se kontrolují bez AI. Dovednosti
   s kresbou (schéma obvodu, síly, vzorec) jsou označené: kresby zatím AI nevidí.
 
+## I. Živá smyčka: odezva, rozhovor, animace
+- Konec řádku se pozná podle pauzy, ne podle pevného debounce: `activity.ts` sleduje pero (pointerdown/up na tabuli) a psaní (klávesy v editoru Excalidrawu) na úrovni dokumentu, takže `Board.tsx` zůstává beze změny. Psaný řádek je hotový ~220 ms po Escape / Ctrl+Enter / kliknutí jinam, ručně psaný ~450 ms po zvednutí pera; pero dole řádek nikdy neukončí. Značky ✓/✗ u ručně psaných řádků se drží do konce pauzy (`settled.ts`).
+- Kontrola řádků je synchronní a trvá setiny ms (20 řádků ≈ 0,15 ms), proto Web Worker nezavádíme; byl by pomalejší než samotná kontrola.
+- AI: stav „přemýšlím“ je vidět ihned (maskot, bublina s tečkami, „Zrušit“), po 12 s „pořád přemýšlím“, limit 90 s. Odpověď na otázku z rozhovoru nezahodí ani psaní na tabuli.
+- Rozhovor: `chat/` (zprávy po tabulích v `openmathtutor.chat.v1`, lokální FAQ bez AI, rychlé odpovědi podle kontextu, okno `ChatPanel` skládané u maskota). AI dostává `conversation` (viz BRIDGE_API.md).
+- Maskot: stavy čeká / sleduje / kontroluje / přemýšlí / mračí se / raduje se (konfety) / mává / ukazuje; pohled a tužka sledují poslední tah přes CSS proměnné bez překreslování Reactu. Značky se „malují“, procenta plynule přepočítají.
+- Ověření: `tests/latency.spec.ts` (čísla v `docs/latency-report.md`), `tests/chat.spec.ts`, `tests/mentor-animation.spec.ts`, unit testy `activity`, `chat/`, `live`, `App.live`.
+
 ## H. Ověření
 - Nezávislý tester prochází appku jako uživatel i programově proti tomuto plánu; opravuje se,
   dokud neřekne "top". Pak dva kritici; námitky opravuje jeden agent; commit a push po každém

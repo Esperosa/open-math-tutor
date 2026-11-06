@@ -16,7 +16,8 @@ const SAMPLES = resolve(dirname(fileURLToPath(import.meta.url)), '../test-result
 let samples: Record<string, number[]> = {};
 const note = (name: string, ms: number) => { (samples[name] ??= []).push(Math.round(ms)); };
 test.beforeEach(() => { samples = {}; });
-test.afterEach((_fixtures, info) => {
+test.afterEach(() => {
+  const info = test.info();
   mkdirSync(SAMPLES, { recursive: true });
   writeFileSync(resolve(SAMPLES, `${info.title.replace(/[^a-z0-9]+/gi, '-').slice(0, 60)}.json`), JSON.stringify(samples));
 });

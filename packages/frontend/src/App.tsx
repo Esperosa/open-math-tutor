@@ -49,7 +49,7 @@ type Mode = ContinueLessonRequest['mode'];
 type ContinueLessonExtra = Pick<ContinueLessonRequest, 'studentMessage' | 'curriculumContext' | 'retrievedContext' | 'learnerContext' | 'conversation'>;
 const hashKey = (key: string) => [...key].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7);
 const STYLE_MODE: Record<ExplainStyle, Mode> = { hint: 'hint', worked: 'next_step', analogy: 'explain_differently', visual: 'explain_differently' };
-interface Pending { id: string; controller: AbortController; provider: ProviderId; boardId: string; revision: number }
+interface Pending { id: string; controller: AbortController; provider: ProviderId; boardId: string; revision: number; /** A chat answer: the student writing on the board does not make it obsolete. */ keep: boolean }
 function providerStatusLabel(p: ProviderEntry, t: Record<MessageKey, string>): string {
   if (!p.detect.installed) { return " - " + t.providerMissing }
   if (!p.authStatus.authenticated) {
@@ -201,12 +201,13 @@ export function App() {
     extra?: ContinueLessonExtra,
     imageOverride?: UploadedImage,
   ) {
-    if (!canRequest || busy.current || (!mode && !imageOverride && !model?.supportsImageInput)) return;
+    // An explicit ask (button, chip, chat) is never blocked by an open text editor; only the automatic image analysis waits for the pen.
+    if (!canRequest || (busy.current && !mode) || (!mode && !imageOverride && !model?.supportsImageInput)) return;
     stop(false);
     const snapshot = live.current.boards.find(b => b.id === live.current.activeId)!;
     const controller = new AbortController();
     const id = crypto.randomUUID();
-    const request: Pending = { id, controller, provider: settings.provider as ProviderId, boardId: snapshot.id, revision: snapshot.revision };
+    const request: Pending = { id, controller, provider: settings.provider as ProviderId, boardId: snapshot.id, revision: snapshot.revision, keep: mode === 'ask' };
     pending.current = request; setRunning(true); setStatus(mode === 'ask' ? 'thinkingAnswer' : 'thinking'); setRejected(false);
     const timer = setTimeout(() => { controller.abort(); void bridge.cancel(request.provider, id, AbortSignal.timeout(5000)).catch(() => {}); }, REQUEST_TIMEOUT_MS);
     const slowTimer = setTimeout(() => { if (pending.current === request) setSlow(true); }, REQUEST_SLOW_MS);
@@ -223,7 +224,11 @@ export function App() {
         : await bridge.analyze(request.provider, { ...base, imageCrop: imageCrop! }, controller.signal);
       if (pending.current !== request) return;
       const current = live.current.boards.find(b => b.id === request.boardId);
-      if (!current || live.current.activeId !== request.boardId || busy.current) { setStatus('waiting'); return; }
+      // A pen stroke in progress makes the answer obsolete; an open text editor does not. A chat answer survives any board change.
+      if (!current || live.current.activeId !== request.boardId || (activity.penDown && !request.keep)) {
+        if (request.keep) chat.add(request.boardId, 'tutor', response.pedagogicalResponse, id);
+        setStatus('waiting'); return;
+      }
       const applied = applyResponse(current, response, id);
       if (applied.state !== current) updateBoard(applied.state);
       setStatus(applied.stale ? 'waiting' : 'ready'); setRejected(applied.rejected);
@@ -232,10 +237,10 @@ export function App() {
         recordMastery(current.skillId, wasCorrect);
         updateBoard({ ...applied.state, outcome: wasCorrect ? 'solved' : 'failed' });
       }
-      if (!applied.stale) {
+      if (!applied.stale || request.keep) {
         setAiAnswerId(id);
         setMessage({ id: id, kind: response.verifierStatus === 'correct' ? 'solved' : 'info', text: response.pedagogicalResponse,
-          stepId: response.firstErrorStepId ?? (mode === 'ask' ? undefined : snapshot.activeStepId ?? undefined) });
+          ...(!applied.stale ? { stepId: response.firstErrorStepId ?? (mode === 'ask' ? undefined : snapshot.activeStepId ?? undefined) } : {}) });
         voice.speak(response.ttsText);
       }
     } catch (error) {
@@ -258,12 +263,14 @@ export function App() {
     const current = live.current.boards.find(b => b.id === live.current.activeId)!;
     const next = commitStudent(current, elements, files);
     if (next.revision === current.revision) { if (next !== current) updateBoard(next); return; }
-    stop(false); setStatus('waiting'); updateBoard(next); schedule(next);
+    boardEdited(); setStatus('waiting'); updateBoard(next); schedule(next);
   }
+  /** The student changed the board: outdated checks are dropped, a chat answer is not. */
+  function boardEdited() { if (!pending.current?.keep) stop(false); else settler.cancel(); }
   function boardBusy(value: boolean) {
     busy.current = value;
     if (value) {
-      stop(false); setStatus('waiting');
+      boardEdited(); setStatus('waiting');
       // The free-board welcome has done its job once writing starts. Lesson
       // guidance stays available while the student copies the given data.
       setMessage(m => m?.id === 'welcome' ? null : m);
