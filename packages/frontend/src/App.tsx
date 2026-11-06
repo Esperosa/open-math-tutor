@@ -527,9 +527,6 @@ export function App() {
     const ls = writtenLines(current.steps);
     const task = effectiveStatement(current.statement, ls);
     const expected: ExpectedAnswer | undefined = current.expected ?? expectedAnswerFor(task);
-    // A low-confidence handwriting reading is a question, never a wrong answer.
-    const newest = ls.filter(line => line.latexGuess.trim()).at(-1);
-    if (newest?.uncertain) { applyCoachEvent(current, ls, { kind: 'unclear', key: stepKey(newest), n: ls.indexOf(newest) + 1 }); return; }
     const handled = new Set(current.handled ?? []);
     const event = nextCoachEvent({ mode, statement: task, steps: ls, expected, handled });
     if (event.kind === 'idle') return;

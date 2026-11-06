@@ -35,6 +35,8 @@ export interface RecognizedSymbol {
   strokeIds: string[];
   strokeOrder: number[];
   uncertain: boolean;
+  /** Explicit student confirmation, independent of the neural score. */
+  confirmed?: boolean;
   /** Context-selected reading; candidates remain the raw, probability-sorted neural top three. */
   label?: string;
 }

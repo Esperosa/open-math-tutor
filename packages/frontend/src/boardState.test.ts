@@ -24,6 +24,17 @@ describe('board commits and stable steps', () => {
     expect(correctInk(state, 'not-a-symbol', '7')).toBe(state);
     expect(correctInk(state, inkSymbolKey(symbol.strokeIds, raw), '?')).toBe(state);
   });
+  it('uses explicit human confirmation rather than a low model probability for the corrected symbol', () => {
+    const raw = rowElements('4=4', 7).map((e, i) => ({ ...e, version: 1, versionNonce: i } as unknown as ExcalidrawElement));
+    const state = commitStudent(newBoard(), raw);
+    const symbol = state.steps[0].symbols![0];
+    symbol.uncertain = true;
+    symbol.candidates = [{ label: '4', probability: .999 }, { label: '9', probability: .000001 }];
+    const corrected = correctInk(state, inkSymbolKey(symbol.strokeIds, raw), '9');
+    expect(corrected.steps[0].latexGuess).toBe('9=4');
+    expect(corrected.steps[0].uncertain).toBe(false);
+    expect(corrected.steps[0].symbols![0].candidates).toEqual(symbol.candidates);
+  });
   it('discards the old course answer and judgement when the task is edited', () => {
     const state = { ...newBoard(), statement: '1+1', expected: { value: 2, tolerance: 1e-9 }, outcome: 'failed' as const,
       handled: ['old'], confirmedFinals: ['old'], skillId: 'old-skill' };

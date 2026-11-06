@@ -79,7 +79,7 @@ export function parseLine(symbols: readonly RecognizedSymbol[], choices?: readon
     const choice = choices?.[i] ?? -1;
     const label = choice < 0 ? symbol.label ?? symbol.candidates[0]?.label : symbol.candidates[choice]?.label;
     const candidate = symbol.candidates.find(c => c.label === label) ?? (choice < 0 && symbol.label ? symbol.candidates[0] : undefined);
-    logConfidence += Math.log(Math.max(1e-12, candidate?.probability ?? 0));
+    logConfidence += Math.log(Math.max(1e-12, symbol.confirmed ? 1 : candidate?.probability ?? 0));
     return { text: canonical(label ?? '?'), bbox: symbol.bbox };
   });
   // A bare long line is a drawing/dash, not enough evidence of a mathematical minus.

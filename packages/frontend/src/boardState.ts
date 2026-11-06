@@ -97,7 +97,7 @@ export function correctedInkLine(line: RecognizedLine, edits: Record<string, str
   if (!line.symbols.some(symbol => edits[inkSymbolKey(symbol.strokeIds, elements)])) return line;
   const symbols = line.symbols.map(symbol => {
     const label = edits[inkSymbolKey(symbol.strokeIds, elements)];
-    return label && correctionLabels(symbol).includes(label) ? { ...symbol, label, uncertain: false } : symbol;
+    return label && correctionLabels(symbol).includes(label) ? { ...symbol, label, uncertain: false, confirmed: true } : symbol;
   });
   const parsed = parseLine(symbols, undefined, unitAliasesFor(unitFromLine(line.text)));
   return { ...line, symbols, text: parsed.text, confidence: parsed.confidence, parserCompatible: parserCompatible(parsed.text) };
@@ -160,7 +160,7 @@ export function correctInk(state: BoardState, key: string, label: string): Board
   const target = state.steps.find(step => step.symbols?.some(symbol => inkSymbolKey(symbol.strokeIds, state.elements) === key && correctionLabels(symbol).includes(label)));
   if (!target?.symbols) return state;
   const revision = state.revision + 1, edits = { ...state.inkEdits, [key]: label };
-  const symbols = target.symbols.map(symbol => inkSymbolKey(symbol.strokeIds, state.elements) === key ? { ...symbol, label, uncertain: false } : symbol);
+  const symbols = target.symbols.map(symbol => inkSymbolKey(symbol.strokeIds, state.elements) === key ? { ...symbol, label, uncertain: false, confirmed: true } : symbol);
   const parsed = parseLine(symbols, undefined, unitAliasesFor(state.expected?.unit, state.statement)), compatible = parserCompatible(parsed.text);
   // A chip must not turn a readable row into unsupported syntax.
   if (target.parserCompatible && !compatible) return state;

@@ -14,7 +14,7 @@ export function writtenLines(steps: readonly Step[]): WrittenLine[] {
 
 /** The task is the lesson statement, or - on a free board - the first thing the student wrote. */
 export function effectiveStatement(statement: string, lines: readonly WrittenLine[]): string {
-  return statement.trim() || lines[0]?.latexGuess || '';
+  return statement.trim() || (lines[0]?.uncertain ? '' : lines[0]?.latexGuess ?? '');
 }
 
 /** One verdict per board step for the margin mark: any wrong line wins, then ok, otherwise unknown. */

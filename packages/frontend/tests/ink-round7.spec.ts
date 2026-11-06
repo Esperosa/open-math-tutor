@@ -65,6 +65,9 @@ test('D5 noisy pen input stays uncertain; correction chips are labelled and touc
     expect(rect!.width).toBeGreaterThanOrEqual(44); expect(rect!.height).toBeGreaterThanOrEqual(44);
   }
   await page.screenshot({ path: 'test-results/round7-uncertain.png' });
+  const before = await readings(page).locator('strong').allTextContents();
+  await chips.first().click();
+  await expect(readings(page).locator('strong')).toHaveText(before);
 });
 
 async function physicsTask(page: Page) {
