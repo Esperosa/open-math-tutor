@@ -93,7 +93,7 @@ test('deterministic replay: stroke → settled crop → first error annotations 
   await expect(page.getByTestId('annotation-item')).toHaveCount(4);
   await expect(page.getByTestId('math-annotation')).toContainText('2x');
   await expect(page.getByTestId('math-annotation')).toBeVisible();
-  await expect(page.getByTestId('math-annotation')).toHaveCSS('opacity', '1');
+  await expect(page.getByTestId('math-annotation')).toHaveAttribute('data-writing', 'false');
   await expect(page.getByTestId('explanation')).toContainText('První chyba');
   await expect(bubble(page)).toContainText('První chyba');
   await page.screenshot({ path: 'test-results/replay-annotated.png', fullPage: true });

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ContinueLessonRequest, ExpectedAnswer, ProviderId } from '@openmathtutor/shared';
+import type { BoardAction, ContinueLessonRequest, ExpectedAnswer, ProviderId } from '@openmathtutor/shared';
 import {
   recordAttempt, retrieveTopChunks, isMastered, instantiateProblem, expectedAnswerFor, statementHasSymbols,
   looksLikeFinalLine, nextCoachEvent, coachLine, stepKey, recordError, recordSolved, chooseStyle, recordStyleShown,
@@ -17,6 +17,7 @@ import { BOARD_PATTERNS, load, save, type Saved, type Settings } from './storage
 import { StrokeSettler } from './settle';
 import { useMic, useVoice } from './useVoice';
 import { loadProfile, saveProfile } from './profileStorage';
+import { localTeacherActions } from './localTeacher';
 import { computeLineVerdicts, effectiveStatement, markPerStep, writtenLines } from './lines';
 import { TutorHud, type TutorChoice, type TutorMessage } from './TutorHud';
 import { loadMastery, saveMastery, getOrCreateMastery } from './curriculumStorage';
@@ -185,8 +186,8 @@ export function App() {
     const base = { requestId: id, boardRevision: snapshot.revision,
       // Keep the request inside the bridge's limits: no empty lines, bounded lengths and counts.
       task: { statementText: snapshot.statement.slice(0, 2000), topic: snapshot.topic.slice(0, 100) },
-      stepHistory: snapshot.steps.filter(st => st.latexGuess.trim()).slice(-100)
-        .map(({ stepId, latexGuess, boardRevision }) => ({ stepId, latexGuess: latexGuess.trim().slice(0, 300), boardRevision })),
+      stepHistory: [...writtenLines(snapshot.steps), ...snapshot.steps.filter(s => !s.latexGuess.trim()).map(s => ({ stepId: s.stepId, latexGuess: '?' }))].slice(-100)
+        .map(({ stepId, latexGuess }) => ({ stepId, latexGuess: latexGuess.trim().slice(0, 300), boardRevision: snapshot.revision })),
       locale: settings.locale, model: settings.model };
     try {
       const imageCrop = imageOverride ?? (!mode ? await editor.current?.crop(snapshot) : undefined);
@@ -425,7 +426,7 @@ export function App() {
         const after = { ...masteryRef.current, [marked.skillId]: recordAttempt(getOrCreateMastery(masteryRef.current, marked.skillId, Date.now()), true, Date.now()) };
         if (topic && !marked.outcome && topicMastered(catalog, topic.id, after)) text += ` ${messages[locale].topicDoneHint}`;
       }
-      setMessage({ id: event.key, kind, text, stepId: ls[event.n - 1]?.stepId }); voice.speak(text);
+      setMessage({ id: event.key, kind, text, stepId: ls[event.n - 1]?.stepId, ...(event.kind === 'wrong_step' ? { reason: event.reason } : {}) }); voice.speak(text);
     };
     switch (event.kind) {
       case 'ok_step':
@@ -434,7 +435,8 @@ export function App() {
       case 'wrong_step': case 'wrong_final': {
         const reason = event.kind === 'wrong_step' ? event.reason : 'wrong_final';
         if (event.kind === 'wrong_step' || !marked.outcome) updateProfile(p => resolveStyleOutcome(recordError(p, marked.skillId ?? null, reason, Date.now()), false));
-        let next = marked;
+        let next = event.kind === 'wrong_step' ? { ...marked, annotations: [...marked.annotations,
+          ...localTeacherActions(ls[event.n - 1], marked.revision, locale)].slice(-64) } : marked;
         if (event.kind === 'wrong_final' && !next.outcome) { if (next.skillId) recordMastery(next.skillId, false); next = { ...next, outcome: 'failed' }; }
         updateBoard(next); say('wrong'); break;
       }
@@ -480,6 +482,18 @@ export function App() {
       return;
     }
     if (choice === 'dismiss') { setMessage(null); return; }
+    if (choice === 'retry_line' || choice === 'local_hint') {
+      const stepId = message?.stepId;
+      if (!stepId || busy.current) return;
+      if (choice === 'retry_line') { if (editor.current?.removeStepLine(stepId)) setMessage(null); return; }
+      const cur = live.current, current = cur.boards.find(b => b.id === cur.activeId)!;
+      const hint = messages[cur.settings.locale][message.reason === 'arithmetic' ? 'hintArithmetic' : 'hintStep'];
+      const action: BoardAction = { id: `hint-${stepId}`, type: 'show_hint', boardRevision: current.revision, text: hint,
+        placement: { relativeToStepId: stepId, side: 'below', offsetEm: 0.4 } };
+      updateBoard({ ...current, annotations: [...current.annotations.filter(n => n.id !== action.id), action].slice(-64) });
+      setMessage({ ...message, text: hint });
+      return;
+    }
     if (choice === 'next') { nextProblem(); return; }
     if (choice === 'ask_ai') { if (!canRequest) { setMessage({ id: `noai-${Date.now()}`, kind: 'info', text: t.aiNotConnected }); return; } setMessage({ id: `thinking-${Date.now()}`, kind: 'thinking', text: t.thinking }); void request('check', { learnerContext: learnerContext() }); return; }
     {
@@ -537,7 +551,7 @@ export function App() {
   const mood: TutorMood = running ? 'thinking' : message?.kind === 'wrong' ? 'concerned' : message?.kind === 'solved' || happy ? 'happy' : 'idle';
   const shownMessage: TutorMessage | null = running ? { id: 'thinking', kind: 'thinking', text: t.tutorThinking } : message;
   return <div className="app-shell">
-    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} verdicts={verdicts} onAskHere={() => { setPanel('ask'); setPinned(true); }} /></div>
+    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} verdicts={verdicts} onRemoveAnnotation={id => { stop(false); const current = live.current.boards.find(b => b.id === live.current.activeId)!; updateBoard(removeAnnotation(current, id)); }} onAskHere={() => { setPanel('ask'); setPinned(true); }} /></div>
     <div className={`hud${openPanel ? ' drawer-open' : ''}${settingsOpen ? ' settings-open' : ''}`} data-testid="hud">
       <div className="hud-top-left">
         <span className="sr"><output data-testid="revision">{board.revision}</output></span>
@@ -647,6 +661,9 @@ export function App() {
       <TutorHud key={board.id} locateStep={locateStep} t={t} quiet={settingsOpen || calcOpen || !!openPanel} mood={mood} speaking={voice.speaking} message={shownMessage} menuOpen={tutorMenu} running={running} canRequest={canRequest}
         lessonActive={!!lessonSkillId || !!board.skillId} selfAssess={!!board.skillId && !board.expected && !board.outcome} mode={settings.coachMode} voiceOn={settings.tutorVoice} micAvailable={mic.available} listening={mic.listening}
         onToggleMenu={() => openOnly('tutor')}
+        notesVisible={settings.showAI} hasNotes={!!board.annotations.length}
+        onToggleNotes={() => configure({ showAI: !settings.showAI })}
+        onClearNotes={() => { stop(false); updateBoard({ ...board, annotations: [] }); }}
         onMode={mode => { configure({ coachMode: mode }); if (mode === 'off') setMessage(null); }} onVoice={on => { if (!on) voice.cancel(); configure({ tutorVoice: on }); }}
         onMic={() => mic.toggle(text => ask(text))}
         onAction={action => { setTutorMenu(false); if (action === 'stop') stop(); else if (action === 'next_problem') nextProblem(); else if (action === 'free') createExercise(); else if (action === 'self_done' || action === 'self_fail') selfAssess(action === 'self_done'); else void request(action, { learnerContext: learnerContext() }); }}

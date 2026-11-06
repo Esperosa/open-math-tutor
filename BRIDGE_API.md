@@ -43,6 +43,37 @@ from `tutorProvider.ts` (`cli_missing`, `not_authenticated`, `rate_limited`,
 `cancelled`, `timeout`, `invalid_response`, `unknown`) — the frontend
 switches UI state on these codes, so they must be exact string matches.
 
+## `boardActions`: the tutor writes on the board
+
+`pedagogicalResponse` is only a short companion comment (the mascot bubble).
+The teaching itself is `boardActions`, written by the client in a separate,
+deletable teacher layer (handwriting font, red pen for corrections, teal for
+explanations). The model **never supplies coordinates**: every position is a
+relative anchor `placement = { relativeToStepId, symbolIndex?, side, offsetEm }`
+with `side` one of `right | below | above | left | over` and `offsetEm` 0..12.
+The client resolves it to scene space and avoids collisions with the student's
+writing.
+
+| `type` | fields |
+| --- | --- |
+| `circle`, `underline`, `highlight`, `strike_through` | `targetStepId`, optional `targetSymbolIndex` |
+| `write_text`, `show_hint` | `text` (<= 500 chars, no HTML), `placement` |
+| `write_math` | `latex` (<= 300 chars, safe subset: `frac`, `cdot`, `times`, `div`, `left`/`right`, `le`/`ge`), `placement` |
+| `draw_arrow` | `from`, `to` (both `placement`) |
+
+Every action carries `id` (unique within the response) and `boardRevision`
+(must equal the request revision). At most 12 actions per response. Bridge
+validation rejects the whole response when an action has an absolute `x`/`y`
+anchor, an unknown step ID (only IDs from `stepHistory` are accepted), a
+target other than `firstErrorStepId` (when one is set), `erase_own_annotation`,
+extra fields, HTML or an unsafe math grammar. Absolute anchors and
+`erase_own_annotation` remain valid only in client-saved boards, never as
+provider output. Intended order: mark the first error (`circle` or
+`strike_through`), then a short guiding label (about 12 words) beside or below
+it, optionally an arrow; a worked next step (`write_math` below) only for mode
+`next_step`. The response schema is the same for the `claude` and `codex`
+providers.
+
 ## `POST /providers/:id/continue-lesson`
 
 Body: `ContinueLessonRequest`. Response: `AnalyzeBoardResponse`. Same error

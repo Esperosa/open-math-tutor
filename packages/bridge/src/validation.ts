@@ -1,5 +1,5 @@
 import {
-  ProviderError, validateBoardActions,
+  ProviderError, validateBoardActions, isPlacement,
   type AnalyzeBoardRequest, type AnalyzeBoardResponse, type ContinueLessonRequest,
   type RecognizedStep,
 } from '@openmathtutor/shared';
@@ -57,9 +57,8 @@ export function validRequest(value: unknown, image: boolean): boolean {
     crop.dataUrl.slice(crop.dataUrl.indexOf(',') + 1).length % 4 === 0;
 }
 
-/** Shared requests have no board viewport. Never guess its bounds: bridge accepts
- * only step-targeted annotations; absolute-coordinate actions are rejected until
- * a viewport contract is available. The renderer must still check live revision. */
+/** The model only names existing steps and relative anchors. Absolute anchors
+ * remain a saved-board compatibility format, never a provider capability. */
 export function validateResponse(value: unknown, req: AnalyzeBoardRequest | ContinueLessonRequest): AnalyzeBoardResponse {
   const fail = () => { throw new ProviderError('invalid_response', 'Provider response failed schema, revision or board safety validation.'); };
   if (!record(value)) return fail();
@@ -72,21 +71,18 @@ export function validateResponse(value: unknown, req: AnalyzeBoardRequest | Cont
       !(value.needsClarification === null || (record(value.needsClarification) && text(value.needsClarification.reason, 500)))) return fail();
   const result = validateBoardActions(value.boardActions, req.boardRevision,
     { minX: 0, minY: 0, maxX: 0, maxY: 0 });
-  if (result.errors.length || result.valid.some(a => 'anchor' in a || 'from' in a || a.type === 'erase_own_annotation')) return fail();
-  const knownSteps = new Set([...req.stepHistory, ...value.recognizedSteps].map(s => s.stepId));
+  if (result.errors.length) return fail();
+  const knownSteps = new Set(req.stepHistory.map(s => s.stepId));
+  if (value.recognizedSteps.some(s => !knownSteps.has(s.stepId))) return fail();
   if (value.firstErrorStepId !== null && !knownSteps.has(value.firstErrorStepId as string)) return fail();
   if (new Set(result.valid.map(a => a.id)).size !== result.valid.length) return fail();
   for (const action of result.valid) {
-    if (!['circle', 'highlight', 'underline'].includes(action.type) ||
-        Object.keys(action).some(key => !['id', 'boardRevision', 'type', 'targetStepId', 'style'].includes(key)) ||
-        !text(action.id, 128)) return fail();
-    if ('targetStepId' in action && !knownSteps.has(action.targetStepId)) return fail();
-    if ('style' in action && action.style !== undefined) {
-      const style: unknown = action.style;
-      if (!record(style) || Object.keys(style).some(key => !['color', 'emphasis'].includes(key)) ||
-          (style.color !== undefined && (typeof style.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(style.color))) ||
-          (style.emphasis !== undefined && !oneOf(style.emphasis, ['low', 'medium', 'high']))) return fail();
-    }
+    if (!text(action.id, 128) || 'anchor' in action || action.type === 'erase_own_annotation') return fail();
+    if ('targetStepId' in action && (!knownSteps.has(action.targetStepId) ||
+      (value.firstErrorStepId !== null && action.targetStepId !== value.firstErrorStepId))) return fail();
+    const anchors = 'placement' in action ? [action.placement] : action.type === 'draw_arrow' ? [action.from, action.to] : [];
+    if (anchors.some(p => !isPlacement(p) || !knownSteps.has(p.relativeToStepId) ||
+      (value.firstErrorStepId !== null && p.relativeToStepId !== value.firstErrorStepId))) return fail();
   }
   return { requestId: req.requestId, boardRevision: req.boardRevision,
     recognizedSteps: value.recognizedSteps.map(({ stepId, latexGuess, boardRevision }) => ({ stepId, latexGuess, boardRevision })), confidence: value.confidence,

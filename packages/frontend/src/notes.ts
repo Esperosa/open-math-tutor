@@ -1,6 +1,6 @@
 import { isMastered, getTopicSkills, getTrackTopics, expectedAnswerFor, type CourseCatalog, type Locale } from '@openmathtutor/shared';
 import { computeLineVerdicts, effectiveStatement, writtenLines } from './lines';
-import type { BoardState } from './boardState';
+import { renderableActions, type BoardState } from './boardState';
 import type { MasteryMap } from './curriculumStorage';
 import type { MessageKey } from './i18n';
 
@@ -52,7 +52,13 @@ function boardSection(board: BoardState, index: number, t: T) {
     return { text: l.latexGuess, mark: v === 'ok' ? '✓' : v === 'wrong' ? '✗' : '', n: i + 1 };
   });
   return { index, title: task || t.emptyExercise, topic: board.topic.trim(), steps,
-    notes: board.history.map(h => ({ status: t[h.status], text: h.text })) };
+    notes: board.history.map(h => ({ status: t[h.status], text: h.text })),
+    teacher: renderableActions(board).filter(a => a.type !== 'erase_own_annotation').map(a => {
+      const mark = { circle: '◯', underline: '＿', strike_through: '╱', highlight: '◎', draw_arrow: '→' };
+      const content = 'text' in a ? a.text : 'latex' in a ? a.latex : mark[a.type as keyof typeof mark] ?? a.type;
+      const target = 'targetStepId' in a ? a.targetStepId : 'placement' in a ? a.placement?.relativeToStepId : null;
+      return `${target ? `[${lines.findIndex(l => l.stepId === target) + 1 || '—'}] ` : ''}${content}`;
+    }) };
 }
 export function buildNotesMarkdown(boards: readonly BoardState[], t: T, strengths?: Strengths): string {
   const out = [`# ${t.notesTitle}`, ''];
@@ -61,6 +67,7 @@ export function buildNotesMarkdown(boards: readonly BoardState[], t: T, strength
     out.push(`## ${s.index}. ${s.title}`, '');
     if (s.topic) out.push(`*${s.topic}*`, '');
     if (s.steps.length) { out.push(`**${t.steps}**`, ''); s.steps.forEach(st => out.push(`${st.n}. \`${st.text.replace(/`/g, "'")}\` ${st.mark}`.trimEnd())); out.push(''); }
+    if (s.teacher.length) { out.push(`**${t.annotations}**`, ''); s.teacher.forEach(text => out.push(`- ${text.replace(/\n+/g, ' ')}`)); out.push(''); }
     if (s.notes.length) { out.push(`**${t.history}**`, ''); s.notes.forEach(n => out.push(`- **${n.status}:** ${n.text.replace(/\n+/g, ' ')}`)); out.push(''); }
   });
   if (strengths && (strengths.strong.length || strengths.weak.length)) {
@@ -77,6 +84,7 @@ export function buildNotesHtml(boards: readonly BoardState[], t: T, strengths?: 
     const s = boardSection(board, i + 1, t);
     return `<section><h2>${s.index}. ${escapeHtml(s.title)}</h2>${s.topic ? `<p><em>${escapeHtml(s.topic)}</em></p>` : ''}`
       + (s.steps.length ? `<h3>${escapeHtml(t.steps)}</h3><ol>${s.steps.map(st => `<li><code>${escapeHtml(st.text)}</code> ${st.mark}</li>`).join('')}</ol>` : '')
+      + (s.teacher.length ? `<h3>${escapeHtml(t.annotations)}</h3><ul>${s.teacher.map(text => `<li>${escapeHtml(text)}</li>`).join('')}</ul>` : '')
       + (s.notes.length ? `<h3>${escapeHtml(t.history)}</h3><ul>${s.notes.map(n => `<li><strong>${escapeHtml(n.status)}:</strong> ${escapeHtml(n.text)}</li>`).join('')}</ul>` : '')
       + '</section>';
   }).join('');

@@ -466,3 +466,9 @@ body:has(.excalidraw .dropdown-menu) .hud-top-left { opacity: 0; pointer-events:
 .pattern-picker button[data-pattern="dots"] { background-image: radial-gradient(circle, var(--pattern-line) 1.4px, transparent 1.5px); background-size: 12px 12px; }
 .pattern-picker button[data-pattern="school"] { background-image: linear-gradient(var(--pattern-margin), var(--pattern-margin)), linear-gradient(var(--pattern-line) 1px, transparent 1px); background-size: 2px 100%, 100% 12px; background-repeat: no-repeat, repeat; background-position: 10px 0, 0 0; }
 :root { --pattern-line: rgba(70, 110, 130, .3); --pattern-margin: rgba(200, 70, 70, .55); }
+/* Teacher ink lives in Excalidraw; these are only small, keyboard-accessible
+   deletion handles. They never intercept the student's text or pen strokes. */
+.teacher-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
+.teacher-note-delete { position: absolute; pointer-events: auto; width: 28px; height: 28px; padding: 0; border: 1px solid transparent; background: transparent; color: #087f8c; opacity: 0.5; border-radius: 50%; line-height: 1; }
+.teacher-note-delete:hover, .teacher-note-delete:focus-visible { opacity: 1; border-color: currentColor; background: var(--surface, #fff); }
+[data-theme="dark"] .teacher-note-delete { color: #79d5df; }

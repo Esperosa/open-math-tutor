@@ -28,7 +28,7 @@ export function newBoard(): BoardState {
   return { id: crypto.randomUUID(), revision: 0, statement: '', topic: '', elements: [], files: {},
     steps: [], annotations: [], history: [], activeStepId: null };
 }
-export function isStudent(e: ExcalidrawElement) { return !e.id.startsWith('omt-ai-'); }
+export function isStudent(e: ExcalidrawElement) { return !e.id.startsWith('omt-ai-') && !e.customData?.aiLayer; }
 export function fingerprint(elements: readonly ExcalidrawElement[]): string {
   // Excalidraw version increments on content changes, not selection/zoom/hover.
   return JSON.stringify(elements.filter(isStudent).filter(e => !e.isDeleted).map(e => [e.id, e.version, e.versionNonce]));
@@ -99,7 +99,7 @@ export function applyResponse(state: BoardState, response: AnalyzeBoardResponse,
   if (response.boardRevision !== state.revision || response.requestId !== requestId) return { state, stale: true, rejected: false };
   const result = validateBoardActions(response.boardActions, state.revision, boardBounds(state));
   const steps = state.steps.map(s => ({ ...s, latexGuess: response.recognizedSteps.find(r => r.stepId === s.stepId)?.latexGuess ?? s.latexGuess }));
-  const known = new Set(steps.map(s => s.stepId));
+  const known = new Set(steps.flatMap(s => [s.stepId, ...s.latexGuess.split(/\n+/).filter(p => p.trim()).map((_, i) => `${s.stepId}#${i}`)]));
   let rejected = result.errors.length > 0;
   let annotations = renderableActions(state);
   for (const a of result.valid) {
@@ -107,7 +107,7 @@ export function applyResponse(state: BoardState, response: AnalyzeBoardResponse,
     if (a.type === 'erase_own_annotation') {
       annotations = annotations.filter(n => n.id !== a.targetAnnotationId);
     } else {
-      const anchors = 'anchor' in a ? [a.anchor] : a.type === 'draw_arrow' ? [a.from, a.to] : [];
+      const anchors = 'placement' in a && a.placement ? [a.placement] : 'anchor' in a && a.anchor ? [a.anchor] : a.type === 'draw_arrow' ? [a.from, a.to] : [];
       if (anchors.some(p => p.relativeToStepId && (!known.has(p.relativeToStepId)
         || (response.firstErrorStepId !== null && p.relativeToStepId !== response.firstErrorStepId)))) { rejected = true; continue; }
       annotations = [...annotations.filter(n => n.id !== a.id), a];
