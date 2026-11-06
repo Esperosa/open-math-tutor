@@ -7,6 +7,9 @@ and authenticates an official provider CLI themselves, outside this app:
 
 - OpenAI Codex CLI: `codex login`
 - Anthropic Claude Code CLI: `claude auth login` (or `claude /login`)
+- Google (Gemini): bring your own API key from Google AI Studio (free tier) or
+  Vertex; the bridge reads it from `GEMINI_API_KEY` / `GOOGLE_API_KEY` or the
+  local provider-keys file. No Google account OAuth token is used or stored.
 
 The local bridge (`packages/bridge`) only *spawns the already-authenticated,
 unmodified binary as a subprocess* and talks to it over its own supported
@@ -45,7 +48,7 @@ entitlement, not "no API at all" — it is **not** implemented in this MVP
 (requires OpenAI partner approval for the sign-in trial) and must never be
 described as equivalent to plain CLI usage.
 
-**Both providers must independently fail closed**: if a provider's CLI is
+**All providers must independently fail closed**: if a provider's CLI is
 missing, not logged in, rate-limited, or its multimodal path is unverified,
 `authStatus()`/`detect()` report that precisely — the app never silently
 falls back to the other provider or fabricates a response.
@@ -56,7 +59,7 @@ falls back to the other provider or fabricates a response.
 [Excalidraw board, React UI]
         │ image crop + step history (IPC, contextIsolation, narrow preload)
         ▼
-[Electron/bridge: TutorProvider adapters] ──spawn──▶ [codex CLI / claude CLI]
+[Electron/bridge: TutorProvider adapters] ──spawn──▶ [codex CLI / claude CLI / Google (REST adapter)]
         │ board_actions (validated, schema + bounds + revision-checked)
         │ recognized LaTeX → plain-grammar text
         ▼
@@ -89,7 +92,7 @@ anything that reaches the board or the verifier:
 - `packages/frontend` — Vite + React + TS PWA. Excalidraw board, KaTeX
   rendering layer, i18n (cs default, en), stroke-settle debounce, manual
   controls, local history/settings storage.
-- `packages/bridge` — Node process: provider adapters (Codex, Claude),
+- `packages/bridge` — Node process: provider adapters (Codex, Claude, Google),
   Electron main/preload (contextIsolation, no nodeIntegration, narrow typed
   IPC), HTTP client to the Python verifier.
 - `packages/content` — original, curriculum-shaped practice problems for

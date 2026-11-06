@@ -42,6 +42,16 @@ type ContinueLessonExtra = Pick<ContinueLessonRequest, 'studentMessage' | 'curri
 const hashKey = (key: string) => [...key].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7);
 const STYLE_MODE: Record<ExplainStyle, Mode> = { hint: 'hint', worked: 'next_step', analogy: 'explain_differently', visual: 'explain_differently' };
 interface Pending { id: string; controller: AbortController; provider: ProviderId; boardId: string; revision: number }
+function providerStatusLabel(p: ProviderEntry, t: Record<MessageKey, string>): string {
+  if (!p.detect.installed) { return " - " + t.providerMissing }
+  if (!p.authStatus.authenticated) {
+    if (p.id === 'google' && p.authStatus.keyPresent === false) { return " - " + t.googleKeyMissing }
+    return " - " + t.authMissing;
+  }
+  if (!p.authStatus.tutoringAvailable) { return " - " + t.providerLimited }
+  return "";
+}
+
 export function App() {
   const [saved, setSaved] = useState<Saved>(load);
   const live = useRef(saved); live.current = saved;
@@ -147,8 +157,8 @@ export function App() {
       const chosen = entries.find(p => p.id === live.current.settings.provider);
       // A saved provider that can never tutor (e.g. fail-closed Codex) is replaced by one that can.
       if (!live.current.settings.provider || (chosen && !chosen.authStatus.tutoringAvailable && entries.some(p => p.detect.installed && p.authStatus.authenticated && p.authStatus.tutoringAvailable && p.models.length > 0))) {
-        const ready = entries.find(p => p.detect.installed && p.authStatus.authenticated && p.authStatus.tutoringAvailable && p.models.length > 0)
-          ?? entries.find(p => p.detect.installed && p.authStatus.authenticated && p.models.length > 0);
+        const tutorReady = entries.filter(p => p.detect.installed && p.authStatus.authenticated && p.authStatus.tutoringAvailable && p.models.length > 0);
+        const ready = tutorReady.find(p => p.id === 'claude') ?? tutorReady.find(p => p.id === 'google') ?? tutorReady[0];
         if (ready) {
           const value = { ...live.current, settings: { ...live.current.settings, provider: ready.id, model: ready.models[0]!.id } };
           live.current = value; setSaved(value);
@@ -547,7 +557,7 @@ export function App() {
   const activeTrack = catalog.tracks.find(tr => tr.id === settings.activeTrackId);
   const calcPolicy = activeTrack?.calculator ?? 'scientific';
   const alertChip = !bridgeChecked ? null : !connected ? <span role="alert">{t.bridgeUnavailable} <button onClick={() => setRetry(r => r + 1)}>{t.retry}</button></span>
-    : !canRequest ? <span>{provider && !provider.models.length ? t.noModels : t.selectProvider}</span> : null;
+    : !canRequest ? <span>{provider?.id === "google" && provider.authStatus.keyPresent === false ? t.googleKeyMissing : provider && !provider.models.length ? t.noModels : t.selectProvider}</span> : null;
   const mood: TutorMood = running ? 'thinking' : message?.kind === 'wrong' ? 'concerned' : message?.kind === 'solved' || happy ? 'happy' : 'idle';
   const shownMessage: TutorMessage | null = running ? { id: 'thinking', kind: 'thinking', text: t.tutorThinking } : message;
   return <div className="app-shell">
@@ -592,12 +602,11 @@ export function App() {
             const match = providers.find(p => p.id === id);
             configure({ provider: id, model: match?.models[0]?.id ?? '' });
           }}>
-          <option value="">{t.choose}</option>{providers.map(p => <option key={p.id} value={p.id}>{p.id}
-            {!p.detect.installed ? ` — ${t.providerMissing}` : !p.authStatus.authenticated ? ` — ${t.authMissing}` : !p.authStatus.tutoringAvailable ? ` — ${t.providerLimited}` : ''}</option>)}</select></label>
+          <option value="">{t.choose}</option>{providers.map(p => <option key={p.id} value={p.id}>{p.id === "google" ? t.googleProvider : p.id}{providerStatusLabel(p, t)}</option>)}</select></label>
           <label>{t.model}<select value={settings.model} onChange={e => configure({ model: e.target.value })}><option value="">{t.choose}</option>
             {provider?.models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
-          {provider?.authStatus.authenticated && !provider.authStatus.tutoringAvailable &&
-            <span role="alert" className="warning-inline" title={provider.authStatus.detail}>{t.tutoringLimited}</span>}
+          {provider && provider.id === "google" && !provider.authStatus.authenticated && provider.authStatus.keyPresent === false &&
+            <p className="muted" role="alert">{t.googleKeyMissing}</p>}
           {!verifierOK && <span role="alert">{t.healthVerifier}</span>}
         </>}
         <label className="check-label"><input type="checkbox" checked={settings.showAI} onChange={e => configure({ showAI: e.target.checked })} />{t.aiLayer}</label>

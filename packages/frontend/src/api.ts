@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   AnalyzeBoardRequest, AnalyzeBoardResponse, ContinueLessonRequest, ProviderId,
   ProviderDetectResult, ProviderAuthStatus, ProviderModelInfo, ProviderErrorCode,
 } from '@openmathtutor/shared';
@@ -62,9 +62,10 @@ export const bridge = {
   async providers(signal: AbortSignal): Promise<ProviderEntry[]> {
     const value = await json('/providers', signal);
     if (!record(value) || !Array.isArray(value.providers) || !value.providers.every(p =>
-      record(p) && ['codex', 'claude'].includes(String(p.id)) && record(p.detect) && typeof p.detect.installed === 'boolean'
+      record(p) && ['codex', 'claude', 'google'].includes(String(p.id)) && record(p.detect) && typeof p.detect.installed === 'boolean'
       && record(p.authStatus) && p.authStatus.providerId === p.id && typeof p.authStatus.authenticated === 'boolean'
       && typeof p.authStatus.tutoringAvailable === 'boolean'
+      && (String(p.id) !== 'google' || typeof p.authStatus.keyPresent === 'boolean')
       && Array.isArray(p.models) && p.models.every(m => record(m) && typeof m.id === 'string'
         && typeof m.label === 'string' && typeof m.supportsImageInput === 'boolean'))) throw new BridgeError('invalid_response');
     return value.providers as ProviderEntry[];

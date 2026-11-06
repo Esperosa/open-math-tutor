@@ -54,6 +54,8 @@ codex login
 claude auth login
 ```
 
+Google (Gemini): your own API key from Google AI Studio (free tier) or Vertex - set `GEMINI_API_KEY` / `GOOGLE_API_KEY`.
+
 The app never stores the output of these commands or the tokens they create.
 
 ## Tests

@@ -25,7 +25,13 @@ can render per-provider state without the user initiating anything:
       "authStatus": { "providerId": "codex", "authenticated": true, "accountLabel": "..." },
       "models": [{ "id": "...", "label": "...", "supportsImageInput": true }]
     },
-    { "id": "claude", "detect": { "installed": false }, "authStatus": { "providerId": "claude", "authenticated": false, "error": "cli_missing" }, "models": [] }
+    { "id": "claude", "detect": { "installed": false }, "authStatus": { "providerId": "claude", "authenticated": false, "error": "cli_missing" }, "models": [] },
+    {
+      "id": "google",
+      "detect": { "installed": true },
+      "authStatus": { "providerId": "google", "authenticated": true, "tutoringAvailable": true, "keyPresent": true },
+      "models": [{ "id": "gemini-2.0-flash", "label": "Gemini 2.0 Flash", "supportsImageInput": true }]
+    }
   ]
 }
 ```
@@ -35,7 +41,7 @@ Never auto-selects or falls back between providers; this just reports state.
 ## `POST /providers/:id/analyze-board`
 
 Body: `AnalyzeBoardRequest`. Response: `AnalyzeBoardResponse`. `:id` is
-`codex` or `claude`. 404 with `{ "error": "unknown_provider" }` for anything
+`codex`, `claude`, or `google`. 404 with `{ "error": "unknown_provider" }` for anything
 else. On provider failure, respond `502` with
 `{ "error": ProviderErrorCode, "detail": string }` using the exact codes
 from `tutorProvider.ts` (`cli_missing`, `not_authenticated`, `rate_limited`,

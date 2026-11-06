@@ -1,6 +1,6 @@
 import { ProviderError, type ProviderAuthStatus, type ProviderModelInfo,
   type AnalyzeBoardRequest, type ContinueLessonRequest } from '@openmathtutor/shared';
-import { BaseProvider } from './base.js';
+import { CliProvider } from './base.js';
 import { CodexRpc } from './codexRpc.js';
 import { runCli } from './process.js';
 import { classifyFailure } from './errors.js';
@@ -8,7 +8,7 @@ import { record, text } from '../validation.js';
 
 export const CODEX_TOOL_RESTRICTION = 'Codex app-server has no verified documented all-tools-disabled control in CLI 0.164.0. Read-only sandbox, approvalPolicy and empty dynamicTools do not remove built-in filesystem tools. No tutoring turn was started. See packages/bridge/README.md.';
 
-export class CodexProvider extends BaseProvider {
+export class CodexProvider extends CliProvider {
   readonly id = 'codex' as const;
   async authStatus(signal?: AbortSignal): Promise<ProviderAuthStatus> {
     try {

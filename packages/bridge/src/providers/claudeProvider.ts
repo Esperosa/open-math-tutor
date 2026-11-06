@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ProviderError, type ProviderAuthStatus, type ProviderModelInfo,
   type AnalyzeBoardRequest, type ContinueLessonRequest } from '@openmathtutor/shared';
-import { BaseProvider } from './base.js';
+import { CliProvider } from './base.js';
 import { runCli } from './process.js';
 import { classifyFailure } from './errors.js';
 import { RESPONSE_SCHEMA, SYSTEM_PROMPT, userPrompt } from './prompt.js';
@@ -15,7 +15,7 @@ export const CLAUDE_IMAGE_RESTRICTION = 'No documented non-experimental local-im
 // https://code.claude.com/docs/en/cli-reference (--tools, --restricted, --disallowedTools)
 export const CLAUDE_AUTH_DETAIL = 'Text tutoring omits --bare to preserve the official CLI subscription login. --tools "" disables built-in tools; --restricted excludes user/project settings, and strict empty MCP config plus --disallowedTools "mcp__*" disable MCP tools. The app does not supply API keys or extract tokens.';
 
-export class ClaudeProvider extends BaseProvider {
+export class ClaudeProvider extends CliProvider {
   readonly id = 'claude' as const;
   async authStatus(signal?: AbortSignal): Promise<ProviderAuthStatus> {
     try {
