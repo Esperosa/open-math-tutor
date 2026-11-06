@@ -14,6 +14,17 @@ function response(state = fixture(), actions: shared.BoardAction[] = []): shared
     needsClarification: null, boardActions: actions };
 }
 describe('board commits and stable steps', () => {
+  it('discards the old course answer and judgement when the task is edited', () => {
+    const state = { ...newBoard(), statement: '1+1', expected: { value: 2, tolerance: 1e-9 }, outcome: 'failed' as const,
+      handled: ['old'], confirmedFinals: ['old'], skillId: 'old-skill' };
+    const edited = editTask(state, 'statement', '12+7');
+    expect(edited.expected?.value).toBe(19);
+    expect(edited.outcome).toBeUndefined();
+    expect(edited.handled).toEqual([]);
+    expect(edited.confirmedFinals).toEqual([]);
+    expect(edited.skillId).toBeUndefined();
+    expect(editTask(state, 'topic', 'New topic').expected).toEqual(state.expected);
+  });
   it('increments for each committed edit, not selection/no-op, and preserves corrected step IDs', () => {
     const first = fixture();
     expect(first.revision).toBe(1);

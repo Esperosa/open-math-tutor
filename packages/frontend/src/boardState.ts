@@ -1,5 +1,5 @@
 import type { ExpectedAnswer } from '@openmathtutor/shared';
-import { parseMathStatement, validateBoardActions, type BoardAction, type AnalyzeBoardResponse, type RecognizedStep } from '@openmathtutor/shared';
+import { expectedAnswerFor, parseMathStatement, validateBoardActions, type BoardAction, type AnalyzeBoardResponse, type RecognizedStep } from '@openmathtutor/shared';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import type { BinaryFiles } from '@excalidraw/excalidraw/types';
 import { parseLine, recognizeBoardLines, type RecognizedLine, type RecognizedSymbol } from './handwriting';
@@ -160,7 +160,8 @@ export function correctInk(state: BoardState, key: string, label: string): Board
 export function editTask(state: BoardState, field: 'statement' | 'topic', value: string): BoardState {
   if (state[field] === value) return state;
   const revision = state.revision + 1;
-  return { ...state, [field]: value, revision, annotations: [], steps: state.steps.map(s => ({ ...s, boardRevision: revision })) };
+  return { ...state, [field]: value, revision, annotations: [], steps: state.steps.map(s => ({ ...s, boardRevision: revision })),
+    ...(field === 'statement' ? { expected: expectedAnswerFor(value), outcome: undefined, handled: [], confirmedFinals: [], skillId: undefined } : {}) };
 }
 export function boardBounds(state: BoardState) {
   const box = state.steps.reduce<Box>((b, s) => union(b, s.box), { x: 0, y: 0, width: 1000, height: 700 });

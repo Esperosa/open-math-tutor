@@ -43,6 +43,14 @@ export function numbersIn(text: string): number[] {
 
 export function expectedAnswerFor(statementText: string): ExpectedAnswer | undefined {
   if (statementText.length > MAX_INPUT_LENGTH) return undefined;
+  statementText = statementText.trim().replace(/^(?:vypočítej|vypocti|spočítej|calculate|compute)\s*:?\s+/i, '').replace(/=\s*$/, '').trim();
+  // An arithmetic task may include its result. It is still the left-hand
+  // expression being practised, not a single-variable equation to solve.
+  const arithmetic = /^([\d.,\s+\-−*/()·×÷^]+)(?:=[\d.,\s+\-−*/()·×÷^]+)?$/.exec(statementText);
+  if (arithmetic) {
+    try { return { value: calcEvaluate(arithmetic[1]!.replace(/·/g, '*')), tolerance: 1e-9,
+      ...(/^\s*[-−]?\d+\s*\/\s*\d+\s*$/.test(arithmetic[1]!) ? { fractionRounding: true } : {}) }; } catch { return undefined; }
+  }
   let parsed: MathStatement;
   try { parsed = parseMathStatement(statementText.trim()); } catch {
     // The verifier grammar intentionally accepts integers only; local decimal
