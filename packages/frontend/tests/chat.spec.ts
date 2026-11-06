@@ -70,11 +70,12 @@ async function connect(page: Page) {
 test.describe('without an AI', () => {
   test.beforeEach(async ({ page }) => { await page.route('http://127.0.0.1:4178/**', route => route.abort('connectionrefused')); });
 
-  test('the conversation is a folded window: chips answer everyday questions locally, the rest is honestly "AI missing"', async ({ page }) => {
+  test('the conversation opens ready to type: chips answer everyday questions locally, the rest is honestly "AI missing"', async ({ page }) => {
     await start(page);
     await expect(chat(page)).toHaveCount(0);
     await openChat(page);
-    await expect(page.getByRole('textbox')).toHaveCount(0); // no permanent text field
+    // main deliberately opens the composer by default (faf4292).
+    await expect(page.getByRole('textbox', { name: 'Zpráva učiteli', exact: true })).toBeFocused();
     await page.getByRole('button', { name: 'Co znamená ✓ a ✗?', exact: true }).click();
     await expect(log(page)).toContainText('řádku vidíš');
     await typeMessage(page, 'Proč se mění znaménko?');

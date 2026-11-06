@@ -77,7 +77,7 @@ test('D2/D5 even a provider response cannot write an arithmetic correction from 
     const headers = { 'Access-Control-Allow-Origin': new URL(page.url()).origin, 'Access-Control-Allow-Headers': 'content-type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
     if (path === '/health') return route.fulfill({ json: { status: 'ok', verifier: 'ok' }, headers });
-    if (path === '/providers') return route.fulfill({ json: { providers: [{ id: 'codex', detect: { installed: true }, authStatus: { authenticated: true, tutoringAvailable: true },
+    if (path === '/providers') return route.fulfill({ json: { providers: [{ id: 'codex', detect: { installed: true }, authStatus: { providerId: 'codex', authenticated: true, tutoringAvailable: true },
       models: [{ id: 'ink-model', label: 'Ink mock', supportsImageInput: false }] }] }, headers });
     if (path.endsWith('/cancel')) return route.fulfill({ status: 204, headers });
     const body = req.postDataJSON() as ContinueLessonRequest;
