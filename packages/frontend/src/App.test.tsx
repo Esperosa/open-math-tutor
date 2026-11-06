@@ -22,9 +22,31 @@ it('auto-selects the first installed, authenticated provider and its first model
     if (String(url).endsWith('/health')) return new Response(JSON.stringify({ status: 'ok', verifier: 'ok' }), { status: 200 });
     if (String(url).endsWith('/providers')) {
       return new Response(JSON.stringify({ providers: [
-        { id: 'codex', detect: { installed: false }, authStatus: { providerId: 'codex', authenticated: false }, models: [] },
-        { id: 'claude', detect: { installed: true }, authStatus: { providerId: 'claude', authenticated: true },
+        { id: 'codex', detect: { installed: false }, authStatus: { providerId: 'codex', authenticated: false, tutoringAvailable: false }, models: [] },
+        { id: 'claude', detect: { installed: true }, authStatus: { providerId: 'claude', authenticated: true, tutoringAvailable: true },
           models: [{ id: 'sonnet', label: 'sonnet', supportsImageInput: false }, { id: 'opus', label: 'opus', supportsImageInput: false }] },
+      ] }), { status: 200 });
+    }
+    throw new Error(`unexpected request: ${url}`);
+  }));
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Poskytovatel' })).toHaveValue('claude'));
+  expect(screen.getByRole('combobox', { name: 'Model' })).toHaveValue('sonnet');
+});
+
+it('prefers a provider that can actually tutor over one that is merely logged in, even if listed first', async () => {
+  // Regression test: a provider can be installed and authenticated and still
+  // be unconditionally fail-closed for every request (tutoringAvailable:
+  // false) — auto-select must not default to it just because it's first and
+  // "authenticated", or every check silently does nothing for the user.
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (String(url).endsWith('/health')) return new Response(JSON.stringify({ status: 'ok', verifier: 'ok' }), { status: 200 });
+    if (String(url).endsWith('/providers')) {
+      return new Response(JSON.stringify({ providers: [
+        { id: 'codex', detect: { installed: true }, authStatus: { providerId: 'codex', authenticated: true, tutoringAvailable: false },
+          models: [{ id: 'gpt-x', label: 'gpt-x', supportsImageInput: true }] },
+        { id: 'claude', detect: { installed: true }, authStatus: { providerId: 'claude', authenticated: true, tutoringAvailable: true },
+          models: [{ id: 'sonnet', label: 'sonnet', supportsImageInput: false }] },
       ] }), { status: 200 });
     }
     throw new Error(`unexpected request: ${url}`);

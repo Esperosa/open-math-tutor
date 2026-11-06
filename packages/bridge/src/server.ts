@@ -52,7 +52,7 @@ export function createServer(options: BridgeOptions = {}) {
     catch (e) {
       const error = classifyFailure(e);
       return { id: provider.id, detect: { installed: error.code !== 'cli_missing' },
-        authStatus: { providerId: provider.id, authenticated: false, error: error.code, detail: error.message }, models: [] };
+        authStatus: { providerId: provider.id, authenticated: false, tutoringAvailable: false, error: error.code, detail: error.message }, models: [] };
     }
     const authStatus = await provider.authStatus();
     let models: ProviderModelInfo[];

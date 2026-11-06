@@ -32,6 +32,25 @@ describe('environment simulations, NOT inference tests', () => {
       await expect(provider.continueLesson(lesson, new AbortController().signal)).rejects.toMatchObject({ code: 'not_authenticated' });
     } finally { await rm(dir, { recursive: true, force: true }); }
   });
+  it('reports tutoringAvailable: false for a logged-in Codex — authenticated is not the same as usable (fake CLI environment only)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'omt-status-fixture-'));
+    const source = 'if(process.argv.includes("status")){console.log("Logged in using ChatGPT");process.exit(0)}console.log("codex-cli 0.164.0")';
+    try {
+      if (process.platform === 'win32') {
+        await mkdir(join(dir, 'node_modules/@openai/codex/bin'), { recursive: true });
+        await writeFile(join(dir, 'codex.cmd'), '@echo off');
+        await writeFile(join(dir, 'node_modules/@openai/codex/bin/codex.js'), source);
+      } else {
+        await writeFile(join(dir, 'codex'), `#!${process.execPath}\n${source}`); await chmod(join(dir, 'codex'), 0o755);
+      }
+      const provider = new CodexProvider({ env: { PATH: dir }, timeoutMs: 3000 });
+      const auth = await provider.authStatus();
+      expect(auth).toMatchObject({ authenticated: true, tutoringAvailable: false });
+      // The UI's auto-select and warning banner both key off tutoringAvailable,
+      // not authenticated — this is the fact that must stay true for that to work.
+      await expect(provider.continueLesson(lesson, new AbortController().signal)).rejects.toMatchObject({ code: 'provider_unavailable' });
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
   it.each([
     ['Not logged in', 'not_authenticated'], ['Please sign in', 'not_authenticated'],
     ['Missing ANTHROPIC_API_KEY or apiKeyHelper', 'not_authenticated'], ['401 Unauthorized', 'not_authenticated'],

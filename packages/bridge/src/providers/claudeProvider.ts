@@ -23,12 +23,12 @@ export class ClaudeProvider extends BaseProvider {
       let status: unknown;
       try { status = JSON.parse(result.stdout); } catch { throw classifyFailure(result.stdout + result.stderr || 'invalid JSON status'); }
       if (!record(status) || typeof status.loggedIn !== 'boolean') throw new ProviderError('invalid_response', 'Invalid Claude auth status.');
-      if (result.code === 0 && status.loggedIn) return { providerId: this.id, authenticated: true, detail: CLAUDE_AUTH_DETAIL };
-      if (result.code === 1 && !status.loggedIn) return { providerId: this.id, authenticated: false, error: 'not_authenticated', detail: 'Run claude auth login outside this app.' };
+      if (result.code === 0 && status.loggedIn) return { providerId: this.id, authenticated: true, tutoringAvailable: true, detail: CLAUDE_AUTH_DETAIL };
+      if (result.code === 1 && !status.loggedIn) return { providerId: this.id, authenticated: false, tutoringAvailable: false, error: 'not_authenticated', detail: 'Run claude auth login outside this app.' };
       throw classifyFailure(result.stderr + result.stdout);
     } catch (e) {
       const error = classifyFailure(e);
-      return { providerId: this.id, authenticated: false, error: error.code, detail: error.message };
+      return { providerId: this.id, authenticated: false, tutoringAvailable: false, error: error.code, detail: error.message };
     }
   }
   async availableModels(): Promise<ProviderModelInfo[]> {

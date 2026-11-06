@@ -107,6 +107,7 @@ button.stop { margin-left: auto; color: #a32d2d; border-color: #c47777; }
 summary { cursor: pointer; font-weight: 600; min-height: 44px; padding: var(--space-3) 0; }
 details > label { margin: var(--space-3) 0; }
 .warning { color: var(--warning); background: var(--warning-bg); padding: var(--space-3); border-radius: var(--radius-sm); font-size: 12px; }
+.warning-inline { color: var(--warning); background: var(--warning-bg); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); font-size: 12px; cursor: help; }
 .privacy { font-size: 12px; color: var(--muted); margin-top: 0; }
 @media (max-width: 1000px) {
   .workspace { grid-template-columns: minmax(0, 1fr) 270px; gap: var(--space-4); padding: var(--space-4); }

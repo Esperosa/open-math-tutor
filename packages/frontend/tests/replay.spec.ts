@@ -10,7 +10,7 @@ async function mockBridge(page: Page, requests: AnalyzeBoardRequest[], manuals: 
     if (request.method() === 'OPTIONS') { await route.fulfill({ status: 204, headers }); return; }
     if (url.pathname === '/health') { await route.fulfill({ json: { status: 'ok', verifier: 'ok' }, headers }); return; }
     if (url.pathname === '/providers') {
-      await route.fulfill({ json: { providers: [{ id: 'codex', detect: { installed: true }, authStatus: { providerId: 'codex', authenticated: true },
+      await route.fulfill({ json: { providers: [{ id: 'codex', detect: { installed: true }, authStatus: { providerId: 'codex', authenticated: true, tutoringAvailable: true },
         models: [{ id: 'replay-model', label: 'Replay model (test only)', supportsImageInput: true }] }] }, headers }); return;
     }
     if (url.pathname.endsWith('/cancel')) { await route.fulfill({ status: 204, headers }); return; }

@@ -30,6 +30,19 @@ export interface ProviderDetectResult {
 export interface ProviderAuthStatus {
   providerId: ProviderId;
   authenticated: boolean;
+  /**
+   * Whether this provider can actually run a tutoring turn right now, as a
+   * static fact about this build/provider — distinct from `authenticated`.
+   * A provider can be installed and logged in (authenticated: true) while
+   * still being fail-closed for every request, e.g. because no documented
+   * way exists yet to disable its coding-agent tools. The UI must use this,
+   * not `authenticated` alone, to decide which provider to default to or
+   * recommend — never silently default to a provider that is known to
+   * always fail. True when there is no known blanket reason tutoring would
+   * fail for this provider (individual requests can still fail at runtime
+   * for other reasons, e.g. rate limits — that's unrelated to this flag).
+   */
+  tutoringAvailable: boolean;
   /** Non-sensitive label only (e.g. plan name) — never a token or email scraped from credential storage. */
   accountLabel?: string;
   error?: ProviderErrorCode;

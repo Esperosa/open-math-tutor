@@ -14,13 +14,16 @@ export class CodexProvider extends BaseProvider {
     try {
       const result = await runCli('codex', ['login', 'status'], this.options, signal);
       if (result.code === 0 && /logged in/i.test(result.stdout + result.stderr)) {
-        return { providerId: this.id, authenticated: true, detail: CODEX_TOOL_RESTRICTION };
+        // Login works, but infer() below unconditionally fails closed — this is a
+        // static fact about this build, not a per-request condition, so the UI
+        // must be told explicitly rather than discovering it after a failed request.
+        return { providerId: this.id, authenticated: true, tutoringAvailable: false, detail: CODEX_TOOL_RESTRICTION };
       }
       const error = classifyFailure(result.stdout + result.stderr);
-      return { providerId: this.id, authenticated: false, error: error.code, detail: error.message };
+      return { providerId: this.id, authenticated: false, tutoringAvailable: false, error: error.code, detail: error.message };
     } catch (e) {
       const error = classifyFailure(e);
-      return { providerId: this.id, authenticated: false, error: error.code, detail: error.message };
+      return { providerId: this.id, authenticated: false, tutoringAvailable: false, error: error.code, detail: error.message };
     }
   }
   async availableModels(): Promise<ProviderModelInfo[]> {

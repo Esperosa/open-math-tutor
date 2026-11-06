@@ -46,7 +46,7 @@ describe('Claude invocation contract (mocked CLI, NOT real inference)', () => {
       code: 0, stdout: '{"loggedIn":true}', stderr: '', binaryPath: 'claude',
     });
     const auth = await new ClaudeProvider().authStatus();
-    expect(auth).toMatchObject({ providerId: 'claude', authenticated: true });
+    expect(auth).toMatchObject({ providerId: 'claude', authenticated: true, tutoringAvailable: true });
     expect(auth.detail).toContain('omits --bare');
     expect(run.mock.calls[0]![1]).toEqual(['auth', 'status']);
   });

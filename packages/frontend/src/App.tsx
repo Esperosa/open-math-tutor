@@ -78,10 +78,13 @@ export function App() {
       setProviders(entries); setConnected(true); setVerifierOK(health.verifier === 'ok');
       setStatus('ready');
       // Zero-config default: if nothing was chosen yet, pick the first provider
-      // that's actually installed, logged in, and has models — never override
-      // a provider the person already picked themselves.
+      // that's actually installed, logged in, able to tutor right now (not
+      // just logged in — a provider can be fully authenticated and still be
+      // fail-closed for every request), and has models. Never override a
+      // provider the person already picked themselves.
       if (!live.current.settings.provider) {
-        const ready = entries.find(p => p.detect.installed && p.authStatus.authenticated && p.models.length > 0);
+        const ready = entries.find(p => p.detect.installed && p.authStatus.authenticated && p.authStatus.tutoringAvailable && p.models.length > 0)
+          ?? entries.find(p => p.detect.installed && p.authStatus.authenticated && p.models.length > 0);
         if (ready) {
           const value = { ...live.current, settings: { ...live.current.settings, provider: ready.id, model: ready.models[0]!.id } };
           live.current = value; setSaved(value);
@@ -224,10 +227,13 @@ export function App() {
             const match = providers.find(p => p.id === id);
             configure({ provider: id, model: match?.models[0]?.id ?? '' });
           }}>
-          <option value="">{t.choose}</option>{providers.map(p => <option key={p.id} value={p.id}>{p.id}{!p.detect.installed ? ` — ${t.providerMissing}` : !p.authStatus.authenticated ? ` — ${t.authMissing}` : ''}</option>)}</select></label>
+          <option value="">{t.choose}</option>{providers.map(p => <option key={p.id} value={p.id}>{p.id}
+            {!p.detect.installed ? ` — ${t.providerMissing}` : !p.authStatus.authenticated ? ` — ${t.authMissing}` : !p.authStatus.tutoringAvailable ? ` — ${t.providerLimited}` : ''}</option>)}</select></label>
         <label className="field-glass">{t.model}<select value={settings.model} onChange={e => configure({ model: e.target.value })}><option value="">{t.choose}</option>
           {provider?.models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
         {!canRequest && <span>{provider && !provider.models.length ? t.noModels : t.selectProvider}</span>}
+        {provider?.authStatus.authenticated && !provider.authStatus.tutoringAvailable &&
+          <span role="alert" className="warning-inline" title={provider.authStatus.detail}>{t.tutoringLimited}</span>}
         {!verifierOK && <span role="alert">{t.healthVerifier}</span>}
       </>}
     </section>
