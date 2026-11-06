@@ -460,10 +460,12 @@ export function App() {
         </div>
       </div>
       <div className="hud-top-right">
-        {alertChip && <div className="hud-chip" aria-live="polite">{alertChip}</div>}
+        <div className="hud-icons">
         {calcPolicy !== 'none' && <button className="icon-btn" title={`${t.calcOpen} — ${t.hintCalc}`} aria-label={t.calcOpen} aria-pressed={calcOpen} onClick={() => { setCalcOpen(o => !o); setSettingsOpen(false); }}><Icon name="calc" /></button>}
         <button className="icon-btn" title={`${t.settings} — ${t.hintSettings}`} aria-label={t.settings} aria-expanded={settingsOpen} onClick={() => { setSettingsOpen(o => !o); setCalcOpen(false); }}>
           <span className={`status-dot ${canRequest ? 'ok' : 'idle'}`} aria-hidden="true" /><Icon name="settings" /></button>
+        </div>
+        {alertChip && <div className="hud-chip" aria-live="polite">{alertChip}</div>}
       </div>
       <aside className={`settings-pop${settingsOpen ? ' open' : ''}`} aria-label={t.settings}>
         <label>{t.language}<select value={settings.locale} onChange={e => configure({ locale: e.target.value as Settings['locale'], voiceURI: '' })}>
