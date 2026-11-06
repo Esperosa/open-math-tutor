@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseMathStatement, getTrackTopics, getTopicSkills, getSkillTemplates } from "@openmathtutor/shared";
+import { parseMathStatement, getTrackTopics, getTopicSkills, getSkillTemplates, nextUnlockedTopic } from "@openmathtutor/shared";
 import { catalog } from "./catalog.js";
 
 function instantiateAt(
@@ -112,6 +112,16 @@ describe("catalog walkability per track", () => {
         }
       }
       expect(templateCount).toBeGreaterThan(0);
+    });
+  }
+
+  for (const track of catalog.tracks) {
+    it(`${track.id}: a brand-new student (no mastery) has at least one reachable skill`, () => {
+      // Regression: a track whose topicIds skip a topic that every one of its
+      // skills is (directly or transitively) prerequisite-gated behind is
+      // unplayable from zero mastery — nextUnlockedTopic returns null forever,
+      // which the UI misreports as "all done" instead of "stuck".
+      expect(nextUnlockedTopic(catalog, track.id, new Set())).not.toBeNull();
     });
   }
 });

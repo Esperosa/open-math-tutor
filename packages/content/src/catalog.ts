@@ -208,7 +208,10 @@ const tracks: Track[] = [
       en: "Faster-paced review for students preparing for the maturita: a brief pass over fractions/percentages, with emphasis on equations with distribution and the variable on both sides.",
     },
     examFamily: "maturita",
-    topicIds: [TOPIC_FRACTIONS, TOPIC_LINEAR, TOPIC_LINEAR_ADVANCED],
+    // Same prerequisite-gating reason as vysoka-skola below: both
+    // TOPIC_FRACTIONS and TOPIC_LINEAR start with a skill that needs
+    // SKILL_INTEGERS mastered first.
+    topicIds: [TOPIC_NUMBERS, TOPIC_FRACTIONS, TOPIC_LINEAR, TOPIC_LINEAR_ADVANCED],
   },
   {
     id: "vysoka-skola",
@@ -218,7 +221,10 @@ const tracks: Track[] = [
       en: "A quick refresher on foundational algebra for first-year university students before moving on to follow-up coursework.",
     },
     examFamily: "vysoka-skola",
-    topicIds: [TOPIC_LINEAR, TOPIC_LINEAR_ADVANCED, TOPIC_FRACTIONS],
+    // Every skill here is gated (directly or transitively) behind
+    // SKILL_INTEGERS, so TOPIC_NUMBERS must be reachable first or no skill
+    // in this track ever unlocks for a fresh student.
+    topicIds: [TOPIC_NUMBERS, TOPIC_LINEAR, TOPIC_LINEAR_ADVANCED, TOPIC_FRACTIONS],
   },
 ];
 

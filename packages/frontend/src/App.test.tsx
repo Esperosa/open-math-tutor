@@ -86,3 +86,40 @@ it('onboarding: picking a track immediately starts a lesson and shows a "where a
   expect(screen.getByTestId('track-breadcrumb')).toHaveTextContent('Přijímačky na střední školu');
   expect(screen.getByLabelText('Zadání')).not.toHaveValue('');
 });
+
+it('switching to a new track starts a fresh board, not the previous lesson\'s canvas and history', async () => {
+  // Regression: startLesson used to edit the currently active board in
+  // place, leaving the previous problem's handwriting and explanation
+  // history visible underneath the new one.
+  const manuals: Record<string, unknown>[] = [];
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    if (String(url).endsWith('/health')) return new Response(JSON.stringify({ status: 'ok', verifier: 'ok' }), { status: 200 });
+    if (String(url).endsWith('/providers')) {
+      return new Response(JSON.stringify({ providers: [{ id: 'claude', detect: { installed: true },
+        authStatus: { providerId: 'claude', authenticated: true, tutoringAvailable: true },
+        models: [{ id: 'sonnet', label: 'sonnet', supportsImageInput: false }] }] }), { status: 200 });
+    }
+    if (String(url).endsWith('/continue-lesson')) {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      manuals.push(body);
+      return new Response(JSON.stringify({
+        requestId: body.requestId, boardRevision: body.boardRevision, recognizedSteps: [], confidence: 1,
+        firstErrorStepId: null, verifierStatus: 'needs_domain_check', pedagogicalResponse: 'ok', ttsText: 'ok',
+        boardActions: [], needsClarification: null,
+      }), { status: 200 });
+    }
+    throw new Error(`unexpected request: ${url}`);
+  }));
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Na co se připravuješ?' })).toBeInTheDocument());
+  fireEvent.click(screen.getByRole('button', { name: /Přijímačky na střední školu/ }));
+  await waitFor(() => expect(manuals).toHaveLength(1));
+  fireEvent.click(screen.getByRole('button', { name: 'Změnit kurz' }));
+  fireEvent.click(screen.getByRole('button', { name: /Vysoká škola/ }));
+  await waitFor(() => expect(manuals).toHaveLength(2));
+
+  // Exactly one explanation (not two): proof the second lesson got a fresh
+  // board instead of appending its response onto the first board's history.
+  expect(screen.getAllByTestId('explanation')).toHaveLength(1);
+  expect(screen.getByLabelText('Zadání')).not.toHaveValue('');
+});

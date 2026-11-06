@@ -186,9 +186,13 @@ export function App() {
     live.current = value; setSaved(value); setLine(''); setSelectedStep(''); setStatus('idle');
   }
   function startLesson(lesson: LessonStart) {
+    // A new lesson is a new problem, not an edit of the current one — reusing
+    // the active board here left the previous problem's handwriting and
+    // explanation history visible underneath the new statement.
     stop(false); setLine(''); setSelectedStep('');
-    const current = live.current.boards.find(b => b.id === live.current.activeId)!;
-    updateBoard(editTask(editTask(current, 'topic', lesson.topic), 'statement', lesson.statementText));
+    const next: BoardState = { ...newBoard(), topic: lesson.topic, statement: lesson.statementText };
+    const value = { ...live.current, boards: [...live.current.boards, next], activeId: next.id };
+    live.current = value; setSaved(value);
     setLessonSkillId(lesson.skillId);
     setStatus('idle');
     void request('next_problem', { curriculumContext: lesson.curriculumContext });
@@ -198,7 +202,7 @@ export function App() {
     const masteredIds = new Set(Object.values(mastery).filter(isMastered).map(s => s.skillId));
     const topic = nextUnlockedTopic(catalog, trackId, masteredIds);
     const skill = topic ? nextUnlockedSkill(getTopicSkills(catalog, topic.id), masteredIds) : null;
-    if (!topic || !skill) return;
+    if (!topic || !skill) { createExercise(); return; }
     const difficultyLevel = mastery[skill.id]?.difficultyLevel ?? 1;
     const template = pickTemplateForDifficulty(catalog, skill.id, difficultyLevel);
     if (!template) return;
