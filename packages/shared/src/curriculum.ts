@@ -9,6 +9,8 @@
 
 export type ExamFamily = "ss-prijimacky" | "vs-prijimacky" | "maturita" | "vysoka-skola" | "custom";
 
+export type CalculatorPolicy = "none" | "basic" | "scientific";
+
 export interface LocalizedText {
   cs: string;
   en: string;
@@ -24,6 +26,8 @@ export interface ProblemTemplate {
   /** Optional integer ranges for randomized coefficients, e.g. { a: [2, 9], b: [-5, 5] }. Substituted into statementTemplate as {a}, {b}, etc. */
   generatorRanges?: Record<string, [min: number, max: number]>;
   topic: string;
+  /** Word problem / notation that is not in the safe math grammar: statement is shown as text and never parsed. */
+  freeText?: boolean;
 }
 
 export interface Skill {
@@ -32,6 +36,10 @@ export interface Skill {
   /** Skills that should reach a passing mastery level before this one is introduced in lesson mode. */
   prerequisiteSkillIds: string[];
   problemTemplateIds: string[];
+  /** False when no local/SymPy verifier can check this skill's steps; the UI says so honestly. Default true. */
+  autoCheck?: boolean;
+  /** Extra search terms (cs/en) so a student can find this skill by what they call it. */
+  keywords?: { cs: string[]; en: string[] };
 }
 
 export interface Topic {
@@ -46,6 +54,12 @@ export interface Track {
   description: LocalizedText;
   examFamily: ExamFamily;
   topicIds: string[];
+  /** What the real exam allows; drives the in-app calculator. */
+  calculator?: CalculatorPolicy;
+  /** Public page the calculator/topic policy was taken from. */
+  sourceUrl?: string;
+  /** Syllabus is a draft built from general curriculum knowledge, not an official published list. */
+  unofficial?: boolean;
 }
 
 export interface CourseCatalog {
@@ -123,4 +137,31 @@ export function trackProgress(catalog: CourseCatalog, trackId: string, masteredS
   let masteredCount = 0;
   for (const id of skillIds) if (masteredSkillIds.has(id)) masteredCount++;
   return { masteredCount, totalCount: skillIds.size };
+}
+
+const fold = (value: string) => value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+export type SearchHit =
+  | { kind: "track"; trackId: string; label: string }
+  | { kind: "topic"; trackId: string; topicId: string; label: string }
+  | { kind: "skill"; trackId: string; topicId: string; skillId: string; label: string };
+
+/** Diacritics-insensitive search over track, topic and skill titles and skill keywords. Every query word must match. */
+export function searchCatalog(catalog: CourseCatalog, query: string, locale: "cs" | "en", limit = 12): SearchHit[] {
+  const words = fold(query).split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  const matches = (haystack: string) => { const h = fold(haystack); return words.every(w => h.includes(w)); };
+  const hits: SearchHit[] = [];
+  for (const track of catalog.tracks) {
+    if (matches(`${track.title.cs} ${track.title.en} ${track.description.cs}`)) hits.push({ kind: "track", trackId: track.id, label: track.title[locale] });
+    for (const topic of getTrackTopics(catalog, track.id)) {
+      if (matches(`${topic.title.cs} ${topic.title.en}`)) hits.push({ kind: "topic", trackId: track.id, topicId: topic.id, label: `${track.title[locale]} › ${topic.title[locale]}` });
+      for (const skill of getTopicSkills(catalog, topic.id)) {
+        const text = `${skill.title.cs} ${skill.title.en} ${topic.title.cs} ${(skill.keywords?.cs ?? []).join(" ")} ${(skill.keywords?.en ?? []).join(" ")}`;
+        if (matches(text)) hits.push({ kind: "skill", trackId: track.id, topicId: topic.id, skillId: skill.id, label: `${skill.title[locale]} (${track.title[locale]})` });
+      }
+    }
+  }
+  const rank = { skill: 0, topic: 1, track: 2 } as const;
+  return hits.sort((a, b) => rank[a.kind] - rank[b.kind]).slice(0, limit);
 }

@@ -1,4 +1,5 @@
 import type { CourseCatalog, ProblemTemplate, Skill, Topic, Track } from "@openmathtutor/shared";
+import { extraSkills, extraTemplates, extraTopics } from "./extra.js";
 
 /**
  * Original practice-problem catalog. Every statement here was written for
@@ -179,56 +180,92 @@ const problemTemplates: ProblemTemplate[] = [
     statementTemplate: "{a}x+{b}(x+{c})={d}", generatorRanges: { a: [1, 9], b: [2, 9], c: [-9, 9], d: [-50, 50] } },
 ];
 
+const CERMAT_JPZ = "https://prijimacky.cermat.gov.cz/files/files/dokumenty/specifikace-pozadavku/Specifikace_2022-2023/MASPECIFIKACEPOZADAVKU2022.pdf";
+const CERMAT_MZ = "https://maturita.cermat.gov.cz/files/files/MAR_MZ2024_TS_PL.pdf";
+
 const tracks: Track[] = [
   {
     id: "ss-prijimacky",
     title: { cs: "Přijímačky na střední školu", en: "Lower-secondary entrance exam" },
     description: {
-      cs: "Příprava na jednotnou přijímací zkoušku z matematiky na střední školu: čísla, zlomky, procenta a základní rovnice, krok za krokem.",
-      en: "Practice ahead of the Czech lower-secondary school entrance exam in mathematics: numbers, fractions, percentages, and basic equations, step by step.",
+      cs: "Jednotná přijímací zkouška z matematiky (9. třída): čísla, mocniny, rovnice, soustavy, závislosti a data, geometrie i nestandardní úlohy. U zkoušky je kalkulačka zakázána.",
+      en: "The Czech unified entrance exam in mathematics: numbers, powers, equations, systems, relations and data, geometry and non-standard problems. Calculators are not allowed at the exam.",
     },
-    examFamily: "ss-prijimacky",
-    topicIds: [TOPIC_NUMBERS, TOPIC_FRACTIONS, TOPIC_LINEAR],
+    examFamily: "ss-prijimacky", calculator: "none", sourceUrl: CERMAT_JPZ,
+    topicIds: [TOPIC_NUMBERS, TOPIC_FRACTIONS, "mocniny-a-vyrazy", TOPIC_LINEAR, "soustavy-rovnic", "zavislosti-a-data", "geometrie", "nestandardni-ulohy"],
   },
   {
     id: "vs-prijimacky",
     title: { cs: "Přijímačky na vysokou školu", en: "University entrance exam" },
     description: {
-      cs: "Širší příprava na přijímací zkoušky z matematiky na vysokou školu, včetně náročnějších rovnic s neznámou na obou stranách.",
-      en: "Broader practice ahead of university entrance exams in mathematics, including harder equations with the variable on both sides.",
+      cs: "Příprava na písemné přijímací testy z matematiky (např. MFF, FEL, VŠE): rovnice a nerovnice, funkce, goniometrie, kombinatorika. Osnova je orientační; zkontroluj si požadavky své fakulty.",
+      en: "Preparation for written university entrance tests in mathematics: equations and inequalities, functions, trigonometry, combinatorics. The syllabus is indicative; check your faculty's requirements.",
     },
-    examFamily: "vs-prijimacky",
-    topicIds: [TOPIC_NUMBERS, TOPIC_FRACTIONS, TOPIC_LINEAR, TOPIC_LINEAR_ADVANCED],
+    examFamily: "vs-prijimacky", calculator: "scientific", unofficial: true,
+    topicIds: [TOPIC_NUMBERS, TOPIC_FRACTIONS, "mocniny-a-vyrazy", TOPIC_LINEAR, TOPIC_LINEAR_ADVANCED, "soustavy-rovnic", "funkce", "geometrie", "goniometrie", "nestandardni-ulohy", "kombinatorika-pravdepodobnost"],
   },
   {
     id: "maturita",
-    title: { cs: "Maturita", en: "Maturita (school-leaving exam)" },
+    title: { cs: "Maturita z matematiky", en: "Maturita (school-leaving exam) in mathematics" },
     description: {
-      cs: "Rychlejší opakování pro maturanty: zlomky a procenta jen krátce, důraz na rovnice se závorkou a neznámou na obou stranách.",
-      en: "Faster-paced review for students preparing for the maturita: a brief pass over fractions/percentages, with emphasis on equations with distribution and the variable on both sides.",
+      cs: "Opakování učiva pro maturitu: čísla a algebra, rovnice a nerovnice, funkce, posloupnosti a finance, goniometrie, kombinatorika a pravděpodobnost. U zkoušky je povolena kalkulačka bez grafického režimu a řešení rovnic.",
+      en: "Review for the maturita: algebra, equations and inequalities, functions, sequences and finance, trigonometry, combinatorics and probability. A calculator without graphing or equation solving is allowed at the exam.",
     },
-    examFamily: "maturita",
-    // Same prerequisite-gating reason as vysoka-skola below: both
-    // TOPIC_FRACTIONS and TOPIC_LINEAR start with a skill that needs
-    // SKILL_INTEGERS mastered first.
-    topicIds: [TOPIC_NUMBERS, TOPIC_FRACTIONS, TOPIC_LINEAR, TOPIC_LINEAR_ADVANCED],
+    examFamily: "maturita", calculator: "scientific", sourceUrl: CERMAT_MZ,
+    // Every skill in fractions/linear is gated behind SKILL_INTEGERS (TOPIC_NUMBERS).
+    topicIds: [TOPIC_NUMBERS, TOPIC_FRACTIONS, "mocniny-a-vyrazy", TOPIC_LINEAR, TOPIC_LINEAR_ADVANCED, "funkce", "posloupnosti-a-finance", "geometrie", "goniometrie", "nestandardni-ulohy", "kombinatorika-pravdepodobnost"],
   },
   {
     id: "vysoka-skola",
     title: { cs: "Vysoká škola — základy algebry", en: "University — algebra foundations" },
     description: {
-      cs: "Rychlé oprášení základů algebry pro studenty prvního ročníku vysoké školy před navazujícími předměty.",
-      en: "A quick refresher on foundational algebra for first-year university students before moving on to follow-up coursework.",
+      cs: "Rychlé oprášení středoškolské algebry před prvním semestrem: čísla, zlomky, mocniny, rovnice a soustavy.",
+      en: "A quick refresher of school algebra before the first semester: numbers, fractions, powers, equations and systems.",
     },
-    examFamily: "vysoka-skola",
-    // Every skill here is gated (directly or transitively) behind
-    // SKILL_INTEGERS, so TOPIC_NUMBERS must be reachable first or no skill
-    // in this track ever unlocks for a fresh student.
-    topicIds: [TOPIC_NUMBERS, TOPIC_LINEAR, TOPIC_LINEAR_ADVANCED, TOPIC_FRACTIONS],
+    examFamily: "vysoka-skola", unofficial: true,
+    topicIds: [TOPIC_NUMBERS, TOPIC_LINEAR, TOPIC_LINEAR_ADVANCED, TOPIC_FRACTIONS, "mocniny-a-vyrazy", "soustavy-rovnic"],
+  },
+  {
+    id: "vs-analyza",
+    title: { cs: "VŠ — Matematická analýza", en: "University — Calculus" },
+    description: {
+      cs: "Limity, derivace a integrály podle typického prvního semestru. Neoficiální osnova; kroky nejsou automaticky kontrolovány.",
+      en: "Limits, derivatives and integrals as in a typical first semester. Unofficial syllabus; steps are not machine-checked.",
+    },
+    examFamily: "vysoka-skola", unofficial: true, topicIds: ["va-limity", "va-derivace", "va-integraly"],
+  },
+  {
+    id: "vs-linearni-algebra",
+    title: { cs: "VŠ — Lineární algebra", en: "University — Linear algebra" },
+    description: {
+      cs: "Soustavy, matice, determinanty, vektorové prostory a vlastní čísla. Neoficiální osnova; kroky nejsou automaticky kontrolovány.",
+      en: "Systems, matrices, determinants, vector spaces and eigenvalues. Unofficial syllabus; steps are not machine-checked.",
+    },
+    examFamily: "vysoka-skola", unofficial: true, topicIds: ["la-soustavy-matice", "la-prostory"],
+  },
+  {
+    id: "vs-diskretni",
+    title: { cs: "VŠ — Diskrétní matematika", en: "University — Discrete mathematics" },
+    description: {
+      cs: "Logika, množiny a relace, indukce, kombinatorika a grafy. Neoficiální osnova; kroky nejsou automaticky kontrolovány.",
+      en: "Logic, sets and relations, induction, combinatorics and graphs. Unofficial syllabus; steps are not machine-checked.",
+    },
+    examFamily: "vysoka-skola", unofficial: true, topicIds: ["dm-logika-mnoziny", "dm-kombinatorika-grafy"],
+  },
+  {
+    id: "vs-statistika",
+    title: { cs: "VŠ — Pravděpodobnost a statistika", en: "University — Probability and statistics" },
+    description: {
+      cs: "Pravděpodobnost, náhodné veličiny, odhady a testování hypotéz. Neoficiální osnova; kroky nejsou automaticky kontrolovány.",
+      en: "Probability, random variables, estimation and hypothesis testing. Unofficial syllabus; steps are not machine-checked.",
+    },
+    examFamily: "vysoka-skola", unofficial: true, topicIds: ["st-pravdepodobnost", "st-statistika"],
   },
 ];
 
-export const catalog: CourseCatalog = { tracks, topics, skills, problemTemplates };
+export const catalog: CourseCatalog = {
+  tracks, topics: [...topics, ...extraTopics], skills: [...skills, ...extraSkills], problemTemplates: [...problemTemplates, ...extraTemplates],
+};
 
 export function buildCatalog(): CourseCatalog {
   return catalog;

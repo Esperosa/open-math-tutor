@@ -49,6 +49,7 @@ export const cs = {
   ctxText: 'Text sem', ctxEraser: 'Guma', ctxAsk: 'Zeptat se na tohle', ctxZoomHere: 'Přiblížit sem', ctxFit: 'Zobrazit vše', ctxDelete: 'Smazat výběr', ctxMenu: 'Nabídka tabule',
   controlsHelp: 'Posun: kolečko, mezerník + tah nebo šipky. Zoom: Ctrl + kolečko nebo + / −. Podržení na tabuli otevře nabídku. Shift + 1 zobrazí vše.',
   stepOk: 'Řádek vypadá správně', stepWrong: 'Řádek nesedí', tutorOffer: 'Řádek {n} nesedí. Chceš to vysvětlit?', offerExplain: 'Vysvětli', offerHint: 'Nápověda', offerDismiss: 'Zkusím sám',
+  searchPlaceholder: 'Hledej kurz nebo téma (Ctrl+K)', searchNone: 'Nic nenalezeno.', searchAskAI: 'Zeptat se AI: „{q}“', noAutoCheck: 'bez automatické kontroly', unofficialSyllabus: 'neoficiální osnova', searchLabel: 'Hledat v kurzech',
   onboardingSkip: 'Přeskočit, chci jen volnou tabuli', trackComplete: 'vše zvládnuto', changeTrack: 'Změnit kurz',
 } as const;
 export type MessageKey = keyof typeof cs;
@@ -101,6 +102,7 @@ export const en: Record<MessageKey, string> = {
   ctxText: 'Text here', ctxEraser: 'Eraser', ctxAsk: 'Ask about this', ctxZoomHere: 'Zoom in here', ctxFit: 'Show everything', ctxDelete: 'Delete selection', ctxMenu: 'Board menu',
   controlsHelp: 'Pan: scroll wheel, Space + drag or arrow keys. Zoom: Ctrl + wheel or + / −. Press and hold on the board for a menu. Shift + 1 shows everything.',
   stepOk: 'This line looks right', stepWrong: 'This line does not add up', tutorOffer: 'Line {n} does not add up. Want me to explain?', offerExplain: 'Explain', offerHint: 'Hint', offerDismiss: 'I will try myself',
+  searchPlaceholder: 'Search a course or topic (Ctrl+K)', searchNone: 'Nothing found.', searchAskAI: 'Ask the AI: "{q}"', noAutoCheck: 'not machine-checked', unofficialSyllabus: 'unofficial syllabus', searchLabel: 'Search courses',
   onboardingSkip: 'Skip, I just want the free board', trackComplete: 'all done', changeTrack: 'Change track',
 };
 export const messages: Record<Locale, Record<MessageKey, string>> = { cs, en };

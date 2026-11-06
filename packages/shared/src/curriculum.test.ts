@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getTrackTopics, getTopicSkills, getSkillTemplates, instantiateTemplate, nextUnlockedSkill,
-  nextUnlockedTopic, pickTemplateForDifficulty, trackProgress, type CourseCatalog,
+  nextUnlockedTopic, pickTemplateForDifficulty, trackProgress, searchCatalog, type CourseCatalog,
 } from "./curriculum.js";
 
 const catalog: CourseCatalog = {
@@ -81,5 +81,28 @@ describe("trackProgress", () => {
     expect(trackProgress(catalog, "track-1", new Set())).toEqual({ masteredCount: 0, totalCount: 3 });
     expect(trackProgress(catalog, "track-1", new Set(["skill-a"]))).toEqual({ masteredCount: 1, totalCount: 3 });
     expect(trackProgress(catalog, "track-1", new Set(["skill-a", "skill-b", "skill-c"]))).toEqual({ masteredCount: 3, totalCount: 3 });
+  });
+});
+
+describe("searchCatalog", () => {
+  const search: CourseCatalog = {
+    tracks: [{ id: "tr", title: { cs: "Maturita", en: "School-leaving exam" }, description: { cs: "", en: "" }, examFamily: "maturita", topicIds: ["tp"] }],
+    topics: [{ id: "tp", title: { cs: "Rovnice", en: "Equations" }, skillIds: ["sk"] }],
+    skills: [{ id: "sk", title: { cs: "Kvadratické rovnice", en: "Quadratic equations" }, prerequisiteSkillIds: [], problemTemplateIds: [],
+      keywords: { cs: ["diskriminant"], en: ["discriminant"] } }],
+    problemTemplates: [],
+  };
+  it("finds skills ignoring case and diacritics, by title or keyword", () => {
+    expect(searchCatalog(search, "kvadraticke", "cs")[0]).toMatchObject({ kind: "skill", skillId: "sk" });
+    expect(searchCatalog(search, "DISKRIMINANT", "cs")[0]).toMatchObject({ kind: "skill", skillId: "sk" });
+    expect(searchCatalog(search, "discriminant", "en")).toHaveLength(1);
+  });
+  it("requires every word to match and returns nothing for an empty or unknown query", () => {
+    expect(searchCatalog(search, "kvadraticke logaritmy", "cs")).toEqual([]);
+    expect(searchCatalog(search, "   ", "cs")).toEqual([]);
+  });
+  it("ranks skills before topics before tracks", () => {
+    const kinds = searchCatalog(search, "rovnice", "cs").map(h => h.kind);
+    expect(kinds).toEqual(["skill", "topic"]);
   });
 });

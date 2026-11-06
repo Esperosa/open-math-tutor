@@ -65,7 +65,13 @@ export function App() {
       if ((e.target as Element | null)?.closest('.rail, .drawer, .settings-pop, .icon-btn')) return;
       setPanel(null); setPinned(false); setSettingsOpen(false);
     };
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { setPanel(null); setPinned(false); setSettingsOpen(false); } };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setPanel(null); setPinned(false); setSettingsOpen(false); }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault(); setPanel('courses'); setPinned(true);
+        setTimeout(() => document.getElementById('course-search')?.focus(), 50);
+      }
+    };
     document.addEventListener('pointerdown', away); document.addEventListener('keydown', esc);
     return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc); };
   }, []);
@@ -331,7 +337,7 @@ export function App() {
       <aside className={`drawer${openPanel ? ' open' : ''}`}
         onMouseEnter={() => clearTimeout(leaveTimer.current)} onMouseLeave={leavePanel}>
         <section hidden={openPanel !== 'courses'}>
-          <CoursesPanel catalog={catalog} mastery={mastery} t={t} locale={settings.locale} onStartLesson={startLesson} activeSkillId={lessonSkillId} />
+          <CoursesPanel catalog={catalog} mastery={mastery} t={t} locale={settings.locale} onStartLesson={startLesson} activeSkillId={lessonSkillId} onAsk={q => { setPanel('ask'); setPinned(true); ask(q); }} />
         </section>
         <section hidden={openPanel !== 'ask'}>
           <AskPanel t={t} disabled={!canRequest || running} onAsk={ask} />

@@ -78,6 +78,7 @@ describe("catalog integrity", () => {
 
   it("every problem template parses under the safe grammar at min, mid, and max of its generator ranges", () => {
     for (const template of catalog.problemTemplates) {
+      if (template.freeText) continue;
       for (const instantiate of [instantiateAtMin, instantiateAtMidpoint, instantiateAtMax]) {
         const statement = instantiate(template.statementTemplate, template.generatorRanges);
         expect(
@@ -95,6 +96,36 @@ describe("catalog integrity", () => {
         `template ${template.id} references missing skill ${template.skillId}`,
       ).toBe(true);
     }
+  });
+});
+
+describe("catalog honesty", () => {
+  it("every skill the local checker claims to verify only has parseable, non-free-text templates", () => {
+    for (const skill of catalog.skills.filter(s => s.autoCheck !== false)) {
+      for (const id of skill.problemTemplateIds) {
+        expect(catalog.problemTemplates.find(tp => tp.id === id)?.freeText, `${id} is free text but ${skill.id} claims autoCheck`).not.toBe(true);
+      }
+    }
+  });
+  it("every skill is in a topic and every topic is used by a track", () => {
+    const usedTopics = new Set(catalog.tracks.flatMap(tr => tr.topicIds));
+    for (const topic of catalog.topics) expect(usedTopics.has(topic.id), `unused topic ${topic.id}`).toBe(true);
+    const inTopic = new Set(catalog.topics.flatMap(tp => tp.skillIds));
+    for (const skill of catalog.skills) expect(inTopic.has(skill.id), `orphan skill ${skill.id}`).toBe(true);
+  });
+  it("prerequisites are offered inside every track that uses the skill (no unplayable skills)", () => {
+    for (const track of catalog.tracks) {
+      const inTrack = new Set(getTrackTopics(catalog, track.id).flatMap(tp => tp.skillIds));
+      for (const id of inTrack) {
+        for (const pre of catalog.skills.find(s => s.id === id)!.prerequisiteSkillIds) {
+          expect(inTrack.has(pre), `track ${track.id}: skill ${id} needs ${pre}, which the track never offers`).toBe(true);
+        }
+      }
+    }
+  });
+  it("exam tracks name their calculator policy; unofficial university tracks say so", () => {
+    for (const id of ["ss-prijimacky", "maturita"]) expect(catalog.tracks.find(t => t.id === id)?.calculator).toBeDefined();
+    for (const id of ["vs-analyza", "vs-linearni-algebra", "vs-diskretni", "vs-statistika"]) expect(catalog.tracks.find(t => t.id === id)?.unofficial).toBe(true);
   });
 });
 

@@ -85,8 +85,8 @@ details > label { margin: var(--space-3) 0; }
 .warning { color: var(--warning); background: var(--warning-bg); padding: var(--space-3); border-radius: var(--radius-sm); font-size: 12px; }
 .warning-inline { color: var(--warning); background: var(--warning-bg); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); font-size: 12px; cursor: help; }
 .privacy { font-size: 12px; color: var(--muted); margin-top: 0; }
-.onboarding { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: var(--space-5); background: var(--surface); }
-.onboarding-card {
+.onboarding { position: fixed; inset: 0; overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: var(--space-5); background: var(--surface); }
+.onboarding-card { margin: auto;
   max-width: 640px; width: 100%; padding: var(--space-6); background: var(--glass-surface); backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-1);
 }
@@ -189,3 +189,9 @@ body { overflow: hidden; }
 .tutor-bubble p { margin: 0 0 var(--space-2); font-weight: 600; }
 .tutor-bubble .row { margin-top: 0; }
 @media (max-width: 900px) { .tutor-bubble { left: 68px; right: 12px; width: auto; transform: none; bottom: 260px; } }
+
+.search-results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.search-results button { width: 100%; text-align: left; min-height: 36px; font-size: 13px; }
+.no-check { color: var(--muted); }
+.skills-list { list-style: none; padding: 0; margin: var(--space-3) 0 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.skills-list li { display: grid; gap: var(--space-1); padding: var(--space-2) 0; border-bottom: 1px solid var(--line); }

@@ -235,3 +235,18 @@ test('live check: a wrong line is flagged and explanation is offered without pre
   await page.getByRole('button', { name: 'Zkusím sám' }).click();
   await expect(page.getByTestId('tutor-offer')).toHaveCount(0);
 });
+
+test('course search: Ctrl+K finds a specific skill by what the student calls it and starts it', async ({ page }) => {
+  await page.goto('/');
+  await skipOnboarding(page);
+  await page.keyboard.press('Control+k');
+  const search = page.getByRole('searchbox', { name: 'Hledat v kurzech' });
+  await expect(search).toBeFocused();
+  await search.fill('diskriminant');
+  await page.getByRole('button', { name: /Kvadratické rovnice/ }).first().click();
+  await expect(page.getByRole('textbox', { name: 'Zadání', exact: true })).toHaveValue(/x\^2|x\^2/);
+  await page.keyboard.press('Control+k');
+  await search.fill('zzzz nic takového');
+  await expect(page.getByText('Nic nenalezeno.')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Zeptat se AI/ })).toBeVisible();
+});
