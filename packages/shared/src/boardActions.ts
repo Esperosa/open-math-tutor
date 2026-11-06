@@ -7,6 +7,8 @@
  * does not match the board's current revision ("Čekám na dokončení zápisu").
  */
 
+import { ALLOWED_SYMBOL_PATTERN, parseMathStatement } from "./mathAst.js";
+
 export type AnnotationEmphasis = "low" | "medium" | "high";
 
 export interface AnnotationStyle {
@@ -35,7 +37,18 @@ export type BoardAction =
   | (BoardActionBase & { type: "highlight"; targetStepId: string; style?: AnnotationStyle })
   | (BoardActionBase & { type: "draw_arrow"; from: Anchor; to: Anchor; style?: AnnotationStyle })
   | (BoardActionBase & { type: "show_hint"; text: string; anchor: Anchor })
-  | (BoardActionBase & { type: "erase_own_annotation"; targetAnnotationId: string });
+  | (BoardActionBase & { type: "erase_own_annotation"; targetAnnotationId: string })
+  | (BoardActionBase & {
+      type: "plot_function";
+      /** Plain-grammar expression in one free variable (same grammar as mathAst.ts), e.g. "2x+3" or "1/2x^2" — never LaTeX, never eval'd as code. */
+      expression: string;
+      variable: string;
+      domain: { min: number; max: number };
+      anchor: Anchor;
+      width: number;
+      height: number;
+      style?: AnnotationStyle;
+    });
 
 export const BOARD_ACTION_TYPES = [
   "write_math",
@@ -46,7 +59,11 @@ export const BOARD_ACTION_TYPES = [
   "draw_arrow",
   "show_hint",
   "erase_own_annotation",
+  "plot_function",
 ] as const;
+
+export const MAX_PLOT_EXPRESSION_LENGTH = 200;
+export const MAX_PLOT_SIZE = 2000;
 
 export const MAX_BOARD_ACTIONS_PER_RESPONSE = 12;
 export const MAX_LATEX_LENGTH = 300;
@@ -149,6 +166,46 @@ function validateOne(
       if (typeof a.targetAnnotationId !== "string" || a.targetAnnotationId.length === 0) {
         return { index, reason: "missing targetAnnotationId" };
       }
+      return null;
+    }
+    case "plot_function": {
+      if (
+        typeof a.expression !== "string" ||
+        a.expression.length === 0 ||
+        a.expression.length > MAX_PLOT_EXPRESSION_LENGTH
+      ) {
+        return { index, reason: "invalid expression" };
+      }
+      if (typeof a.variable !== "string" || !ALLOWED_SYMBOL_PATTERN.test(a.variable)) {
+        return { index, reason: "invalid variable" };
+      }
+      try {
+        const parsed = parseMathStatement(a.expression);
+        if (parsed.form !== "expression") return { index, reason: "plot expression must not be an equation" };
+      } catch {
+        return { index, reason: "expression failed to parse under the safe grammar" };
+      }
+      const domain = a.domain as { min?: unknown; max?: unknown } | undefined;
+      if (
+        typeof domain !== "object" ||
+        domain === null ||
+        typeof domain.min !== "number" ||
+        typeof domain.max !== "number" ||
+        !(domain.min < domain.max)
+      ) {
+        return { index, reason: "invalid domain" };
+      }
+      if (
+        typeof a.width !== "number" ||
+        typeof a.height !== "number" ||
+        a.width <= 0 ||
+        a.height <= 0 ||
+        a.width > MAX_PLOT_SIZE ||
+        a.height > MAX_PLOT_SIZE
+      ) {
+        return { index, reason: "invalid plot size" };
+      }
+      if (!isAnchor(a.anchor) || !inBounds(a.anchor)) return { index, reason: "invalid or out-of-bounds anchor" };
       return null;
     }
     default:

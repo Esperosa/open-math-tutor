@@ -77,14 +77,34 @@ export interface AnalyzeBoardResponse {
   needsClarification: { reason: string } | null;
 }
 
+export interface RetrievedChunk {
+  sourceId: string;
+  sourceTitle: string;
+  chunkIndex: number;
+  text: string;
+}
+
+export interface CurriculumContext {
+  trackId: string;
+  topicId: string;
+  skillId: string;
+  difficultyLevel: number;
+}
+
 export interface ContinueLessonRequest {
   requestId: string;
   boardRevision: number;
-  mode: "check" | "hint" | "next_step" | "explain_differently";
+  mode: "check" | "hint" | "next_step" | "explain_differently" | "ask" | "next_problem";
   task: { statementLatex?: string; statementText?: string; topic: string };
   stepHistory: RecognizedStep[];
   locale: Locale;
   model: string;
+  /** Free-form student question/description, used by mode "ask" (e.g. "nechápu proč se mění znaménko"). */
+  studentMessage?: string;
+  /** Present when the request originates from a curriculum track/lesson flow rather than free board work. */
+  curriculumContext?: CurriculumContext;
+  /** Top-k chunks from the student's own uploaded sources (NotebookLM-style custom track), to ground the answer and let the UI show citations. Never silently treated as verified fact by the verifier — same math-safety boundary applies to any statement it contains. */
+  retrievedContext?: RetrievedChunk[];
 }
 
 export type ProviderStreamEvent =
