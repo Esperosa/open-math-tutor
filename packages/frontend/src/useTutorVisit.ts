@@ -42,7 +42,7 @@ export function useTutorVisit(id: string | undefined, text: string, stepId: stri
     };
     measure();
     const interval = setInterval(measure, 180);
-    const timer = setTimeout(() => { clearInterval(interval); goHome(false); }, Math.min(12000, 5500 + Math.min(text.length, 220) * 24));
+    const timer = setTimeout(() => { clearInterval(interval); goHome(false); }, 2800 + Math.min(text.length, 220) * 24);
     const resize = () => { clearInterval(interval); goHome(true); };
     window.addEventListener('resize', resize);
     return () => { clearInterval(interval); clearTimeout(timer); clearTimeout(returnTimer); window.removeEventListener('resize', resize); };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { tutorDestination, overlaps, type TutorRect } from './tutorPosition';
+import { clearTutorRoute, tutorDestination, overlaps, type TutorRect } from './tutorPosition';
 const home = { x: 1104, y: 700, width: 320, height: 200 };
 const row = { x: 560, y: 350, width: 160, height: 32 };
 const viewport = { width: 1440, height: 1000 };
@@ -24,7 +24,17 @@ describe('safe tutor destination', () => {
     const safe = tutorDestination(home, row, viewport, [routeOnly]);
     expect(safe).toBeNull();
   });
-  it('falls back on a narrow phone instead of forcing a collision', () => {
+  it('can use the space below a row on a narrow phone', () => {
     expect(tutorDestination({ x: 110, y: 500, width: 268, height: 180 }, { x: 100, y: 250, width: 240, height: 32 }, { width: 390, height: 844 }, [])).not.toBeNull();
+  });
+  it('checks retargeting from the rendered position, not the original home', () => {
+    const from = { ...home, x: 200, y: 200 };
+    const obstacles = [{ x: 600, y: 250, width: 40, height: 40 }];
+    const original = tutorDestination(home, row, viewport, obstacles)!;
+    expect(original).not.toBeNull();
+    expect(clearTutorRoute(from, original, obstacles)).toBe(false);
+    const retargeted = tutorDestination(home, row, viewport, obstacles, from)!;
+    expect(retargeted).not.toBeNull();
+    expect(clearTutorRoute(from, retargeted, obstacles)).toBe(true);
   });
 });

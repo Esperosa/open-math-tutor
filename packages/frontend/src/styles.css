@@ -380,3 +380,8 @@ body { overflow: hidden; }
 .tutor-hud:not(.tutor-visiting) .tutor-bubble { pointer-events: auto; }
 .tutor-visiting .tutor-button:disabled { opacity: 1; }
 .tutor-menu { max-height: calc(100dvh - 164px); overflow: auto; }
+@media (max-width: 700px) {
+  /* Excalidraw's compact footer is taller than its desktop zoom strip. */
+  .tutor-hud { bottom: 88px; }
+  .tutor-menu { max-height: calc(100dvh - 188px); }
+}

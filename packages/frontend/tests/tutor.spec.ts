@@ -72,8 +72,23 @@ test('reduced motion shows readable lesson greeting immediately and disables eve
   expect(r!.y).toBeGreaterThanOrEqual(0); expect(r!.y + r!.height).toBeLessThanOrEqual(844);
   await page.getByRole('button', { name: 'Nastavení', exact: true }).click();
   await expect(bubble(page)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Tmavý režim', exact: true }).click();
   await page.keyboard.press('Escape');
   await expect(bubble(page)).toBeVisible();
+  await page.screenshot({ path: 'test-results/tutor-greeting-phone-dark.png' });
+  const clearsFooter = await hud(page).evaluate(el => {
+    const teacher = el.getBoundingClientRect();
+    const footer = document.querySelector('.excalidraw footer')?.getBoundingClientRect();
+    return !footer || teacher.bottom <= footer.top;
+  });
+  expect(clearsFooter).toBe(true);
+  const contrast = await page.getByTestId('tutor-typewriter').evaluate(el => {
+    const rgb = (value: string) => value.match(/\d+/g)!.slice(0, 3).map(Number).map(c => c / 255).map(c => c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4);
+    const luminance = (value: string) => { const [r, g, b] = rgb(value); return .2126 * r + .7152 * g + .0722 * b; };
+    const text = luminance(getComputedStyle(el).color), bg = luminance(getComputedStyle(el.closest('.tutor-bubble')!).backgroundColor);
+    return (Math.max(text, bg) + .05) / (Math.min(text, bg) + .05);
+  });
+  expect(contrast).toBeGreaterThanOrEqual(4.5);
 });
 
 test('a pan that loses the target cancels the visit; a new board never keeps the old comment', async ({ page }) => {
@@ -87,6 +102,3 @@ test('a pan that loses the target cancels the visit; a new board never keeps the
   await expect(bubble(page)).toHaveCount(0);
   await expect(hud(page)).toHaveAttribute('data-visiting', 'false');
 });
-
-
-

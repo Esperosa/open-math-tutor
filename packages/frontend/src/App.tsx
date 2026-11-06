@@ -228,7 +228,12 @@ export function App() {
   }
   function boardBusy(value: boolean) {
     busy.current = value;
-    if (value) { stop(false); setStatus('waiting'); }
+    if (value) {
+      stop(false); setStatus('waiting');
+      // The free-board welcome has done its job once writing starts. Lesson
+      // guidance stays available while the student copies the given data.
+      setMessage(m => m?.id === 'welcome' ? null : m);
+    }
     else schedule(live.current.boards.find(b => b.id === live.current.activeId)!);
   }
   function switchExercise(id: string) {

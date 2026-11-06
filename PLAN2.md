@@ -24,6 +24,23 @@ a každá končí testy, živým ověřením a commitem. Konec: smyčka nezávis
 
 ## C. Maskot mluví
 - Řeč přes speechSynthesis (výchozí zapnuto), animace pusy při mluvení, bublina s krátkým textem.
+- Živý vlastní SVG/CSS učitel: mrkání, jemné dýchání a houpání, občasné mávnutí a pohled;
+  radostný poskok, ustarané obočí a tečky při přemýšlení. Při postupném psaní komentáře se hýbe tužka.
+- Komentář nese ID konkrétního řádku (i uvnitř víceřádkového textu). `Board.stepViewportRect`
+  čte živé souřadnice Excalidrawu včetně posunu a zoomu, nikdy nemění studentskou scénu.
+- `tutorPosition.ts` + `useTutorVisit.ts`: overlay přes CSS transform dojde vedle řádku a po
+  cca 3–9 s se vrátí. Cíl i trasa z aktuální polohy musí minout HUD a Excalidraw ovládání
+  a vejít se do viewportu. Neznámý, smazaný, otočený či neviditelný řádek / nedostatek místa
+  znamená bublinu v rohu. Změna viewportu nebo nová překážka návštěvu bezpečně ukončí.
+- Mimo roh je celý učitel průchozí pro pointer a jeho akce jsou zakázané až do dokončení návratu.
+  V rohu zůstávají původní nabídka a akce, dlouhou odpověď lze rozbalit a posouvat.
+- Bublina má neprůsvitný podklad, rukopisný text a typewriter s rezervovanou výškou;
+  čtečka dostane celou větu jednou. `prefers-reduced-motion` vypíná pohyb i postupné odhalování.
+- Lokální přivítání je viditelné po přeskočení onboardingu i při startu lekce, bez volání AI;
+  čas zobrazení neběží pod onboardingem či otevřeným panelem. Nová tabule ruší starý komentář.
+- Ověření: unit testy typování a kolizí, e2e návštěva/návrat, click-through, neměnná revize,
+  pan mimo řádek, nové cvičení, přivítání a reduced-motion na telefonu.
+  Celý frontend: 69 unit a 25 e2e testů prošlo; lint a produkční build také (jen upozornění na velikost chunků).
 - Mikrofon: push-to-talk přes Web Speech API (cs/en), přepis jde do "Zeptej se". Lokální
   Whisper je vědomě mimo (stahování modelu); mikrofon se skryje, když prohlížeč řeč nezná.
 
