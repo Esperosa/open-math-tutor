@@ -116,3 +116,109 @@ Poslední běhy před sepsáním tohoto dokumentu:
 Požadavky 0.1, 0.2, 0.3, 0.4, 0.7 a 0.9 mají implementaci i důkaz. Požadavky
 0.5, 0.6, 0.8, 0.10 a 0.11 zůstávají 🟡 s konkrétními mezerami výše. Nic
 z toho není označené jako hotové jen proto, že to „vypadá dobře“.
+
+
+## Opravy po nezávislém testu — kolo 7 (2026-11-06)
+
+Výchozí commit: `faf4292`. Screenshoty testera nebyly v této worktree;
+prohlédnuty v hlavním checkoutu ve složce `docs/tester-round7/`
+(zadání, desetinné čárky, zlomky/rovnice, šum, kandidáti, fyzika, škrtnutí).
+Váhy, `model.ts` ani `tools/handwriting/train.py` se v této práci neměnily.
+
+### Příčiny a důkazy
+
+- **D1:** `editTask` ponechával původní `expected` z vygenerované úlohy.
+  Změna zadání nyní odvodí novou odpověď, zahodí výsledek a potvrzení staré
+  úlohy a neuděluje mastery původní dovednosti za vlastní zadání. Bezpečný
+  parser podporuje i aritmetické zadání s výsledkem, prázdným `=` a známým
+  povelem „Vypočítej“. Pět e2e scénářů opravdu vybere kurz, upraví zadání
+  přes tužku a píše perem `12+7=19` / `5+2=7`.
+- **D2:** malá spodní čárka mezi plnohodnotnými číslicemi se posuzuje
+  geometricky, nikoli jen klasifikací zvětšeného izolovaného symbolu.
+  Tečka, šikmý tah i háček jsou pokryté skutečnými tahy. Přepis do racionálu
+  `(25/10)+(15/10)=4` není oprava studentovy aritmetiky.
+  `localTeacherActions` i hranice `applyResponse` blokují aritmetické opravy
+  a hodnocení nejistého inkoustu, včetně neukotvené akce providera. Explicitní
+  nezávislá chatová vysvětlení bez akcí a bez hodnocení mohou zůstat dostupná.
+- **D3:** zlomková čára se už nezahazuje jako podtržení čitatele ani
+  neslepuje se serifem číslice. Úplná rovnost se třemi stojícími zlomky
+  vytvoří jeden řádek `(1)/(2)+(1)/(3)=(5)/(6)`.
+- **D4:** symbolická první řádka volné tabule je zadání bez značky. Následná
+  `x=4` i samotná `4` se kontrolují proti původní rovnici, ne proti
+  případnému předchozímu chybnému pokusu. `x=5` je chyba. `2x` se normalizuje
+  na `2*x`, nikoli na číselné násobení. `y=4` není potvrzením řešení pro x.
+- **D5:** nejistota jednotlivého symbolu se neztratí v průměrné jistotě
+  celého řádku. Štítek obsahuje „NEJISTÝ — Zkontroluj, jestli jsem to přečetl
+  správně“. Kandidáti mají nejméně 44 × 44 CSS px, přístupný název s pozicí
+  znaku, modelové top-3 a běžné záměny 1/7, 4/9, x/× a čárka/tečka. Neplatný klíč
+  nebo nepodporovaný kandidát je no-op; klepnutí nesmí změnit čitelnou
+  syntaxi na nečitelnou. Dvojice širokých tahů nabízí i `=` mimo modelové
+  top-3; e2e tím opravdu opraví zašuměné `424` na `4=4` a získá ✓.
+  Explicitní potvrzení člověka nemění surové
+  pravděpodobnosti modelu. E2e používá výšku 70 a šum 15; jde o novou
+  reprodukovatelnou fixturu, nikoli přesné tahy ze screenshotu `4^14`.
+- **D6:** značky a kouč sdílejí `judgeLines`. Samotné pravdivé `72/12=6`
+  není správnou odpovědí na 77 m za 7 s. Požaduje se očekávaná hodnota i
+  jednotka; rozepsaný výpočet nesmí obsahovat nesouvisející operandy ani
+  obejít kontrolu závorkami. Jednotkové převody času/délky mají explicitní
+  faktory odvozené ze zadání; samotné `60+60` není převodem úlohy 20 km / 10 min.
+  Kontextové návrhy `*n1/2` → `m/s` ponechávají nejistotu a nemohou samy
+  vytvořit ✓. `J` má test s rozpoznávačem, `kg` test kompozice parseru.
+- **D10:** štítek má `pointer-events: none`, nemění rozvržení plátna;
+  interaktivní jsou pouze kandidáti nejistých symbolů. Další nalezená
+  příčina: tranzitivní shlukování spojovalo tečky dvojteček dvou blízkých
+  řádků. Párují se nyní vzájemně nejbližší tečky. Unit i pen e2e zachovají
+  obě celé `12:4=3` s mezerou přibližně 18 px pod předchozí spodní linií.
+- **D13:** osamocená tečka nebo tah do 6 scénových px mimo skutečný řádek
+  se nečte jako číslice. Velké jednoznačné přeškrtnutí ignoruje původní
+  znak; krátké nejednoznačné přeškrtnutí zachová nejistotu a kouč poradí
+  „použij gumu“. Potvrzení jiného symbolu tuto nejistotu nesmí odstranit.
+
+Testy přidávají reprodukci před opravou. Nezávislá recenze navíc odhalila
+ztrátu nejistoty po korektuře a při opakovaném čtení, odmítnutí běžného
+převodu a holého kořene i nebezpečný fallback `4/0` → `4`; všechny mají
+regresní test. Chybné dělení se už nehodnotí podle prvního čísla. Poslední
+nezávislá recenze ověřila i typografické operátory ÷/×/·, živý/finalní
+režim a potvrzení výsledku: bez blokující připomínky v kontrolované změně.
+
+Hlavní nové důkazy: `handwriting/round7.test.ts`, `boardState.test.ts`,
+`localTeacher.test.ts`, shared `judgement.test.ts` a pen replay
+`tests/ink-round7.spec.ts` (vše bez nahrazování vstupu rozpoznaným textem).
+
+### Rozsah a zbývající limity
+
+- **D6 není celé uzavřené:** stávající model nemá třídu `k`. Kompozice a
+  kontext jednotek jsou připravené, ale spolehlivé end-to-end čtení `kg`
+  závisí na paralelní práci na třídách/váhách. Tato větev ji nepředstírá.
+- Kontextová oprava jednotky je návrh, ne potvrzená odpověď. Nejasný suffix
+  je třeba přepsat či opravit; celoslovné potvrzovací tlačítko zde není.
+- Kontrola operandů slovní úlohy je konzervativní, nikoli plný důkaz fyziky:
+  složité odvozené mezivýsledky a další převody mohou zůstat neověřené.
+- Ze screenshotu nelze zpětně získat přesné tahy ani garantovat detekci
+  každého chybně, ale sebejistě přečteného symbolu. Rozšířená přesnost modelu
+  a nezávislý lidský retest zůstávají nutné. Verdikt „TOP“ se zde neuděluje.
+- Starší mezery testovací matice (50% zoom, kompletní motivy/originy a živé
+  multimodální AI) zůstávají otevřené.
+
+### Finální ověření této větve
+
+Ověřeno po kódovém commitu `6ac284d`:
+
+- `npm run lint`: prošel (shared, content, frontend, bridge a electron).
+- `npm run typecheck`: prošel.
+- `npm run test:unit`: **571 prošlo**, **7 přeskočeno** — shared 131,
+  content 34, frontend 217, bridge 189; přeskočeny pouze živé CLI testy.
+- `cd packages/frontend && npx playwright test`: **70/70 prošlo**, včetně
+  17 nových scénářů kola 7 a původních ink/teacher/latency/chat/replay testů.
+  Běžná konfigurace neobsahuje samostatnou PWA sadu.
+- Žádný test přesnosti nebyl odstraněn ani snížen jeho práh.
+- Snímky `test-results/round7-uncertain.png` a `round7-close-rows.png`
+  byly také prohlédnuty; jsou reprodukovatelné spuštěním pen e2e.
+
+E2e používá vlastní Vite na portu **5320** a abortovaný/mockovaný bridge;
+porty 5173, 4178 a 4179 se pro služby této práce nepoužívaly. Jediná změna
+starého e2e kontraktu: výchozí `main` commit `faf4292` úmyslně otevírá
+chatový vstup, zatímco test ještě očekával jeho nepřítomnost. Test nyní
+vyžaduje fokus v poli; aplikace ani její záměr nebyly kvůli testu vráceny zpět.
+Výstup `npm install` oznámil 24 zranitelností závislostí; jejich aktualizace
+nebyla součástí této opravy a žádná nová závislost nepřibyla.
