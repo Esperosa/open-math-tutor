@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { prettySigns, unitFromLine, answerFromLine, checkAnswerLine, expectedAnswerFor, formatExpected, instantiateProblem, looksLikeFinalLine } from "./answers.js";
+import { numbersIn, prettySigns, unitFromLine, answerFromLine, checkAnswerLine, expectedAnswerFor, formatExpected, instantiateProblem, looksLikeFinalLine } from "./answers.js";
 import type { ProblemTemplate } from "./curriculum.js";
 
 describe("expectedAnswerFor", () => {
@@ -48,7 +48,7 @@ describe("instantiateProblem", () => {
   it("computes the expected answer from answerTemplate", () => {
     const problem = instantiateProblem(velocity, () => 0);
     expect(problem.statement).toBe("Auto ujede 120 m za 8 s. Urči rychlost.");
-    expect(problem.expected).toEqual({ value: 15, unit: "m/s", tolerance: 1e-9, wordProblem: true });
+    expect(problem.expected).toEqual({ value: 15, unit: "m/s", tolerance: 1e-9, wordProblem: true, givens: [120, 8] });
   });
   it("derives the answer for plain arithmetic templates and gives none for free text without a formula", () => {
     const arithmetic: ProblemTemplate = { id: "a", skillId: "s", difficultyLevel: 1, topic: "t", statementTemplate: "{a}+{b}", generatorRanges: { a: [2, 2], b: [3, 3] } };
@@ -146,5 +146,27 @@ describe("audit round 3", () => {
     expect(prettySigns("4x+0=8x+0")).toBe("4x=8x");
     expect(prettySigns("10+5")).toBe("10+5");
     expect(prettySigns("2+0.5")).toBe("2+0.5");
+  });
+});
+
+describe("audit round 4", () => {
+  const ohm = { value: 15, unit: "Ω", tolerance: 1e-9, wordProblem: true, givens: [42, 15] };
+  it("given data that repeats a number from the statement is never judged, even with the answer's unit or value", () => {
+    expect(checkAnswerLine({ ...ohm, givens: [42] }, "R1 = 42 Ω")).toBe("none");
+    expect(checkAnswerLine({ value: 15, unit: "m/s", tolerance: 1e-9, wordProblem: true, givens: [15] }, "t = 15 s")).toBe("none");
+    expect(checkAnswerLine({ value: 12, unit: "π m", tolerance: 1e-9, wordProblem: true, givens: [12] }, "12 m")).toBe("none");
+    expect(checkAnswerLine({ value: 29, unit: "m/s", tolerance: 1e-9, wordProblem: true, givens: [203, 7] }, "29 s")).toBe("unit");
+    expect(numbersIn("Auto ujede 203 m za 7 s, 2,5 km")).toEqual([203, 7, 2.5]);
+  });
+  it("equivalent unit notations are the same unit", () => {
+    for (const [expected, written] of [["mol/l", "mol/dm3"], ["mol/l", "mol·l^-1"], ["m/s", "m.s^-1"], ["m/s", "ms^-1"], ["Kč", "korun"], ["N", "newtonů"], ["Ω", "ohmů"], ["%", "procent"]] as const) {
+      expect(checkAnswerLine({ value: 5, unit: expected, tolerance: 1e-9 }, `x = 5 ${written}`), `${expected} vs ${written}`).toBe("correct");
+    }
+    expect(checkAnswerLine({ value: 5, unit: "m/s", tolerance: 1e-9 }, "x = 5 km/h")).toBe("unit");
+  });
+  it("mixed numbers and rounded fractions", () => {
+    expect(answerFromLine("x = 3 3/5")).toBeCloseTo(3.6, 12);
+    expect(checkAnswerLine(expectedAnswerFor("17/9")!, "1,89")).toBe("correct");
+    expect(checkAnswerLine(expectedAnswerFor("17/9")!, "2,5")).toBe("wrong");
   });
 });

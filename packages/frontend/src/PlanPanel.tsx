@@ -16,6 +16,7 @@ interface Props {
   currentSkillId: string | null;
   onStartSkill(topicId: string, skillId: string): void;
   onBuildTest(scope: { topicId?: string }, mode: 'print' | 'download'): void;
+  notice?: string;
 }
 
 const dayKey = (offset: number) => dayKeyAt(Date.now() - offset * 86400000);
@@ -31,7 +32,7 @@ function Bar({ value, label }: { value: number; label: string }) {
     <span style={{ width: `${value}%` }} /></span>;
 }
 
-export function PlanPanel({ catalog, trackId, mastery, profile, t, locale, currentSkillId, onStartSkill, onBuildTest }: Props) {
+export function PlanPanel({ catalog, trackId, mastery, profile, t, locale, currentSkillId, onStartSkill, onBuildTest, notice }: Props) {
   const [scope, setScope] = useState('');
   const track = catalog.tracks.find(tr => tr.id === trackId);
   if (!track) return <div className="plan-panel"><h2>{t.planTitle}</h2><p className="muted">{t.planNothing}</p></div>;
@@ -80,6 +81,7 @@ export function PlanPanel({ catalog, trackId, mastery, profile, t, locale, curre
       <button className="primary" onClick={() => onBuildTest(scope ? { topicId: scope } : {}, 'print')}>{t.testBuild}</button>
       <button onClick={() => onBuildTest(scope ? { topicId: scope } : {}, 'download')}>{t.testDownload}</button>
     </div>
+    {notice && <p role="status" className="notice">{notice}</p>}
     <p className="muted">{t.testHelp}</p>
   </div>;
 }

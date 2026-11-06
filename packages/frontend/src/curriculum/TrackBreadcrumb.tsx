@@ -13,16 +13,20 @@ interface Props {
   t: Record<MessageKey, string>;
   locale: Locale;
   onChangeTrack: () => void;
+  /** Skill of the lesson on the board; when set, topic and skill shown are those, not the next unmastered ones. */
+  currentSkillId?: string | null;
 }
 
 /** Always-visible "where am I" indicator: which track, which topic, which
  * skill is next, and how far through the track the student has gotten. */
-export function TrackBreadcrumb({ catalog, trackId, mastery, t, locale, onChangeTrack }: Props) {
+export function TrackBreadcrumb({ catalog, trackId, mastery, t, locale, onChangeTrack, currentSkillId }: Props) {
   const track = catalog.tracks.find(tr => tr.id === trackId);
   const masteredIds = useMemo(() => new Set(Object.values(mastery).filter(isMastered).map(s => s.skillId)), [mastery]);
   if (!track) return null;
-  const topic = nextUnlockedTopic(catalog, trackId, masteredIds);
-  const skill = topic ? nextUnlockedSkill(getTopicSkills(catalog, topic.id), masteredIds) : null;
+  const current = currentSkillId ? catalog.skills.find(sk => sk.id === currentSkillId) ?? null : null;
+  const currentTopic = current ? catalog.topics.find(tp => tp.skillIds.includes(current.id) && track.topicIds.includes(tp.id)) ?? null : null;
+  const topic = currentTopic ?? nextUnlockedTopic(catalog, trackId, masteredIds);
+  const skill = currentTopic ? current : topic ? nextUnlockedSkill(getTopicSkills(catalog, topic.id), masteredIds) : null;
   const progress = trackProgress(catalog, trackId, masteredIds);
   const percent = trackPercent(catalog, trackId, mastery);
 

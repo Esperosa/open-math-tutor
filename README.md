@@ -91,7 +91,7 @@ UI pro cokoliv, co vyžaduje vaše vlastní přihlášení.
   vždy vrátí `multimodal_unsupported` od obou providerů; UI je připravené
   a rozsvítí se automaticky, jakmile některý provider tuto cestu doloží.
 - **Vědomě mimo tuto fázi**: Android/Capacitor obálka, iOS build, režim
-  "Sign in with ChatGPT", skutečná animace psaní perem tah po tahu (místo
+  "Sign in with ChatGPT", skutečná animace psaní perem tah po tahu (místo postupného odhalení)
 - Geometrie, kvadratické rovnice a vyšší matematika jsou v katalogu jako dovednosti, ale bez automatické kontroly kroků (SymPy verifikátor zatím zná jen aritmetiku, zlomky, procenta a lineární rovnice); výsledky číselných úloh se kontrolují programově.
   (verifikátor zatím podporuje jen aritmetiku, zlomky, procenta, závorky
   a lineární rovnice).

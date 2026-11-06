@@ -63,6 +63,8 @@ export function App() {
   const [calcOpen, setCalcOpen] = useState(false);
   const [message, setMessage] = useState<TutorMessage | null>(null);
   const [tutorMenu, setTutorMenu] = useState(false);
+  const [bridgeChecked, setBridgeChecked] = useState(false);
+  const [testNotice, setTestNotice] = useState('');
   const [editingTask, setEditingTask] = useState(false);
   const [happy, setHappy] = useState(false);
   const [profile, setProfileState] = useState<LearnerProfile>(loadProfile);
@@ -148,7 +150,7 @@ export function App() {
         }
       }
     }).catch(() => { if (!controller.signal.aborted) setStatus('bridgeUnavailable'); })
-      .finally(() => clearTimeout(timeout));
+      .finally(() => { clearTimeout(timeout); setBridgeChecked(true); });
     return () => controller.abort();
   }, [retry]);
   useEffect(() => {
@@ -232,6 +234,7 @@ export function App() {
     const value = { ...live.current, activeId: id }; live.current = value; setSaved(value); setStatus('idle');
   }
   function openOnly(which: 'settings' | 'calc' | 'tutor') {
+    setPanel(null); setPinned(false);
     setSettingsOpen(o => which === 'settings' ? !o : false);
     setCalcOpen(o => which === 'calc' ? !o : false);
     setTutorMenu(o => which === 'tutor' ? !o : false);
@@ -277,9 +280,14 @@ export function App() {
     const skill = topic ? nextUnlockedSkill(getTopicSkills(catalog, topic.id), masteredIds) : null;
     if (!topic || !skill) { createExercise(); return; }
     const difficultyLevel = mastery[skill.id]?.difficultyLevel ?? level;
-    const template = pickTemplateForDifficulty(catalog, skill.id, difficultyLevel);
+    const previous = live.current.boards.find(b => b.id === live.current.activeId)?.statement;
+    let template = pickTemplateForDifficulty(catalog, skill.id, difficultyLevel);
     if (!template) return;
-    const problem = instantiateProblem(template);
+    let problem = instantiateProblem(template);
+    for (let i = 0; i < 8 && problem.statement === previous; i++) {
+      template = pickTemplateForDifficulty(catalog, skill.id, i < 4 ? difficultyLevel : 0) ?? template;
+      problem = instantiateProblem(template);
+    }
     startLesson({
       skillId: skill.id, statementText: problem.statement, topic: topic.title[settings.locale],
       ...(problem.expected ? { expected: problem.expected } : {}),
@@ -313,6 +321,7 @@ export function App() {
     const html = buildTestHtml(test, `${t.testTitle}: ${topicTitle ?? trackTitle}`, t, settings.locale);
     if (mode === 'print') printHtml(html); else downloadBlob(new Blob([html], { type: 'text/html' }), 'test.html');
     setMessage({ id: `test-${Date.now()}`, kind: 'info', text: t.testReady });
+    setTestNotice(`${t.testReady} (${test.items.length})`);
   }
   function nextProblem() {
     if (settings.activeTrackId) startNext(settings.activeTrackId, settings.startLevel); else createExercise();
@@ -432,6 +441,12 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board.id, board.revision, settings.coachMode, running, connected, canRequest]);
   useEffect(() => {
+    if (message?.kind !== 'info') return;
+    const id = message.id;
+    const timer = setTimeout(() => setMessage(m => (m?.id === id ? null : m)), 25000);
+    return () => clearTimeout(timer);
+  }, [message]);
+  useEffect(() => {
     // A missing bridge is already shown by the top-right chip; the tutor only speaks up about failed requests.
     const errorish = !['idle', 'ready', 'waiting', 'thinking', 'thinkingAnswer', 'bridgeUnavailable'].includes(status);
     if (errorish) setMessage({ id: `status-${status}`, kind: status === 'cancelled' ? 'info' : 'error', text: t[status === 'bridgeUnavailable' ? 'offline' : status] });
@@ -459,7 +474,7 @@ export function App() {
   }
   const activeTrack = catalog.tracks.find(tr => tr.id === settings.activeTrackId);
   const calcPolicy = activeTrack?.calculator ?? 'scientific';
-  const alertChip = !connected ? <span role="alert">{t.bridgeUnavailable} <button onClick={() => setRetry(r => r + 1)}>{t.retry}</button></span>
+  const alertChip = !bridgeChecked ? null : !connected ? <span role="alert">{t.bridgeUnavailable} <button onClick={() => setRetry(r => r + 1)}>{t.retry}</button></span>
     : !canRequest ? <span>{provider && !provider.models.length ? t.noModels : t.selectProvider}</span> : null;
   const mood: TutorMood = running ? 'thinking' : message?.kind === 'wrong' ? 'concerned' : message?.kind === 'solved' || happy ? 'happy' : 'idle';
   const shownMessage: TutorMessage | null = running ? { id: 'thinking', kind: 'thinking', text: t.tutorThinking } : message;
@@ -471,7 +486,7 @@ export function App() {
         {settings.activeTrackId && !board.skillId && <div className="track-breadcrumb" data-testid="free-chip">
           <span className="track-breadcrumb-path"><strong>{t.freeProblem}</strong></span>
           <button className="track-breadcrumb-change" onClick={nextProblem}>{t.backToCourse}</button></div>}
-        {settings.activeTrackId && !!board.skillId && <TrackBreadcrumb catalog={catalog} trackId={settings.activeTrackId} mastery={mastery} t={t} locale={settings.locale} onChangeTrack={changeTrack} />}
+        {settings.activeTrackId && !!board.skillId && <TrackBreadcrumb catalog={catalog} trackId={settings.activeTrackId} currentSkillId={board.skillId ?? null} mastery={mastery} t={t} locale={settings.locale} onChangeTrack={changeTrack} />}
         <div className="task-card">
           {editingTask
             ? <><label>{t.task}<textarea rows={2} maxLength={4000} value={board.statement} placeholder={t.taskPlaceholder} autoFocus
@@ -532,7 +547,7 @@ export function App() {
         onMouseEnter={() => clearTimeout(leaveTimer.current)} onMouseLeave={leavePanel}>
         <section hidden={openPanel !== 'plan'}>
           <PlanPanel catalog={catalog} trackId={settings.activeTrackId} mastery={mastery} profile={profile} t={t} locale={settings.locale}
-            currentSkillId={board.skillId ?? lessonSkillId} onStartSkill={startSkill} onBuildTest={buildTest} />
+            currentSkillId={board.skillId ?? lessonSkillId} onStartSkill={startSkill} onBuildTest={buildTest} notice={testNotice} />
         </section>
         <section hidden={openPanel !== 'courses'}>
           <CoursesPanel catalog={catalog} mastery={mastery} t={t} locale={settings.locale} onStartLesson={startLesson} activeSkillId={lessonSkillId} defaultDifficulty={settings.startLevel}

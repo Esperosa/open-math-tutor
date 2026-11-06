@@ -17,6 +17,8 @@ export interface ExpectedAnswer {
   tolerance: number;
   /** A word problem: lines with other numbers are usually given data or intermediate results, not wrong answers. */
   wordProblem?: boolean;
+  /** Numbers written in the statement itself: a line that merely repeats one of them is given data. */
+  givens?: number[];
 }
 
 export interface InstantiatedProblem { statement: string; expected?: ExpectedAnswer }
@@ -31,11 +33,16 @@ function evalStatement(statement: MathStatement): number | null {
 }
 
 /** Expected answer for a plain-grammar statement (expression value or linear-equation root), else undefined. */
+/** Every number written in a statement (decimal comma allowed). */
+export function numbersIn(text: string): number[] {
+  return (text.match(/\d+(?:[.,]\d+)?/g) ?? []).map(n => Number(n.replace(",", "."))).filter(Number.isFinite);
+}
+
 export function expectedAnswerFor(statementText: string): ExpectedAnswer | undefined {
   let parsed: MathStatement;
   try { parsed = parseMathStatement(statementText.trim()); } catch { return undefined; }
   const value = evalStatement(parsed);
-  return value !== null && Number.isFinite(value) ? { value, tolerance: 1e-9 } : undefined;
+  return value !== null && Number.isFinite(value) ? { value, tolerance: Number.isInteger(value) ? 1e-9 : 0.005 } : undefined;
 }
 
 /** "1+-8" reads badly on a task card: write the sign the way a person would. */
@@ -71,7 +78,7 @@ export function instantiateProblem(template: ProblemTemplate, random: () => numb
       try {
         const raw = calcEvaluate(substitute(template.answerTemplate, values));
         const value = Math.round(raw * 1e9) / 1e9;
-        expected = { value, ...(template.answerUnit ? { unit: template.answerUnit } : {}), tolerance: Number.isInteger(value) ? 1e-9 : 0.01, ...(template.freeText ? { wordProblem: true } : {}) };
+        expected = { value, ...(template.answerUnit ? { unit: template.answerUnit } : {}), tolerance: Number.isInteger(value) ? 1e-9 : 0.01, ...(template.freeText ? { wordProblem: true, givens: numbersIn(statement) } : {}) };
       } catch (e) { if (!(e instanceof CalcError)) throw e; }
     } else if (!template.freeText) expected = expectedAnswerFor(statement);
     last = expected ? { statement, expected } : { statement };
@@ -103,6 +110,12 @@ export function answerFromLine(line: string): number | null {
   const text = line.trim().replace(ANSWER_WORDS, "");
   if (!text) return null;
   const tail = (text.includes("=") ? text.slice(text.lastIndexOf("=") + 1) : text).trim();
+  const mixed = /^([-−]?\d+)\s+(\d+)\s*\/\s*(\d+)(?!\d)/.exec(tail);
+  if (mixed && Number(mixed[3]) !== 0) {
+    const whole = Number(mixed[1]!.replace("−", "-"));
+    const fraction = Number(mixed[2]) / Number(mixed[3]);
+    return whole < 0 || mixed[1]!.startsWith("-") || mixed[1]!.startsWith("−") ? whole - fraction : whole + fraction;
+  }
   const sci = SCIENTIFIC.exec(tail);
   if (sci) {
     const value = Number(sci[1]!.replace("−", "-").replace(",", ".")) * Math.pow(10, Number((sci[2] ?? sci[3]!).replace("−", "-")));
@@ -141,7 +154,25 @@ export function looksLikeFinalLine(line: string, taskHasSymbols: boolean): boole
 
 export type AnswerVerdict = "correct" | "wrong" | "unit" | "none";
 
-const normalizeUnit = (unit: string) => unit.toLowerCase().replace(/[\s·.,;]/g, "").replace(/[π^]/g, "").replace(/²/g, "2").replace(/³/g, "3").replace(/ω|ohm/g, "Ω");
+const UNIT_WORDS: [RegExp, string][] = [
+  [/newton(?:ů|u|y)?/g, "n"], [/ohm(?:ů|u|y)?/g, "Ω"], [/korun(?:a|y)?|\bkc\b/g, "kč"], [/procent(?:o|a|ech)?/g, "%"], [/mol(?:ů|u|y)?(?![/a-z])/g, "mol"],
+  [/joule(?:ů|u)?/g, "j"], [/watt(?:ů|u|y)?/g, "w"], [/volt(?:ů|u|y)?/g, "v"], [/ampér(?:ů|u|y)?/g, "a"], [/kilogram(?:ů|u|y)?/g, "kg"], [/gram(?:ů|u|y)?/g, "g"],
+  [/metr(?:ů|u|y)?/g, "m"], [/sekund(?:a|y|)?/g, "s"], [/hodin(?:a|y)?/g, "h"], [/pascal(?:ů|u|y)?/g, "pa"], [/litr(?:ů|u|y)?/g, "l"],
+];
+const BASE_UNITS = new Set(["m", "km", "cm", "mm", "mol", "kg", "g", "n", "j", "w", "v", "a", "l", "s", "h", "pa", "kč"]);
+export function normalizeUnit(unit: string): string {
+  let u = unit.toLowerCase().trim().replace(/[.,;]+$/, "");
+  for (const [pattern, replacement] of UNIT_WORDS) u = u.replace(pattern, replacement);
+  u = u.replace(/[\s·.]/g, "").replace(/π/g, "").replace(/²/g, "2").replace(/³/g, "3").replace(/ω/g, "Ω").replace(/dm3/g, "l").replace(/dm-3/g, "/l");
+  const inverse = /^([a-zµΩ]+)\^?-1$/.exec(u);
+  if (inverse) {
+    const body = inverse[1]!;
+    for (let k = body.length - 1; k >= 1; k--) {
+      if (BASE_UNITS.has(body.slice(0, k)) && BASE_UNITS.has(body.slice(k))) { u = `${body.slice(0, k)}/${body.slice(k)}`; break; }
+    }
+  }
+  return u.replace(/\^/g, "");
+}
 
 /** The unit the student wrote after the number, or "" (also "" when the trailing text is not a unit at all). */
 export function unitFromLine(line: string): string {
@@ -157,13 +188,17 @@ export function checkAnswerLine(expected: ExpectedAnswer, line: string): AnswerV
   if (given === null) return "none";
   const scale = Math.max(Math.abs(expected.value), 1e-12);
   const unit = unitFromLine(line);
-  if (Math.abs(given - expected.value) > expected.tolerance * scale + 1e-12) {
-    if (!expected.wordProblem) return "wrong";
-    const explicit = !!unit && !!expected.unit && normalizeUnit(unit) === normalizeUnit(expected.unit);
-    return explicit ? "wrong" : "none";
-  }
+  const isGiven = !!expected.givens?.some(g => Math.abs(g - given) <= 1e-9 * Math.max(1, Math.abs(g)));
+  const valueMatches = Math.abs(given - expected.value) <= expected.tolerance * scale + 1e-12;
   const written = normalizeUnit(unit);
-  if (written && expected.unit && written !== normalizeUnit(expected.unit)) return "unit";
+  const sameUnit = !written || !expected.unit || written === normalizeUnit(expected.unit);
+  if (!valueMatches) {
+    if (!expected.wordProblem) return "wrong";
+    return !isGiven && !!written && !!expected.unit && sameUnit ? "wrong" : "none";
+  }
+  if (!sameUnit) return isGiven ? "none" : "unit";
+  // The answer is a multiple of pi: a bare number that is also in the statement is the given radius or diameter, not the result.
+  if (isGiven && expected.unit?.includes("π") && !line.includes("π")) return "none";
   return "correct";
 }
 

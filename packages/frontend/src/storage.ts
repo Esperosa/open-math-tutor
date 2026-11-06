@@ -47,6 +47,7 @@ export function load(): Saved {
         if (!['live', 'final', 'off'].includes(saved.settings.coachMode)) saved.settings.coachMode = defaultSettings.coachMode;
         if (!['light', 'dark'].includes(saved.settings.theme)) saved.settings.theme = defaultSettings.theme;
         if (!Number.isFinite(saved.settings.rate)) saved.settings.rate = defaultSettings.rate;
+        if (![1, 2, 3].includes(saved.settings.startLevel)) saved.settings.startLevel = defaultSettings.startLevel;
         if (!saved.boards.some(b => b.id === saved.activeId)) saved.activeId = saved.boards[0].id;
         return saved;
       }

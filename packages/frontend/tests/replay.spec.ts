@@ -495,3 +495,18 @@ test('free example is labelled as such and the course is one click away', async 
   await page.getByRole('button', { name: 'Zpět do kurzu' }).click();
   await expect(page.getByTestId('track-breadcrumb')).toBeVisible();
 });
+
+test('the header follows the lesson on the board, and "next problem" never repeats the same statement', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /fyziku nebo chemii/ }).click();
+  await page.getByRole('button', { name: /^Chemie/ }).click();
+  await expect(page.getByTestId('track-breadcrumb')).toContainText('Molární hmotnost');
+  await page.keyboard.press('Control+k');
+  await page.getByRole('searchbox', { name: 'Hledat v kurzech' }).fill('Ohm');
+  await page.getByTestId('search-results').getByRole('button').first().click();
+  await page.keyboard.press('Escape');
+  const before = await page.getByTestId('task-text').textContent();
+  await openTutorMenu(page);
+  await page.getByRole('menuitem', { name: 'Další příklad' }).click();
+  await expect(page.getByTestId('task-text')).not.toHaveText(before ?? '');
+});

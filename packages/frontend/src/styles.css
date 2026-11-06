@@ -307,3 +307,15 @@ body { overflow: hidden; }
   .calculator { top: 124px; }
   .drawer { top: 124px; }
 }
+
+.notice { color: var(--accent); font-weight: 600; margin: var(--space-2) 0 0; }
+@media (max-width: 700px) {
+  .hud-top-right { top: auto; bottom: 164px; right: 12px; align-items: flex-end; }
+  .hud-icons { flex-direction: column; }
+  .hud-top-left { top: 64px; width: calc(100vw - 170px); }
+  .settings-pop { top: auto; bottom: 164px; right: 70px; width: min(300px, calc(100vw - 90px)); max-height: calc(100vh - 230px); }
+  .calculator { top: auto; bottom: 164px; right: 70px; }
+  .drawer { top: 64px; bottom: 64px; width: calc(100vw - 80px); }
+  .hud.drawer-open .tutor-button { display: none; }
+  .tutor-bubble { max-height: 30vh; }
+}

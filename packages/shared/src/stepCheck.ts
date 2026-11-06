@@ -24,8 +24,11 @@ function symbolsOf(node: MathAstNode, into: Set<string>): Set<string> {
   return into;
 }
 
+/** "3 3/5" is the number three and three fifths, not 3·3/5. */
+const normalizeMixed = (text: string) => text.replace(/(^|[^\d./])(\d+)\s+(\d+\/\d+)(?![\d/])/g, "$1($2+$3)");
+
 function tryParse(text: string): MathStatement | null {
-  try { return parseMathStatement(text.trim()); } catch { return null; }
+  try { return parseMathStatement(normalizeMixed(text.trim())); } catch { return null; }
 }
 
 function numeric(node: MathAstNode, bindings: Record<string, number> = {}): number | null {

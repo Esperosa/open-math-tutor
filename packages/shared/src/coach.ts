@@ -60,7 +60,7 @@ export function nextCoachEvent(input: CoachInput): CoachEvent {
     const answer = checkAnswerLine(input.expected, newest.latexGuess);
     if (answer === "correct" && (final || verdict.status === "ok")) return { kind: "solved", key, n: newest.n };
     if (answer === "wrong" && final) return { kind: "wrong_final", key, n: newest.n };
-    if (answer === "unit") return { kind: "wrong_final", key, n: newest.n, reason: "unit" };
+    if (answer === "unit" && final) return { kind: "wrong_final", key, n: newest.n, reason: "unit" };
   }
   if (verdict.status === "ok") return { kind: "ok_step", key, n: newest.n };
   return { kind: "unclear", key, n: newest.n };

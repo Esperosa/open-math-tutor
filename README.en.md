@@ -103,3 +103,13 @@ own login.
 MIT for this project's own code. Licenses of the components it uses
 (Excalidraw, SymPy, KaTeX, Electron, the providers' official CLIs) are
 documented in [ARCHITECTURE.md](ARCHITECTURE.md) and `NOTICE.md`.
+
+
+## Mentor mode (how the app teaches)
+
+- **Board only:** the student clicks on the board and writes; the task card is read-only.
+- **Local coach:** every written line is checked in the browser (`packages/shared/src/coach.ts`, `stepCheck.ts`, `answers.ts`) without AI. Modes: as I go / at the end / off (the mascot's menu).
+- **AI only as a tool:** called on explicit request (mascot menu, "Explain"); for a result that cannot be checked locally only when Settings allow it. Starting a lesson never calls the AI.
+- **Memory of the student:** `learnerProfile.ts` quietly records mistake types and which explanation styles work; a short summary goes to the AI as `learnerContext`.
+- **Plan and tests:** a "Plan and path" drawer (percentages from mastery) and a take-home test with an answer key (print / PDF).
+- **Subjects:** mathematics, university subjects, physics and chemistry; drawing tasks are labelled and the AI cannot see drawings yet.

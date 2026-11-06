@@ -1,5 +1,7 @@
 # Verification — 2026-11-06
 
+> Superseded: the counts below are the first build. Current numbers (unit tests, Playwright scenarios) are tracked in the repository root `REQUIREMENTS.md`.
+
 Actually executed in this worktree, scoped to this package:
 
 - `npm run dev -w packages/frontend`: Vite listening on loopback port 5173;
