@@ -2,9 +2,12 @@
  * Cheap, local, deterministic check of a student's written step. Runs in the
  * browser while the student writes so a wrong line is flagged without waiting
  * for (or paying for) an AI call. Works only on the already-parsed allowlisted
- * AST; anything it cannot decide is reported as "unknown", never as "ok".
+ * AST or the allowlisted local arithmetic calculator; anything it cannot
+ * decide is reported as "unknown", never as "ok".
  */
-import { parseMathStatement, type MathAstNode, type MathStatement } from "./mathAst.js";
+import { calcEvaluate } from "./calc.js";
+import { numberMatches } from "./numberMatch.js";
+import { MAX_INPUT_LENGTH, parseMathStatement, type MathAstNode, type MathStatement } from "./mathAst.js";
 import { evaluateMathAst } from "./mathEval.js";
 
 export type StepVerdict = { status: "ok" | "wrong" | "unknown"; reason?: "arithmetic" | "not_equivalent" | "wrong_value" };
@@ -25,9 +28,11 @@ function symbolsOf(node: MathAstNode, into: Set<string>): Set<string> {
 }
 
 /** "3 3/5" is the number three and three fifths, not 3·3/5. */
-const normalizeMixed = (text: string) => text.replace(/(^|[^\d./])(\d+)\s+(\d+\/\d+)(?![\d/])/g, "$1($2+$3)");
+const normalizeMixed = (text: string) => text.replace(/(^|[^\d./])(\d+)\s+(\d+\s*\/\s*\d+)(?![\d/])/g, "$1($2+$3)");
+const arithmeticValue = (text: string) => calcEvaluate(normalizeMixed(text).replace(/·/g, '*'));
 
 function tryParse(text: string): MathStatement | null {
+  if (text.length > MAX_INPUT_LENGTH) return null;
   try { return parseMathStatement(normalizeMixed(text.trim())); } catch { return null; }
 }
 
@@ -59,31 +64,47 @@ function linearForm(statement: MathStatement): { symbol: string; a: number; b: n
 /** A chain "224/8 = 28 m/s" or "a = 2·3 = 7": every pure-number neighbour pair must be equal; a trailing unit is ignored. */
 function checkChain(text: string): StepVerdict | null {
   const parts = text.split(/(?<![<>!])=(?!=)/).map(p => p.trim());
-  if (parts.length < 3 || parts.some(p => !p)) return null;
-  const values: (number | null)[] = parts.map((part, i) => {
-    let expr = part.replace(/(\d),(\d)/g, "$1.$2");
-    if (i === parts.length - 1) expr = expr.replace(/^([\d.\s+\-*/()·×÷]+?)\s*[A-Za-zµΩ°%][\w/²³·^.\-]*$/, "$1");
-    const parsed = tryParse(expr.replace(/·|×/g, "*").replace(/÷/g, "/"));
-    if (!parsed || parsed.form !== "expression" || symbolsOf(parsed.value, new Set()).size) return null;
-    return numeric(parsed.value);
+  if (parts.length < 2 || parts.some(p => !p)) return null;
+  const expressions = parts.map((part, i) => i === parts.length - 1
+    ? part.replace(/^([\d.,\s+\-−*/()·×÷]+?)\s*[\p{L}µΩ°%][\p{L}\d/²³⁻·^.\-\s]*$/u, "$1").trim() : part);
+  const values = expressions.map(expr => {
+    // Pure arithmetic only: identifiers and units must never become calculator constants.
+    if (!/^[\d.,\s+\-−*/()·×÷^]+$/.test(expr)) return null;
+    try { return arithmeticValue(expr); } catch { return null; }
   });
+  let checked = false;
   for (let i = 0; i + 1 < values.length; i++) {
     const a = values[i], b = values[i + 1];
-    if (a !== null && a !== undefined && b !== null && b !== undefined && !close(a, b)) return { status: "wrong", reason: "arithmetic" };
+    if (a !== null && a !== undefined && b !== null && b !== undefined) {
+      checked = true;
+      const fraction = /^\s*[-−]?\d+\s*\/\s*\d+\s*$/.test(expressions[i]!);
+      if (!numberMatches(a, b, expressions[i + 1]!, fraction)) return { status: "wrong", reason: "arithmetic" };
+    }
   }
-  return null;
+  // A symbolic prefix is not itself verified, even when its numeric suffix holds.
+  return checked && values.every(v => v !== null) ? { status: "ok" } : null;
 }
 
 /** Does this single line hold on its own (numeric equation) or contradict the task value? */
 export function checkStep(stepText: string, previousText: string | null): StepVerdict {
+  if (stepText.length > MAX_INPUT_LENGTH) return { status: "unknown" };
   const step = tryParse(stepText);
-  if (!step) return checkChain(stepText) ?? { status: "unknown" };
+  if (!step) {
+    const chain = checkChain(stepText);
+    if (chain?.status === "ok" && previousText && previousText.length <= MAX_INPUT_LENGTH
+        && /^[\d.,\s+\-−*/()·×÷^]+$/.test(previousText)) {
+      try {
+        if (!close(arithmeticValue(previousText), arithmeticValue(stepText.split('=')[0]!))) return { status: "wrong", reason: "wrong_value" };
+      } catch { /* Unverifiable context never invalidates the arithmetic itself. */ }
+    }
+    return chain ?? { status: "unknown" };
+  }
 
   if (step.form === "relation" && step.value.op === "eq"
       && symbolsOf(step.value.rhs, symbolsOf(step.value.lhs, new Set())).size === 0) {
     const l = numeric(step.value.lhs), r = numeric(step.value.rhs);
     if (l === null || r === null) return { status: "unknown" };
-    if (!close(l, r)) return { status: "wrong", reason: "arithmetic" };
+    if (!numberMatches(l, r, stepText.slice(stepText.lastIndexOf('=') + 1))) return { status: "wrong", reason: "arithmetic" };
     const prev = previousText ? tryParse(previousText) : null;
     if (prev?.form === "expression") {
       const pv = numeric(prev.value);

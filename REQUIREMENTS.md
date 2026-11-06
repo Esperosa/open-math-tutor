@@ -43,7 +43,7 @@ Pointa celé aplikace: student píše a kreslí na tabuli (pero, prst, myš) a a
 | 1.13 | Odstupňované nápovědy, ne rovnou celé řešení | ✅ prompt přepsán: u Zkontrolovat/Poradit jen nápověda a naváděcí otázka, celé řešení až na "Ukaž další krok" nebo výslovnou žádost |
 | 1.14 | Hlas (speechSynthesis, cs-CZ) | ✅ |
 | 1.15 | MVP matematický rozsah (aritmetika, zlomky, procenta, závorky, lineární rovnice) | ✅ |
-| 1.16 | Testy (unit/integration/e2e) | ✅ shared 84, content 34, bridge 161, frontend 69, verifier 161, e2e 25 (frontend + e2e znovu ověřeno při oživení maskota) |
+| 1.16 | Testy (unit/integration/e2e) | ✅ audit 6: shared 92, frontend 75, e2e 30, lint a typecheck; dříve ověřeno: content 34, bridge 161, verifier 161 |
 | 1.17 | Bezpečnost (žádný shell z LLM, CSP, origin kontrola) | ✅ |
 | 1.18 | Dokumentace, licence, README cz/en | ✅ |
 
@@ -104,8 +104,8 @@ Pointa celé aplikace: student píše a kreslí na tabuli (pero, prst, myš) a a
 | # | Požadavek | Stav |
 |---|---|---|
 | 5.1 | Student píše jen na tabuli, žádná povinná pole | ✅ text se píše přímo na plátno (výchozí nástroj), zadání je karta jen ke čtení (✎ jen pro úpravu), akce jsou v nabídce maskota |
-| 5.2 | Appka sama sleduje psaní, kontroluje, vede a komentuje; jde vypnout, "po řádcích", "až na konec" | ✅ lokální trenér `coach.ts`; tři režimy v nabídce maskota; vypnutý trenér nemá značky ani bubliny; AI se nikdy nevolá automaticky při startu lekce; u řádku, který nejde ověřit lokálně, jen s povolením v Nastavení, jinak nabídka v bublině |
-| 5.3 | Správný výsledek poznat bez AI, i s jednotkou | ✅ `answers.ts`: očekávaná odpověď z výrazu / lineární rovnice / `answerTemplate`, celá čísla přesně, zaokrouhlená s 1 %, jednotky se kontrolují |
+| 5.2 | Appka sama sleduje psaní, kontroluje, vede a komentuje; jde vypnout, "po řádcích", "až na konec" | ✅ lokální trenér `coach.ts`; tři režimy v nabídce maskota; vypnutý trenér nemá značky ani bubliny; odlišná hodnota podobná výsledku slovní úlohy vyvolá měkký dotaz, ne automatický neúspěch; „Je to výsledek“ řádek posoudí jako finální a „Nevyšlo mi to“ zapíše přiznaný neúspěch; AI se nikdy nevolá automaticky při startu lekce; u řádku, který nejde ověřit lokálně, jen s povolením v Nastavení, jinak nabídka v bublině |
+| 5.3 | Správný výsledek poznat bez AI, i s jednotkou | ✅ `answers.ts`: očekávaná odpověď z výrazu / lineární rovnice / `answerTemplate`, číselné odpovědi podle zapsané přesnosti (bez plošné 1% tolerance), jednotky a aliasy se kontrolují |
 | 5.4 | Maskot-učitel mluví, má bublinu a mikrofon | ✅ vlastní SVG/CSS: mrkání, dýchání/houpání, občasné mávnutí a pohled, poskok/obočí/tečky podle nálady, pusa při řeči a tužka při typování; speechSynthesis, stručná rukopisná bublina s "Více", lokální přivítání viditelné po onboardingu i při zahájení lekce; push-to-talk přes Web Speech API (jen kde ho prohlížeč má; lokální Whisper vědomě ne) |
 | 5.5 | Paměť o studentovi a styl vysvětlování | ✅ `learnerProfile.ts` (chyby podle typu a dovednosti, úspěšnost stylů, dny); souhrn jde AI jako `learnerContext`; student se na nic neptá |
 | 5.6 | Plán s procenty, co mě čeká | ✅ zásuvka "Plán a cesta" + procenta v horní liště; mění se podle mastery; lekce z Kurzů přebírá svůj kurz |
@@ -128,3 +128,11 @@ Pointa celé aplikace: student píše a kreslí na tabuli (pero, prst, myš) a a
 - Oficiální procentní váhy témat a aktuální katalog požadavků k maturitě (nepodařilo se ověřit)
 
 ---
+
+## Audit 6 — pravidla kontroly a započítání
+
+- Přesné číselné hodnoty nemají procentní pásmo tolerance. Nižší zapsaná přesnost dovoluje skutečné zaokrouhlení, nikoli sousední hodnotu stejné přesnosti (175,6 g není 175,5 g). Zaokrouhlení měřených hodnot je omezené relativně na 1e-3; výslovné školní zlomky mají výjimku pro dvě a více desetinných míst (zachovává i 0,88 pro 7/8). U periodických zlomků se přijímá i zkrácení, např. 0,66 pro 2/3. Zlomky, smíšená čísla, π-koeficienty a vědecký zápis včetně e+ zůstávají podporované.
+- Desetinná čárka i tečka se ověřují v aritmetických rovnostech a řetězcích, včetně jednotky na konci. Mezivýsledky ani opsaná data se automaticky neposuzují jako chybný finální výsledek.
+- Mastery a profil započítají první finální posouzení úlohy právě jednou. Pozdější oprava vyvolá pochvalu a nabídku další úlohy, nikoli druhý pokus/úspěch; chyby jednotlivých kroků se v profilu sledují samostatně. Zaokrouhlené procento kurzu se nemusí změnit po každém pokusu.
+- Řádky delší než 400 znaků se lokálně neověřují (ochrana před nákladnými regulárními výrazy), obsah tabule se nekrátí.
+- Escape během editace řádku dokončí psaní, ale nezavírá kalkulačku. Na telefonech kalkulačka ponechává volný levý rail a spodní ovládání tabule.

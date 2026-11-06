@@ -28,6 +28,18 @@ export interface CoachInput {
 
 export const stepKey = (step: { stepId: string; latexGuess: string }) => `${step.stepId}:${step.latexGuess}`;
 
+/** Explicit student confirmation; re-read the current line, never trust an old bubble. */
+export function confirmCoachFinal(input: CoachInput, key: string): CoachEvent {
+  if (input.mode === 'off' || !input.expected) return { kind: 'idle' };
+  const index = input.steps.findIndex(s => stepKey(s) === key);
+  const step = input.steps[index];
+  if (!step || input.steps.slice(index + 1).some(s => s.latexGuess.trim()) || !looksLikeFinalLine(step.latexGuess, statementHasSymbols(input.statement))) return { kind: 'idle' };
+  const answer = checkAnswerLine({ ...input.expected, wordProblem: false, givens: [] }, step.latexGuess);
+  if (answer === 'correct') return { kind: 'solved', key, n: index + 1 };
+  if (answer === 'wrong' || answer === 'unit') return { kind: 'wrong_final', key, n: index + 1, ...(answer === 'unit' ? { reason: 'unit' as const } : {}) };
+  return { kind: 'idle' };
+}
+
 export function nextCoachEvent(input: CoachInput): CoachEvent {
   if (input.mode === "off") return { kind: "idle" };
   const written = input.steps.map((s, i) => ({ ...s, n: i + 1 })).filter(s => s.latexGuess.trim());
@@ -58,7 +70,7 @@ export function nextCoachEvent(input: CoachInput): CoachEvent {
   // The first line of a free board is the task itself: nothing to verify, nothing to comment on.
   if (verdict.status === "unknown" && input.statement.trim() === newest.latexGuess.trim()) return { kind: "ok_step", key, n: newest.n };
   if (verdict.status === "wrong") return { kind: "wrong_step", key, n: newest.n, reason: verdict.reason ?? "not_equivalent" };
-  if (input.expected) {
+  if (input.expected && newest === written.at(-1)) {
     const answer = checkAnswerLine(input.expected, newest.latexGuess);
     if (answer === "correct" && (final || verdict.status === "ok")) return { kind: "solved", key, n: newest.n };
     if (answer === "wrong" && final) return { kind: "wrong_final", key, n: newest.n };

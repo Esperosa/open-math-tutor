@@ -32,13 +32,13 @@ export function markPerStep(lineVerdicts: Record<string, StepVerdict>, lines: re
 }
 
 /** Step-by-step verdicts, then the final answer line judged against the expected answer (number and unit). */
-export function computeLineVerdicts(statement: string, lines: readonly WrittenLine[], expected?: ExpectedAnswer): Record<string, StepVerdict> {
+export function computeLineVerdicts(statement: string, lines: readonly WrittenLine[], expected?: ExpectedAnswer, confirmedFinals: readonly string[] = []): Record<string, StepVerdict> {
   const byLine = checkSteps(statement, lines);
   if (!expected) return byLine;
   const symbols = statementHasSymbols(statement);
   for (const line of lines) {
     if (byLine[line.stepId]?.status === 'wrong' || !looksLikeFinalLine(line.latexGuess, symbols)) continue;
-    const answer = checkAnswerLine(expected, line.latexGuess);
+    const answer = checkAnswerLine(confirmedFinals.includes(`${line.stepId}:${line.latexGuess}`) ? { ...expected, wordProblem: false, givens: [] } : expected, line.latexGuess);
     if (answer === 'correct') byLine[line.stepId] = { status: 'ok' };
     else if (answer === 'wrong' || answer === 'unit') byLine[line.stepId] = { status: 'wrong', reason: 'wrong_value' };
   }

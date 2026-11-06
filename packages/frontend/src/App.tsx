@@ -4,7 +4,7 @@ import {
   recordAttempt, retrieveTopChunks, isMastered, instantiateProblem, expectedAnswerFor, statementHasSymbols,
   looksLikeFinalLine, nextCoachEvent, coachLine, stepKey, recordError, recordSolved, chooseStyle, recordStyleShown,
   resolveStyleOutcome, profileSummary, generateTest, topicMastered, getTopicSkills, nextUnlockedTopic, nextUnlockedSkill, pickTemplateForDifficulty,
-  type ExplainStyle, type LearnerProfile,
+  type CoachEvent, confirmCoachFinal, type ExplainStyle, type LearnerProfile,
 } from '@openmathtutor/shared';
 import { catalog } from '@openmathtutor/content';
 import type { BinaryFiles } from '@excalidraw/excalidraw/types';
@@ -79,15 +79,15 @@ export function App() {
     if (settings.coachMode === 'off') return {};
     const symbols = statementHasSymbols(statement);
     if (settings.coachMode === 'final' && !lines.some(l => looksLikeFinalLine(l.latexGuess, symbols))) return {};
-    return markPerStep(computeLineVerdicts(statement, lines, board.expected ?? expectedAnswerFor(statement)), lines);
-  }, [statement, lines, board.expected, settings.coachMode]);
+    return markPerStep(computeLineVerdicts(statement, lines, board.expected ?? expectedAnswerFor(statement), board.confirmedFinals), lines);
+  }, [statement, lines, board.expected, board.confirmedFinals, settings.coachMode]);
   useEffect(() => {
     const away = (e: PointerEvent) => {
       if ((e.target as Element | null)?.closest('.rail, .drawer, .settings-pop, .icon-btn, .tutor-hud, .calculator')) return;
       setPanel(null); setPinned(false); setSettingsOpen(false); setTutorMenu(false);
     };
     const esc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setPanel(null); setPinned(false); setSettingsOpen(false); setCalcOpen(false); setTutorMenu(false); }
+      if (e.key === 'Escape' && !busy.current && !(e.target instanceof Element && e.target.closest('.excalidraw textarea, .excalidraw [contenteditable="true"]'))) { setPanel(null); setPinned(false); setSettingsOpen(false); setCalcOpen(false); setTutorMenu(false); }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault(); setPanel('courses'); setPinned(true);
         setTimeout(() => document.getElementById('course-search')?.focus(), 50);
@@ -407,16 +407,20 @@ export function App() {
     const handled = new Set(current.handled ?? []);
     const event = nextCoachEvent({ mode, statement: task, steps: ls, expected, handled });
     if (event.kind === 'idle') return;
+    applyCoachEvent(current, ls, event);
+  }
+  function applyCoachEvent(current: BoardState, ls: ReturnType<typeof writtenLines>, event: Exclude<CoachEvent, { kind: 'idle' }>) {
+    const cur = live.current;
     // Everything written so far counts as seen once the newest line is judged: no late comments on lines the student has moved past.
     const marked: BoardState = { ...current, handled: [...new Set([...(current.handled ?? []), ...ls.map(stepKey), event.key])].slice(-300) };
     const locale = cur.settings.locale;
     const say = (kind: TutorMessage['kind']) => {
-      let text = coachLine(event, locale, hashKey(event.key));
+      let text = event.kind === 'check_in' ? messages[locale].checkInPrompt : coachLine(event, locale, hashKey(event.key));
       if (!text) return;
       if (event.kind === 'solved' && marked.skillId) {
         const topic = catalog.topics.find(tp => tp.skillIds.includes(marked.skillId!));
         const after = { ...masteryRef.current, [marked.skillId]: recordAttempt(getOrCreateMastery(masteryRef.current, marked.skillId, Date.now()), true, Date.now()) };
-        if (topic && marked.outcome !== 'solved' && topicMastered(catalog, topic.id, after)) text += ` ${messages[locale].topicDoneHint}`;
+        if (topic && !marked.outcome && topicMastered(catalog, topic.id, after)) text += ` ${messages[locale].topicDoneHint}`;
       }
       setMessage({ id: event.key, kind, text, stepId: ls[event.n - 1]?.stepId }); voice.speak(text);
     };
@@ -426,22 +430,23 @@ export function App() {
         setMessage(m => (m?.kind === 'wrong' ? null : m)); break;
       case 'wrong_step': case 'wrong_final': {
         const reason = event.kind === 'wrong_step' ? event.reason : 'wrong_final';
-        updateProfile(p => resolveStyleOutcome(recordError(p, marked.skillId ?? null, reason, Date.now()), false));
+        if (event.kind === 'wrong_step' || !marked.outcome) updateProfile(p => resolveStyleOutcome(recordError(p, marked.skillId ?? null, reason, Date.now()), false));
         let next = marked;
-        if (event.kind === 'wrong_final' && !next.outcome && next.skillId) { recordMastery(next.skillId, false); next = { ...next, outcome: 'failed' }; }
+        if (event.kind === 'wrong_final' && !next.outcome) { if (next.skillId) recordMastery(next.skillId, false); next = { ...next, outcome: 'failed' }; }
         updateBoard(next); say('wrong'); break;
       }
       case 'solved': {
-        if (marked.outcome !== 'solved' && marked.skillId) recordMastery(marked.skillId, true);
-        updateProfile(p => resolveStyleOutcome(recordSolved(p, Date.now()), true));
-        updateBoard({ ...marked, outcome: 'solved' }); say('solved'); break;
+        if (!marked.outcome && marked.skillId) recordMastery(marked.skillId, true);
+        if (!marked.outcome) updateProfile(p => resolveStyleOutcome(recordSolved(p, Date.now()), true));
+        updateBoard({ ...marked, outcome: marked.outcome ?? 'solved' }); say('solved'); break;
       }
       case 'check_in':
-        updateBoard(marked); say('wrong'); break;
+        updateBoard(marked); say('check_in'); break;
       case 'unclear': {
         updateBoard(marked);
         const text = ls.find(l => stepKey(l) === event.key)?.latexGuess ?? '';
-        if (expected || !looksLikeFinalLine(text, statementHasSymbols(task))) break; // data line or intermediate result: stay quiet
+        const task = effectiveStatement(current.statement, ls);
+        if (current.expected || expectedAnswerFor(task) || !looksLikeFinalLine(text, statementHasSymbols(task))) break; // data line or intermediate result: stay quiet
         if (cur.settings.auto && canRequest) void request('check', { learnerContext: learnerContext() });
         else say('unclear');
         break;
@@ -450,14 +455,27 @@ export function App() {
   }
   function selfAssess(done: boolean) {
     const cur = live.current.boards.find(b => b.id === live.current.activeId);
-    if (!cur?.skillId) return;
-    if (done ? cur.outcome !== 'solved' : !cur.outcome) recordMastery(cur.skillId, done);
+    if (!cur?.skillId || cur.outcome) return;
+    recordMastery(cur.skillId, done);
     updateProfile(p => done ? recordSolved(p, Date.now()) : recordError(p, cur.skillId ?? null, 'self_reported', Date.now()));
     updateBoard({ ...cur, outcome: done ? 'solved' : cur.outcome ?? 'failed' });
     setMessage({ id: `self-${cur.id}`, kind: 'solved', text: t.selfNoted });
   }
   async function tutorChoice(choice: TutorChoice) {
     const key = message?.id ?? '';
+    if (choice === 'confirm_final' || choice === 'report_failed') {
+      const cur = live.current;
+      const current = cur.boards.find(b => b.id === cur.activeId)!;
+      if (cur.settings.coachMode === 'off' || message?.kind !== 'check_in' || busy.current) return;
+      const ls = writtenLines(current.steps);
+      const task = effectiveStatement(current.statement, ls);
+      const event = confirmCoachFinal({ mode: cur.settings.coachMode, statement: task, steps: ls,
+        expected: current.expected ?? expectedAnswerFor(task), handled: new Set() }, key);
+      if (event.kind === 'idle') { setMessage(null); return; }
+      applyCoachEvent({ ...current, confirmedFinals: [...new Set([...(current.confirmedFinals ?? []), key])].slice(-300) }, ls,
+        choice === 'report_failed' ? { kind: 'wrong_final', key, n: event.n } : event);
+      return;
+    }
     if (choice === 'dismiss') { setMessage(null); return; }
     if (choice === 'next') { nextProblem(); return; }
     if (choice === 'ask_ai') { setMessage(null); void request('check', { learnerContext: learnerContext() }); return; }

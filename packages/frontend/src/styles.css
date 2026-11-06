@@ -377,6 +377,15 @@ body { overflow: hidden; }
 /* Actions only become available once the return transition has actually ended. */
 .tutor-choices { border: 0; margin: 0; padding: 0; min-width: 0; }
 .tutor-choices:empty { display: none; }
+/* Reserve the rail's left column and Excalidraw's footer at every size. */
+.tutor-hud { bottom: 88px; }
+.settings-pop { top: 80px; max-height: calc(100dvh - 240px); }
+@media (max-width: 700px) {
+  .settings-pop { top: auto; }
+  .calculator { left: 76px; right: 12px; bottom: 88px; width: auto; max-height: calc(100dvh - 164px); transform: none !important; }
+  .calculator .calc-grid { gap: 4px; }
+  .calculator button { padding: 6px; }
+}
 .tutor-hud:not(.tutor-visiting) .tutor-bubble { pointer-events: auto; }
 .tutor-visiting .tutor-button:disabled { opacity: 1; }
 .tutor-menu { max-height: calc(100dvh - 164px); overflow: auto; }

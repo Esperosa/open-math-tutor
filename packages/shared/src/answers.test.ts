@@ -29,12 +29,12 @@ describe("answer lines", () => {
     expect(looksLikeFinalLine("15 m/s", true)).toBe(true);
     expect(looksLikeFinalLine("3+4", false)).toBe(false);
   });
-  it("compares with the tolerance of the expected answer", () => {
+  it("compares with the written precision, not a legacy percentage tolerance", () => {
     const exact = { value: -14, tolerance: 1e-9 };
     expect(checkAnswerLine(exact, "-6+-8 = -14")).toBe("correct");
     expect(checkAnswerLine(exact, "= -13")).toBe("wrong");
     expect(checkAnswerLine(exact, "bla")).toBe("none");
-    expect(checkAnswerLine({ value: 15, unit: "m/s", tolerance: 0.01 }, "v = 15,1 m/s")).toBe("correct");
+    expect(checkAnswerLine({ value: 15, unit: "m/s", tolerance: 0.01 }, "v = 15,1 m/s")).toBe("wrong");
     expect(checkAnswerLine({ value: 15, tolerance: 0.01 }, "v = 16")).toBe("wrong");
   });
   it("formats the expected answer with the locale separator and unit", () => {
@@ -58,7 +58,7 @@ describe("instantiateProblem", () => {
 });
 
 describe("audit regressions", () => {
-  it("whole-number answers are exact, rounded ones keep a 1 % tolerance", () => {
+  it("whole-number answers are exact, recurring ones accept written rounding", () => {
     const whole = instantiateProblem({ id: "w", skillId: "s", difficultyLevel: 1, topic: "t", statementTemplate: "x", answerTemplate: "3024" }).expected!;
     expect(checkAnswerLine(whole, "3000")).toBe("wrong");
     expect(checkAnswerLine(whole, "3024")).toBe("correct");

@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { effectiveStatement, markPerStep, writtenLines } from './lines';
+import { computeLineVerdicts, effectiveStatement, markPerStep, writtenLines } from './lines';
 import type { Step } from './boardState';
 
 const step = (stepId: string, latexGuess: string): Step => ({ stepId, latexGuess, boardRevision: 1, box: { x: 0, y: 0, width: 1, height: 1 }, elementIds: [] });
 
 describe('written lines', () => {
+  it('only marks an ambiguous word answer wrong after confirmation, and edits clear the mark', () => {
+    const lines = writtenLines([step('a', '176,4 g')]);
+    const expected = { value: 175.5, unit: 'g', wordProblem: true, tolerance: 0.01 };
+    expect(computeLineVerdicts('Hmotnost?', lines, expected).a?.status).toBe('unknown');
+    expect(computeLineVerdicts('Hmotnost?', lines, expected, ['a:176,4 g']).a?.status).toBe('wrong');
+    expect(computeLineVerdicts('Hmotnost?', writtenLines([step('a', '175,5 g')]), expected, ['a:176,4 g']).a?.status).toBe('ok');
+  });
   it('splits multi-line text into separately judged lines and skips empty steps', () => {
     const lines = writtenLines([step('a', '2x+3=7\n2x=4'), step('b', ''), step('c', 'x=2')]);
     expect(lines.map(l => [l.stepId, l.latexGuess, l.parentId])).toEqual([['a#0', '2x+3=7', 'a'], ['a#1', '2x=4', 'a'], ['c', 'x=2', 'c']]);

@@ -8,13 +8,13 @@ import type { TutorRect } from './tutorPosition';
 
 export interface TutorMessage {
   id: string;
-  kind: 'wrong' | 'solved' | 'unclear' | 'info' | 'thinking' | 'error';
+  kind: 'wrong' | 'check_in' | 'solved' | 'unclear' | 'info' | 'thinking' | 'error';
   text: string;
   /** Exact written line (including a multiline suffix), scoped to the current board. */
   stepId?: string;
 }
 export type TutorAction = 'check' | 'hint' | 'next_step' | 'explain_differently' | 'next_problem' | 'free' | 'self_done' | 'self_fail' | 'stop';
-export type TutorChoice = 'explain' | 'hint' | 'dismiss' | 'next' | 'ask_ai';
+export type TutorChoice = 'explain' | 'hint' | 'dismiss' | 'next' | 'ask_ai' | 'confirm_final' | 'report_failed';
 
 interface Props {
   t: Record<MessageKey, string>;
@@ -73,6 +73,11 @@ export function TutorHud(p: Props) {
     {message && visible && <div className={`tutor-bubble tutor-bubble-${message.kind}`} role="group" data-testid="tutor-bubble" data-kind={message.kind}>
       <BubbleText id={message.id} text={message.text} count={count} away={visit.away} more={t.moreText} less={t.lessText} />
       <fieldset className="tutor-choices" disabled={visit.away} aria-hidden={visit.away || undefined}>
+      {message.kind === 'check_in' && <div className="row">
+        <button onClick={() => p.onChoice('report_failed')}>{t.checkInFailed}</button>
+        <button onClick={() => p.onChoice('confirm_final')}>{t.checkInFinal}</button>
+        <button onClick={() => p.onChoice('dismiss')}>{t.offerDismiss}</button>
+      </div>}
       {message.kind === 'wrong' && <div className="row">
         <button className="primary" disabled={!p.canRequest || p.running} onClick={() => p.onChoice('explain')}>{t.offerExplain}</button>
         <button disabled={!p.canRequest || p.running} onClick={() => p.onChoice('hint')}>{t.offerHint}</button>

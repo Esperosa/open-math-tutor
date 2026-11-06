@@ -21,6 +21,8 @@ export interface BoardState {
   outcome?: 'solved' | 'failed';
   /** Lines the coach has already reacted to, so a reload does not judge them again. */
   handled?: string[];
+  /** Exact line keys explicitly submitted as final; edits invalidate the corresponding mark. */
+  confirmedFinals?: string[];
 }
 export function newBoard(): BoardState {
   return { id: crypto.randomUUID(), revision: 0, statement: '', topic: '', elements: [], files: {},

@@ -5,7 +5,7 @@ import type { AnalyzeBoardRequest, AnalyzeBoardResponse, ContinueLessonRequest }
 async function mockBridge(page: Page, requests: AnalyzeBoardRequest[], manuals: ContinueLessonRequest[]) {
   await page.route('http://127.0.0.1:4178/**', async route => {
     const request = route.request(), url = new URL(request.url());
-    const headers = { 'Access-Control-Allow-Origin': 'http://localhost:5173',
+    const headers = { 'Access-Control-Allow-Origin': new URL(page.url()).origin,
       'Access-Control-Allow-Headers': 'content-type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
     if (request.method() === 'OPTIONS') { await route.fulfill({ status: 204, headers }); return; }
     if (url.pathname === '/health') { await route.fulfill({ json: { status: 'ok', verifier: 'ok' }, headers }); return; }
@@ -155,7 +155,7 @@ test('curriculum mode: picking a skill starts a lesson and a correct check advan
   await mockBridge(page, requests, manuals);
   await page.route('**/providers/codex/continue-lesson', async route => {
     const request = route.request();
-    const headers = { 'Access-Control-Allow-Origin': 'http://localhost:5173',
+    const headers = { 'Access-Control-Allow-Origin': new URL(page.url()).origin,
       'Access-Control-Allow-Headers': 'content-type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
     if (request.method() === 'OPTIONS') { await route.fulfill({ status: 204, headers }); return; }
     const body = request.postDataJSON() as ContinueLessonRequest;

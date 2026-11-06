@@ -134,3 +134,9 @@ Tento přehled není právní poradenství.
 - **Paměť o studentovi:** `learnerProfile.ts` si tiše pamatuje typy chyb a které styly vysvětlení fungují; stručný souhrn jde AI jako `learnerContext`.
 - **Plán a testy:** zásuvka "Plán a cesta" (procenta z mastery) a sestavení testu na doma s klíčem odpovědí (tisk / PDF).
 - **Předměty:** matematika, VŠ předměty, fyzika a chemie; úlohy s kresbou jsou označené a AI kresby zatím nevidí.
+
+### Přesnost a první posouzení
+
+Lokální kontrola nemá plošnou 1% toleranci: porovnává hodnotu a skutečné zaokrouhlení na zapsaný počet míst. Zaokrouhlení měřených hodnot je omezené relativně na 1e-3; výslovné školní zlomky mají výjimku pro dvě a více desetinných míst a dovolují i zkrácení (2/3 → 0,66); desetinná aritmetika funguje s čárkou i tečkou. Jednotky mají aliasy (např. g cm^-3 / g·cm⁻³ / g/cm3 a M / mol/l); vynechaná jednotka je nadále tolerovaná.
+
+Odlišné číslo podobné výsledku slovní úlohy vyvolá jen měkký dotaz. „Je to výsledek“ ho posoudí jako finální, „Nevyšlo mi to“ zapíše neúspěch; bez kliknutí se neúspěch nezapočítá. Opsaná data a mezivýsledky se za chybný výsledek neoznačují. Režim Vypnuto nekontroluje. Mastery a profil započítají jen první finální posouzení úlohy, pozdější správná oprava nepřidá druhý úspěch. Procenta kurzu jsou zaokrouhlená a nemusí se změnit po každém pokusu. Lokální kontrola zpracuje nejvýš 400 znaků na řádek, tabule zůstává beze změny.

@@ -19,7 +19,7 @@ export function trackSkills(catalog: CourseCatalog, trackId: string) {
   return getTrackTopics(catalog, trackId).flatMap(topic => getTopicSkills(catalog, topic.id)).filter(skill => !seen.has(skill.id) && seen.add(skill.id));
 }
 
-/** Percentage of a whole track, the average of its skills' progress (changes with every solved or failed problem). */
+/** Percentage of a whole track, the average of its skills' progress (rounded; a single attempt need not change the displayed percentage). */
 export function trackPercent(catalog: CourseCatalog, trackId: string, mastery: Readonly<Record<string, MasteryState>>): number {
   const skills = trackSkills(catalog, trackId);
   if (!skills.length) return 0;

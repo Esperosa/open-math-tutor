@@ -136,3 +136,9 @@ This overview is not legal advice.
 - **Memory of the student:** `learnerProfile.ts` quietly records mistake types and which explanation styles work; a short summary goes to the AI as `learnerContext`.
 - **Plan and tests:** a "Plan and path" drawer (percentages from mastery) and a take-home test with an answer key (print / PDF).
 - **Subjects:** mathematics, university subjects, physics and chemistry; drawing tasks are labelled and the AI cannot see drawings yet.
+
+### Precision and first assessment
+
+Local checking has no blanket 1% tolerance: values must match exactly or be an actual rounding to the written precision. Measurement rounding is capped at 1e-3 relative error; explicit school fractions have an exception at two or more decimal places (including 7/8 → 0.88), and recurring fractions also permit truncation (2/3 → 0.66). Decimal arithmetic supports commas and dots, including equalities with trailing units. Unit aliases include g cm^-3 / g·cm⁻³ / g/cm3 and M / mol/l; omitted units are still tolerated.
+
+A differing apparent word-problem result gets a soft check-in. “This is my result” submits that line as final; “I could not solve it” records a failure. No click means no failed attempt. Given data and intermediate results are not automatically judged as wrong finals. Off mode does not check. Mastery and the learner profile count only the first final assessment per problem; a later correction is praised without adding a second success. Rounded course percentages need not change on every attempt. Local checks ignore lines longer than 400 characters without changing the board.
