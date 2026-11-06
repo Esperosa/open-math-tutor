@@ -112,6 +112,40 @@ test('test-only delayed bridge replay: Stop aborts in-flight work and calls the 
   await expect(page.getByTestId('explanation')).toHaveCount(0);
 });
 
+test('curriculum mode: picking a skill starts a lesson and a correct check advances mastery', async ({ page }) => {
+  const requests: AnalyzeBoardRequest[] = [], manuals: ContinueLessonRequest[] = [];
+  await mockBridge(page, requests, manuals);
+  await page.route('**/providers/codex/continue-lesson', async route => {
+    const request = route.request();
+    const headers = { 'Access-Control-Allow-Origin': 'http://localhost:5173',
+      'Access-Control-Allow-Headers': 'content-type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
+    if (request.method() === 'OPTIONS') { await route.fulfill({ status: 204, headers }); return; }
+    const body = request.postDataJSON() as ContinueLessonRequest;
+    manuals.push(body);
+    const correct = body.mode === 'check';
+    const response: AnalyzeBoardResponse = { requestId: body.requestId, boardRevision: body.boardRevision,
+      recognizedSteps: body.stepHistory, confidence: 0.99, firstErrorStepId: null,
+      verifierStatus: correct ? 'correct' : 'needs_domain_check',
+      pedagogicalResponse: correct ? 'Výborně, máš to správně.' : 'Pojďme na tuhle dovednost: nejdřív si zopakujeme záporná čísla.',
+      ttsText: 'ok', needsClarification: null, boardActions: [] };
+    await route.fulfill({ json: response, headers });
+  });
+  await page.goto('/');
+  await page.getByRole('combobox', { name: 'Poskytovatel', exact: true }).selectOption('codex');
+  await page.getByRole('combobox', { name: 'Model', exact: true }).selectOption('replay-model');
+  await page.getByRole('combobox', { name: 'Kurz', exact: true }).selectOption({ label: 'Přijímačky na střední školu' });
+  await page.getByRole('combobox', { name: 'Téma kurzu', exact: true }).selectOption({ label: 'Základy čísel' });
+  const skillItem = page.getByTestId('skill-item').filter({ hasText: 'Počítání se zápornými čísly' });
+  await expect(skillItem.getByText('Nezačato')).toBeVisible();
+  await skillItem.getByRole('button').click();
+  await expect.poll(() => manuals.at(-1)?.mode).toBe('next_problem');
+  expect(manuals.at(-1)?.curriculumContext?.skillId).toBe('arithmetic-integers');
+  await expect(page.getByRole('textbox', { name: 'Zadání', exact: true })).not.toHaveValue('');
+  await page.getByRole('button', { name: 'Zkontrolovat', exact: true }).click();
+  await expect.poll(() => manuals.at(-1)?.mode).toBe('check');
+  await expect(skillItem.getByText('Rozpracováno')).toBeVisible();
+});
+
 test('real unavailable-bridge state remains usable, persistent, bilingual and responsive', async ({ page }) => {
   // No mocks or bridge server: genuinely exercise connection refusal.
   await page.goto('/');

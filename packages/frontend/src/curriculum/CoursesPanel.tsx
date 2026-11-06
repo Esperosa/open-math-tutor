@@ -60,7 +60,7 @@ export function CoursesPanel({ catalog, mastery, t, onStartLesson, activeSkillId
       {catalog.tracks.map(tr => <option key={tr.id} value={tr.id}>{tr.title.cs}</option>)}
     </select></label>
     {track && <p className="muted">{track.description.cs}</p>}
-    {track && <label>{t.topic}<select value={topicId} onChange={e => setTopicId(e.target.value)}>
+    {track && <label>{t.lessonTopic}<select value={topicId} onChange={e => setTopicId(e.target.value)}>
       <option value="">{t.choose}</option>
       {topics.map(tp => <option key={tp.id} value={tp.id}>{tp.title.cs}</option>)}
     </select></label>}

@@ -27,7 +27,7 @@ describe('CoursesPanel', () => {
     const onStartLesson = vi.fn();
     render(<CoursesPanel catalog={catalog} mastery={{}} t={cs} onStartLesson={onStartLesson} activeSkillId={null} />);
     fireEvent.change(screen.getByLabelText(cs.track), { target: { value: 'track-1' } });
-    fireEvent.change(screen.getByLabelText(cs.topic), { target: { value: 'topic-1' } });
+    fireEvent.change(screen.getByLabelText(cs.lessonTopic), { target: { value: 'topic-1' } });
     expect(screen.getByText('Dovednost A')).toBeInTheDocument();
     expect(screen.getByText('Dovednost B')).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole('button', { name: cs.startNextSkill })[0]!);
@@ -41,7 +41,7 @@ describe('CoursesPanel', () => {
   it('locks a skill whose prerequisite is not yet mastered', () => {
     render(<CoursesPanel catalog={catalog} mastery={{}} t={cs} onStartLesson={vi.fn()} activeSkillId={null} />);
     fireEvent.change(screen.getByLabelText(cs.track), { target: { value: 'track-1' } });
-    fireEvent.change(screen.getByLabelText(cs.topic), { target: { value: 'topic-1' } });
+    fireEvent.change(screen.getByLabelText(cs.lessonTopic), { target: { value: 'topic-1' } });
     const items = screen.getAllByTestId('skill-item');
     const skillB = items.find(li => li.textContent?.includes('Dovednost B'))!;
     expect(skillB.querySelector('button')).toBeDisabled();
