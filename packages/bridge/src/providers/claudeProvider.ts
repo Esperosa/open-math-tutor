@@ -10,7 +10,10 @@ import { RESPONSE_SCHEMA, SYSTEM_PROMPT, userPrompt } from './prompt.js';
 import { record } from '../validation.js';
 
 export const CLAUDE_IMAGE_RESTRICTION = 'No documented non-experimental local-image flag was verified for claude -p --bare --tools "" (CLI 2.1.310). --file downloads provider-hosted file IDs; it is not a local-image upload flag. OCR is not attempted.';
-export const CLAUDE_BARE_RESTRICTION = 'The official CLI login exists, but current --bare mode explicitly does not read subscription OAuth credentials. This app does not supply API keys, extract tokens, or disable --bare to work around that restriction.';
+// --bare skips subscription OAuth/keychain; --tools "" independently disables built-in tools.
+// https://code.claude.com/docs/en/headless#start-faster-with-bare-mode
+// https://code.claude.com/docs/en/cli-reference (--tools, --restricted, --disallowedTools)
+export const CLAUDE_AUTH_DETAIL = 'Text tutoring omits --bare to preserve the official CLI subscription login. --tools "" disables built-in tools; --restricted excludes user/project settings, and strict empty MCP config plus --disallowedTools "mcp__*" disable MCP tools. The app does not supply API keys or extract tokens.';
 
 export class ClaudeProvider extends BaseProvider {
   readonly id = 'claude' as const;
@@ -20,7 +23,7 @@ export class ClaudeProvider extends BaseProvider {
       let status: unknown;
       try { status = JSON.parse(result.stdout); } catch { throw classifyFailure(result.stdout + result.stderr || 'invalid JSON status'); }
       if (!record(status) || typeof status.loggedIn !== 'boolean') throw new ProviderError('invalid_response', 'Invalid Claude auth status.');
-      if (result.code === 0 && status.loggedIn) return { providerId: this.id, authenticated: true, detail: CLAUDE_BARE_RESTRICTION };
+      if (result.code === 0 && status.loggedIn) return { providerId: this.id, authenticated: true, detail: CLAUDE_AUTH_DETAIL };
       if (result.code === 1 && !status.loggedIn) return { providerId: this.id, authenticated: false, error: 'not_authenticated', detail: 'Run claude auth login outside this app.' };
       throw classifyFailure(result.stderr + result.stdout);
     } catch (e) {
@@ -37,11 +40,11 @@ export class ClaudeProvider extends BaseProvider {
     if (!(await this.detect(signal)).installed) throw new ProviderError('cli_missing', 'Install the official claude CLI and add it to PATH.');
     if (signal.aborted) throw new ProviderError('cancelled', 'Request cancelled.');
     if ('imageCrop' in req) throw new ProviderError('multimodal_unsupported', CLAUDE_IMAGE_RESTRICTION);
-    // Empty isolated cwd avoids project files; --bare and strict MCP config stop
-    // hooks, skills and MCP discovery. Authentication remains the CLI's business.
+    // Empty isolated cwd avoids project files; restricted settings, disabled skills
+    // and strict empty MCP config isolate customizations without disabling OAuth.
     const cwd = await mkdtemp(join(tmpdir(), 'omt-claude-'));
     try {
-      const result = await runCli('claude', ['-p', '--bare', '--tools', '',
+      const result = await runCli('claude', ['-p', '--restricted', '--tools', '', '--disallowedTools', 'mcp__*',
         '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}',
         '--disable-slash-commands', '--no-session-persistence',
         '--output-format', 'json', '--json-schema', JSON.stringify(RESPONSE_SCHEMA),
