@@ -6,107 +6,316 @@
 
 > Vytvořil a autorsky vlastní **[Jiří Pelikán](https://jirkapelikan.cz)**. Zdrojově dostupný projekt pro **nekomerční** užití ([PolyForm Noncommercial 1.0.0](LICENSE)); při sdílení nebo úpravě musí zůstat uvedeno autorství. Podrobnosti v sekci [Práva a licence](#práva-a-licence).
 
-Interaktivní matematický doučovatel s digitální tabulí. Žák píše postup
-rukou (prst/pero/myš), aplikace rozpozná jednotlivé kroky, najde **první**
-chybu v postupu, vysvětlí ji česky textem i hlasem a **sama napíše
-nápovědu přímo na tabuli** — ne jen do chatové bubliny.
+OpenMathTutor je interaktivní tabule, která v reálném čase čte tvůj rukopis a učí tě jako trpělivý osobní učitel matematiky, fyziky a chemie.
 
-Pracovní název projektu, zdrojově dostupný, nekomerční licence.
+---
 
-## Bring your own subscription
+## Jak to funguje v 60 sekundách
 
-Aplikace nevyžaduje, neprodává ani nepřeposílá žádné API klíče. Připojíte
-svůj **vlastní** už přihlášený AI nástroj:
+1. **Vybereš si kurz:** zvolíš si přípravu na přijímačky, maturitu, vysokoškolskou matematiku, fyziku, chemii, nebo nahraješ vlastní materiály.
+2. **Píšeš přímo na tabuli:** prstem na dotykovém displeji, stylusem, myší nebo klávesnicí. Žádné přepínání nástrojů.
+3. **Okamžitá lokální kontrola:** malý vestavěný neuronový model přečte rukopis přímo v prohlížeči (do ~20 ms). Matematický verifikátor ověří každý krok a zobrazí značku ✓ nebo ✗. Vše běží na tvém počítači bez odesílání dat do cloudu.
+4. **Učitel reaguje přímo na ploše:** při chybě k ní animovaný maskot dojde a AI učitel ti přímo na tabuli zakroužkuje problematické místo, nakreslí šipku a rukopisným písmem dopíše radu či další krok.
+5. **Můžeš se kdykoli zeptat:** klepnutím na rychlou odpověď, hlasem přes mikrofon nebo zprávou v chatu. Aplikace sleduje tvůj pokrok a umí připravit cvičný test k tisku do PDF.
 
-- OpenAI Codex CLI (`codex login`), nebo
-- Anthropic Claude Code CLI (`claude auth login`)
+---
 
-Aplikace tyto nástroje pouze spouští jako podprocesy v jejich oficiálně
-podporovaném režimu — nikdy nečte, neukládá ani nepřeposílá jejich
-přihlašovací údaje. Podrobnosti a citace z právních podmínek obou poskytovatelů
-jsou v [ARCHITECTURE.md](ARCHITECTURE.md).
+## Tutoriál krok za krokem
 
-## Tři hlavní stavební kameny
+Následující kroky tě provedou celou aplikací od prvního spuštění až po pokročilé funkce.
 
-- [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT) — tabule
-- [SymPy](https://www.sympy.org/) (BSD-3-Clause) — ověřování matematických kroků
-- [KaTeX](https://katex.org/) (MIT) — zobrazení matematického zápisu
+### 1. Výběr kurzu a první lekce
 
-## Instalace a vývoj
+Při prvním spuštění tě přivítá úvodní rozcestník, kde si zvolíš zaměření a úroveň. Výběrem tématu se rovnou otevře čistá digitální tabule s první úlohou. Kdykoli se můžeš vrátit do katalogu kurzů přes boční panel.
 
+<video src="docs/media/01-first-lesson.mp4" controls muted width="720"></video>
+<p><em>Záznam: <a href="docs/media/01-first-lesson.mp4">docs/media/01-first-lesson.mp4</a> – Výběr kurzu a otevření první lekce</em></p>
+
+![Úvodní obrazovka a volba zaměření](docs/media/01-onboarding.png)
+![Katalog kurzů a výběr tématu](docs/media/02-courses.png)
+![Čistá tabule se zadáním a uvítáním maskota](docs/media/03-lesson-light.png)
+![Detail první lekce s maskotem](docs/media/shot-01-first-lesson.png)
+
+### 2. Psaní rukou a okamžitá kontrola
+
+Klikni na tabuli a začni psát svůj postup. Tahy tužkou nebo perem aplikace automaticky seskupuje do řádků a symbolů. Do ~20 ms po dokončení řádku se zobrazí přepis a verdikt lokálního ověření.
+
+Když uděláš chybu, řádek se označí červeným symbolem ✗. Animovaný maskot k chybě dojde a nabídne pomoc. Pokud model některé číslo přečetl nepřesně, klepni na bublinu „Přečetl jsem:“ a ze seznamu kandidátů zvol správný znak. Řádek se okamžitě přepočítá jedním klepnutím bez nutnosti brát do ruky klávesnici.
+
+<video src="docs/media/02-handwriting-check.mp4" controls muted width="720"></video>
+<p><em>Záznam: <a href="docs/media/02-handwriting-check.mp4">docs/media/02-handwriting-check.mp4</a> – Psaní rukou, odhalení chyby a oprava</em></p>
+
+![Lokální kontrola kroků a maskot u chyby](docs/media/04-local-coach.png)
+![Rozpoznání rukopisu a oprava klepnutím](docs/media/shot-02-handwriting.png)
+
+### 3. AI učitel píše na tabuli
+
+AI doučovatel nevypisuje dlouhé odstavce do chatu. Píše jako skutečný učitel přímo do plochy tabule ve zvláštní vrstvě: zakroužkuje nebo škrtne chybný člen červeným perem, nakreslí tyrkysovou šipku a rukopisným fontem dopíše nápovědu nebo rozpracovaný další krok. Poznámky učitele můžeš kdykoli skrýt nebo smazat.
+
+<video src="docs/media/03-ai-teacher-writes.mp4" controls muted width="720"></video>
+<p><em>Záznam: <a href="docs/media/03-ai-teacher-writes.mp4">docs/media/03-ai-teacher-writes.mp4</a> – Zápis učitele přímo na tabuli</em></p>
+
+![Anotace učitele na ploše tabule](docs/media/shot-03-teacher-board.png)
+
+### 4. Rozhovor s tutorem
+
+Vedle maskota najdeš tlačítko pro otevření rozhovoru. Můžeš reagovat bez psaní pomocí situačních tlačítek („Vysvětli jinak“, „Ukaž další krok“, „Chápu“, „Nechápu“, „Příklad“), mluvit hlasem přes mikrofon nebo napsat vlastní dotaz. Otázky na ovládání aplikace (jak funguje kontrola, co znamená ✓/✗, jak smazat řádek) zodpoví aplikace okamžitě lokálně i bez připojené AI.
+
+<video src="docs/media/04-chat.mp4" controls muted width="720"></video>
+<p><em>Záznam: <a href="docs/media/04-chat.mp4">docs/media/04-chat.mp4</a> – Rozhovor s tutorem a rychlé odpovědi</em></p>
+
+![Nabídka maskota a dostupné akce](docs/media/08-tutor-menu.png)
+![Okno rozhovoru s tutorem a hlasový vstup](docs/media/shot-04-chat-thread.png)
+
+### 5. Plán a sledování pokroku
+
+V levé zásuvce „Plán a cesta“ vidíš přehled zvládnutých dovedností a celková procenta kurzu. Systém adaptivní obtížnosti vybírá další příklady podle toho, které typy úloh ti dělají potíže. Do celkového skóre se započítává první samostatné vyřešení úlohy; pozdější oprava tě pochválí a posune dál.
+
+<video src="docs/media/05-plan-progress.mp4" controls muted width="720"></video>
+<p><em>Záznam: <a href="docs/media/05-plan-progress.mp4">docs/media/05-plan-progress.mp4</a> – Průchod plánem a růst procent</em></p>
+
+![Přehled plánu a zvládnutých témat](docs/media/06-plan.png)
+![Detail dovedností a postupu v kurzu](docs/media/shot-05-plan-progress.png)
+
+### 6. Fyzika, chemie a výpočty s jednotkami
+
+Aplikace neprověřuje jen čistou matematiku. V kurzech fyziky a chemie zapisuješ veličiny včetně fyzikálních jednotek (např. m/s, km/h, g/cm³, mol/l). Lokální verifikátor podporuje jednotkové aliasy, desetinnou čárku i tečku a kontroluje přesnost bez plošných tolerancí.
+
+<video src="docs/media/06-physics-units.mp4" controls muted width="720"></video>
+<p><em>Záznam: <a href="docs/media/06-physics-units.mp4">docs/media/06-physics-units.mp4</a> – Řešení fyzikálního příkladu s jednotkami</em></p>
+
+![Fyzikální příklad se zadanou jednotkou](docs/media/07-physics.png)
+![Ověření fyzikálního výpočtu na tabuli](docs/media/shot-06-physics-units.png)
+
+### 7. Test na doma a export zápisků
+
+Potřebuješ si vyzkoušet své znalosti na papíře? V aplikaci si můžeš jedním kliknutím vygenerovat cvičný test ve formátu HTML, který v prohlížeči vytiskneš přímo do PDF. Klíč se správnými odpověďmi a postupy je umístěn na samostatné stránce na konci. Zápisky z tabule lze exportovat do Markdownu (`.md`) a samotnou tabuli uložit jako PNG nebo SVG.
+
+<video src="docs/media/07-test-and-export.mp4" controls muted width="720"></video>
+<p><em>Záznam: <a href="docs/media/07-test-and-export.mp4">docs/media/07-test-and-export.mp4</a> – Generování testu a export zápisků</em></p>
+
+![Vygenerovaný test připravený k tisku do PDF](docs/media/shot-07-test-export.png)
+
+### 8. Nastavení, papír tabule a offline hlasy
+
+Vysouvací panel Nastavení ti umožní přizpůsobit prostředí podle svých potřeb:
+- **Vzory papíru:** čistý bílý, čtverečkovaný, linkovaný, tečkovaný a školní se svislým okrajem. Vzory reagují na zoom a posun plátna.
+- **Vzhled:** světlý a tmavý režim tabule i ovládacích panelů.
+- **Hlasový výstup:** vedle systémových hlasů můžeš zvolit vysoce kvalitní offline hlasy Piper (`cs_CZ-jirka`, anglické modely), které běží přímo v prohlížeči přes WebAssembly. Model se stáhne jednou (~60 MB) do lokálního úložiště prohlížeče a funguje i bez připojení k internetu.
+
+<video src="docs/media/08-settings-paper-voices.mp4" controls muted width="720"></video>
+<p><em>Záznam: <a href="docs/media/08-settings-paper-voices.mp4">docs/media/08-settings-paper-voices.mp4</a> – Přepínání vzorů papíru a volba hlasů</em></p>
+
+![Tmavá tabule s rozepsaným příkladem](docs/media/09-board-dark.png)
+![Zobrazení na mobilním telefonu v tmavém režimu](docs/media/10-phone-dark.png)
+![Zobrazení na mobilním telefonu ve světlém režimu](docs/media/11-phone-light.png)
+![Volba papíru a nastavení hlasu](docs/media/shot-08-settings-paper.png)
+
+---
+
+## Instalace a spuštění
+
+### Požadavky na systém
+- **Node.js** verze `>= 22.14.0`
+- **npm** (součást Node.js)
+- **Python** verze `>= 3.10` (pro matematický verifikátor SymPy)
+
+### 1. Klonování a instalace balíčků
 ```bash
+git clone https://github.com/Esperosa/open-math-tutor.git
+cd open-math-tutor
 npm install
-npm run dev:frontend     # frontend na http://localhost:5173
-npm run dev:bridge       # lokální bridge (provider adaptéry)
+```
 
+### 2. Příprava Python verifikátoru
+Verifikátor běží v samostatném virtuálním prostředí v adresáři `verifier`:
+```bash
 cd verifier
 python -m venv .venv
-.venv/Scripts/pip install -r requirements.txt   # Windows; na macOS/Linux .venv/bin/pip
-.venv/Scripts/python -m uvicorn app:app --port 4179
+
+# Windows:
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python -m uvicorn app:app --port 4179
+
+# macOS a Linux:
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python -m uvicorn app:app --port 4179
 ```
 
-Ověření přihlášení providerů probíhá mimo tuto appku:
-
+### 3. Spuštění aplikace
+V kořenovém adresáři projektu spusť v samostatných terminálech bridge a frontend:
 ```bash
-codex login
-# nebo
+# Terminál 1: lokální bridge (poskytovatelé AI a spojení s verifikátorem)
+npm run dev:bridge
+
+# Terminál 2: uživatelské rozhraní
+npm run dev:frontend
+```
+
+Frontend se otevře v prohlížeči na adrese `http://localhost:5173`.
+
+### Spuštění testů
+```bash
+npm run lint           # statická kontrola kódu
+npm run typecheck      # kontrola TypeScript typů
+npm run test:unit      # jednotkové testy všech balíčků
+npm run test:verifier  # testy matematického verifikátoru (pytest)
+npm run test:e2e       # integrační end-to-end testy (Playwright)
+```
+
+---
+
+## Připojení AI (Bring your own subscription)
+
+OpenMathTutor neprodává žádné předplatné ani nepřeposílá cizí klíče. Využívá nástroje, které už sám legálně vlastníš a provozuješ na svém počítači:
+
+### 1. Anthropic Claude
+Nainstaluj oficiální Anthropic Claude Code CLI a přihlas se mimo aplikaci:
+```bash
 claude auth login
 ```
+Aplikace spouští `claude -p` v neinteraktivním režimu s bezpečnostním omezením `--bare --tools ""` (bez přístupu ke kódu, souborům a MCP). Nečte ani neukládá tvé přihlašovací údaje.
 
-Google (Gemini): vlastni API klic z Google AI Studio (volne casti) nebo Vertexu - nastav `GEMINI_API_KEY` / `GOOGLE_API_KEY`.
-
-Aplikace nikdy neukládá výstup těchto příkazů ani tokeny, které vytvoří.
-
-## Testy
-
+### 2. Google Gemini
+Pokud preferuješ Google Gemini (např. bezplatnou kvótu z Google AI Studio nebo Vertex AI), zadej svůj API klíč pomocí skriptu:
 ```bash
-npm run lint
-npm run typecheck
-npm run test:unit
-npm run test:verifier
-npm run test:e2e
+npm run set-gemini-key -w packages/bridge
 ```
+Klíč se uloží do tvého lokálního uživatelského profilu do souboru `provider-keys.json`. Alternativně můžeš nastavit proměnnou prostředí `GEMINI_API_KEY` nebo `GOOGLE_API_KEY`.
+*Proč ne přihlášení Google účtem:* Aplikace nevytváří vlastní OAuth bránu pro účty Google, neukládá uživatelské přihlašovací tokeny a klíč komunikuje výhradně s oficiálním REST rozhraním Google Generative Language. Podrobnosti viz [ARCHITECTURE.md](ARCHITECTURE.md).
 
-## Co je hotové a co ne (stav k poslední aktualizaci tohoto README)
+### 3. OpenAI Codex
+Codex CLI se přihlašuje příkazem `codex login`.
+*Upozornění k bezpečnosti:* V aktuální verzi Codex app-server protokolu neexistuje zdokumentovaný mechanismus, kterým by šlo modelu zcela odepřít spouštění systémových nástrojů. Abychom nepředstírali zabezpečení, je doučování přes Codex záměrně vypnuté (`provider_unavailable`). Jakmile OpenAI umožní spolehlivě odepřít nástroje, podpora bude aktivována.
 
-Tento projekt je rozsáhlý; řiďte se také konkrétním stavem v
-`ARCHITECTURE.md` a hláškami `requires credentials` / "nedostupné" přímo v
-UI pro cokoliv, co vyžaduje vaše vlastní přihlášení.
+---
 
-- **Hotovo a reálně otestováno**: bezpečný matematický AST parser
-  (`packages/shared/src/mathAst.ts`) a jeho Python port ve verifikátoru,
-  validace `board_actions` (schéma, meze, revize), frontend s Excalidraw
-  tabulí, lokální bridge s adaptéry Codex/Claude, 10 předpřipravených kurzů (matematika, vysokoškolské předměty, fyzika, chemie)
-  s původními úlohami (`packages/content`), adaptivní obtížnost per
-  dovednost (`packages/shared/src/mastery.ts`), volný dotaz ("Zeptej se"),
-  interaktivní vykreslování funkcí (`plot_function`, bezpečný numerický
-  evaluátor bez `eval`), vlastní kurz z nahraných `.txt`/`.pdf` materiálů
-  (lokální TF-IDF vyhledávání, žádné embeddings, žádné API volání navíc) —
-  vše s automatickými testy (shared, content, frontend, bridge, verifier)
-  a CI.
-- **Rukopis na tabuli čte lokální model**: tahy myší, perem i prstem se
-  v prohlížeči seskupí do řádků a symbolů, přepíšou na výraz a projdou
-  stejnou kontrolou jako psaný text. Nejisté symboly mají kandidáty a opravu
-  jedním klepnutím; AI dostane strukturované hinty, ne jen obrázek. Měřená
-  úspěšnost a e2e matice jsou v
-  [`docs/handwriting-e2e-report.md`](docs/handwriting-e2e-report.md).
-- **Reálně odzkoušeno na živém Claude Max předplatném v této session**:
-  textové doučování (Zkontrolovat/Poradit/Další krok/Vysvětli
-  jinak/Zeptej se) přes `claude -p` bez `--bare`, se zachovaným
-  přihlášením předplatným.
-- **Vědomě nedostupné, ne předstírané**: Codex nemá v CLI zjištěný
-  dokumentovaný způsob, jak mu úplně zakázat shell/filesystem nástroje —
-  dokud takový způsob neexistuje, appka pro Codex tutoring hlásí
-  `provider_unavailable`, místo aby mu nástroje "jen" sandboxovala a
-  předstírala bezpečnost. Claude neumí v neinteraktivním režimu přečíst
-  obrázek (žádný dokumentovaný flag) — nahrání skenu/fota proto zatím
-  vždy vrátí `multimodal_unsupported` od obou providerů; UI je připravené
-  a rozsvítí se automaticky, jakmile některý provider tuto cestu doloží.
-- **Vědomě mimo tuto fázi**: Android/Capacitor obálka, iOS build, režim
-  "Sign in with ChatGPT", skutečná animace psaní perem tah po tahu (místo postupného odhalení)
-- Geometrie, kvadratické rovnice a vyšší matematika jsou v katalogu jako dovednosti, ale bez automatické kontroly kroků (SymPy verifikátor zatím zná jen aritmetiku, zlomky, procenta a lineární rovnice); výsledky číselných úloh se kontrolují programově.
-  (verifikátor zatím podporuje jen aritmetiku, zlomky, procenta, závorky
-  a lineární rovnice).
+## Kurzy a výukový obsah
+
+Aplikace obsahuje 10 kompletních kurzů s celkem 71 dovednostmi:
+- **Přijímací zkoušky na SŠ:** zlomky, poměry, procenta, lineární rovnice, slovní úlohy (podle veřejných specifikací Cermat).
+- **Maturita z matematiky:** algebraické výrazy, funkce, rovnice a nerovnice, posloupnosti.
+- **Přijímací zkoušky na VŠ:** analytická geometrie, goniometrie, komplexní čísla.
+- **Vysokoškolská matematika:** Základy algebry, Matematická analýza (limity, derivace, integrály), Lineární algebra (matice, determinanty, vektorové prostory), Diskrétní matematika, Pravděpodobnost a statistika.
+- **Fyzika:** kinematika, dynamika, práce a výkon, mechanická energie, hustota a tlak.
+- **Chemie:** látková koncentrace, molární hmotnost, výpočty ze vzorců, směšování roztoků.
+
+### Vlastní kurz z vlastních materiálů (NotebookLM styl)
+V sekci kurzů můžeš nahrát vlastní textové materiály (`.txt`) nebo skripta v PDF (`.pdf`). Text se extrahuje lokálně v prohlížeči pomocí knihovny pdf.js. Aplikace provádí vyhledávání pomocí lokálního TF-IDF indexu bez posílání souborů na externí servery a bez placených embeddingů. Při dotazu AI doučovatel vychází přímo z tvých materiálů.
+
+---
+
+## Rozpoznávání rukopisu na tabuli
+
+Můžeš psát přirozeně rukou. Lokální model běží přímo v JavaScriptu ve tvém prohlížeči:
+
+- **Poctivě naměřená přesnost (z [ACCURACY.md](tools/handwriting/ACCURACY.md)):**
+  - Oficiální held-out testovací sada MNIST (10 000 číslic): **98,99 %**
+  - Databáze UCI `pendigits` (14 neviděných pisatelů): **97,57 %**
+  - Neviděné rodiny Hershey fontů (triplex a complex): **92,08 %**
+  - Tištěné matematické řádky: **100 %** (270 z 270)
+  - Řádky s neviděnými tvary číslic: **91,00 %** (182 z 200)
+  - Rychlost vyhodnocení jednoho řádku (15 symbolů): medián **20,1 ms**, p95 **24,8 ms** (vše hluboko pod limitem 50 ms).
+  - Velikost modelu: ~900 kB (169 000 parametrů float32).
+
+- **Známé záměny a otevřené mezery:**
+  - Znak `x` jako proměnná a symbol násobení `×` se občas zamění (v testech 38 případů).
+  - V některých rychlých syntetických tazích se lomítko `/` může přečíst jako číslice `1`.
+  - V neobvyklých cizích fontech se může číslice `4` zaměnit za `7` nebo `8` za `2`.
+  - Specifická poloha desetinné tečky může být někdy přečtena jako středová tečka násobení (desetinná čárka i standardní tečka fungují spolehlivě).
+
+- **Co dělat při chybném čtení:**
+  Vedle řádku se vždy zobrazí náhled rozpoznaného textu. Pokud došlo k chybě, klepni na nejistý symbol – rozbalí se nabídka kandidátů. Kliknutím na správný znak se řádek okamžitě opraví a verifikátor jej znovu přepočítá.
+
+---
+
+## Učitel na tabuli (jak AI reaguje)
+
+AI doučovatel komunikuje prostřednictvím strukturovaného protokolu `board_actions`:
+- **Oddělená vrstva:** poznámky doučovatele se kreslí do samostatné vrstvy, která nepřepisuje tvůj text a lze ji kdykoli skrýt nebo vymazat.
+- **Relativní kotvy (žádné absolutní souřadnice):** AI neurčuje pixely na obrazovce; odkazuje se na konkrétní řádky a symboly (`placement: relativeToStepId`, `side: below | right | over`).
+- **Nástroje oprav:** kroužek kolem chyby, přeškrtnutí, zvýraznění, šipka, rukopisné textové vysvětlení a vzorec dalšího kroku v bezpečném subsetu LaTeXu (`\frac`, `\cdot`, `\times` apod.).
+- **Vizuální odlišení:** červené pero pro označení chybného místa, tyrkysové pero pro vysvětlující nápovědu a font imitující rukopis.
+
+---
+
+## Rozhovor s tutorem (Chat)
+
+- **Situační tlačítka:** podle stavu tabule máš k dispozici rychlé reakce („Vysvětli jinak“, „Ukaž další krok“, „Chápu“, „Nechápu“, „Příklad“).
+- **Hlasový vstup:** tlačítko mikrofonu využívá nativní Web Speech API prohlížeče.
+- **Psaná zpráva:** možnost rozbalit textové pole a napsat vlastní doplňující otázku.
+- **Lokální FAQ:** běžné otázky k ovládání aplikace zodpoví vestavěný modul okamžitě bez připojení k AI.
+
+---
+
+## Plán a procenta
+
+- **Mastery systém:** aplikace sleduje tvou úspěšnost v jednotlivých dovednostech a adaptivně upravuje úroveň dalších úloh.
+- **Férové hodnocení:** do postupu se započítává první finální pokus o vyřešení úlohy. Pokud příklad napoprvé nevyjde a opravíš ho až po nápovědě, získáš pochvalu, ale do statistiky se nezapíše falešný stoprocentní úspěch.
+- **Zaokrouhlování:** celková procenta kurzu jsou zaokrouhlená na celá čísla a odrážejí reálné zvládnutí látky.
+
+---
+
+## Testy na doma a zápisky
+
+- **Cvičný test k tisku:** v sekci exportu klikni na vygenerování testu. Stáhne se soubor `test.html`, který se otevře v prohlížeči a je formátován pro čistý tisk na A4 nebo uložení do PDF. Klíč se správným řešením je automaticky umístěn na samostatné stránce na konci dokumentu.
+- **Studijní zápisky:** export řešených úloh do formátu Markdown (`.md`).
+- **Grafický export tabule:** uložení aktuální plochy jako obrázek PNG nebo vektorové SVG.
+
+---
+
+## Nastavení a přizpůsobení
+
+- **Podklad tabule:** čistá bílá, čtverečkovaný papír, linkovaný papír, tečkovaná mřížka, školní sešit se svislým okrajem.
+- **Motiv:** plnohodnotný světlý i tmavý režim pro šetření zraku.
+- **Hlasový syntetizér:**
+  - Hlasy operačního systému v prohlížeči (`speechSynthesis`).
+  - Offline hlasy Piper: kvalitní neuronové hlasy (`cs_CZ-jirka` a anglické modely) stažené přímo do prohlížeče (OPFS, ~60 MB). Běží lokálně ve Web Workeru s využitím Web Audio API bez jakéhokoli odesílání hlasu do cloudu. Podmínky výzkumné licence Lessac jsou uvedeny v [NOTICE.md](NOTICE.md).
+
+---
+
+## Soukromí a bezpečnost
+
+1. **Vše běží u tebe:** uživatelské rozhraní, komunikační bridge i Python verifikátor běží lokálně na tvém počítači.
+2. **Žádné sledování ani účty:** aplikace nepoužívá sledovací cookies, analytické nástroje ani centrální uživatelskou databázi.
+3. **Co se posílá do AI:** při vyžádání rady se poskytovateli odešle zadání příkladu, textový přepis tvých matematických kroků, lokální hinty z rozpoznávání rukopisu a krátký kontext rozhovoru. Nikdy se neposílají hesla, systémové soubory ani privátní klíče.
+4. **Matematické bezpečí:** Python verifikátor nepoužívá `eval`, `exec`, `sympify` ani `parse_expr` na neprověřeném textu. Všechna data procházejí striktním jednoúčelovým parserem do AST stromu.
+
+---
+
+## Řešení potíží
+
+- **AI hlásí stav „offline“:**
+  Ujisti se, že ti v terminálu běží bridge (`npm run dev:bridge` na portu 4178). Pokud používáš Claude, ověř přihlášení příkazem `claude auth login`. Pokud používáš Gemini, zkontroluj zadání klíče příkazem `npm run set-gemini-key -w packages/bridge`.
+- **Bridge je nedostupný nebo neodpovídá:**
+  Ověř ve webovém prohlížeči stav na adrese `http://127.0.0.1:4178/health`. Měl by vrátit stav `{"status":"ok","verifier":"ok"}`.
+- **Rozdíl mezi localhost a 127.0.0.1:**
+  Frontend otevírej vždy jako `http://localhost:5173`. Bridge z bezpečnostních důvodů (ochrana proti CSRF) výslovně povoluje původ `http://localhost:5173`, zatímco `http://127.0.0.1:5173` odmítá.
+
+---
+
+## Omezení projektu (otevřeně a poctivě)
+
+- **Codex tutoring:** je dočasně uzamčen (`provider_unavailable`), dokud OpenAI v CLI rozhraní neumožní spolehlivě zamezit modelu v přístupu k systémovým nástrojům.
+- **Obrázky v Claude:** neinteraktivní režim Claude CLI nepodporuje přímé předávání obrázků (`multimodal_unsupported`). Rukopis je proto předáván formou lokálně přečtených strukturovaných symbolů.
+- **Rozsah krokového verifikátoru:** automatická kontrola krok za krokem pomocí SymPy pokrývá aritmetiku, zlomky, procenta, závorky a lineární rovnice. Kvadratické rovnice, geometrie a vysokoškolská matematika mají v katalogu připravené úlohy s programovou kontrolou výsledků, ale bez krokové verifikace mezikroků.
+- **Streamování textu:** odpovědi AI doučovatele se zobrazují po dokončení celého požadavku, nikoli slovo po slově (poskytovatelé vracejí strukturovaný JSON s akcemi na tabuli najednou).
+- **Mobilní nativní balíček:** mobilní aplikace pro Android a iOS zatím nejsou sestaveny; webové rozhraní je však plně responzivní pro mobilní prohlížeče.
+
+---
+
+## Odkazy na dokumentaci
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) – systémová architektura, bezpečnostní hranice a adaptéry
+- [BRIDGE_API.md](BRIDGE_API.md) – specifikace HTTP rozhraní lokálního bridge a protokolu `board_actions`
+- [NOTICE.md](NOTICE.md) – licence použitých knihoven, modelů a komponent třetích stran
+- [ai-disclosure.md](ai-disclosure.md) – transparentní evidence použití AI nástrojů při vývoji
+- [docs/handwriting-e2e-report.md](docs/handwriting-e2e-report.md) – naměřené výsledky a testovací matice rukopisu
+- [tools/handwriting/ACCURACY.md](tools/handwriting/ACCURACY.md) – podrobné metriky přesnosti lokálního modelu
+- [docs/media/README.md](docs/media/README.md) – katalog prezentačních médií a skripty pro jejich reprodukci
+- [docs/media/TODO-media.md](docs/media/TODO-media.md) – seznam chybějících médií připravených k natočení
+
+---
 
 ## Práva a licence
 
@@ -129,43 +338,8 @@ UI pro cokoliv, co vyžaduje vaše vlastní přihlášení.
 
 **Třetí strany:** použité komponenty (Excalidraw, SymPy, KaTeX, Electron, pdf.js, React, Vite) mají vlastní licence uvedené v [NOTICE.md](NOTICE.md) a [ARCHITECTURE.md](ARCHITECTURE.md); jejich podmínky platí dál. Nástroje `codex` a `claude` si uživatel instaluje sám a řídí se podmínkami jejich poskytovatelů. „Claude“, „Claude Code“, „Codex“ a „OpenAI“ jsou ochranné známky svých vlastníků; projekt s nimi není nijak spojen.
 
-**Offline hlasy:** kvalitní hlasy Piper se stahují na přání uživatele z Hugging Face a ukládají se jen v prohlížeči — v repozitáři ani v instalaci nejsou. Všechny čtyři jsou dotrénované z výzkumného hlasu Lessac, jehož licenční podmínky (nekomerční, s ručním ověřením) jsou rozepsané v [NOTICE.md](NOTICE.md).
+**Offline hlasy:** kvalitní hlasy Piper se stahují na přání uživatele z Hugging Face a ukládají se jen v prohlížeči – v repozitáři ani v instalaci nejsou. Všechny čtyři jsou dotrénované z výzkumného hlasu Lessac, jehož licenční podmínky (nekomerční, s ručním ověřením) jsou rozepsané v [NOTICE.md](NOTICE.md).
 
 **Evidence použití AI:** část kódu vznikla s pomocí AI nástrojů (OpenAI Codex, Anthropic Claude) a prošla kontrolou a testy; podrobnosti v [ai-disclosure.md](ai-disclosure.md). Logo, texty o autorovi a licenční ustanovení jsou lidskou prací autora.
 
 Tento přehled není právní poradenství.
-
-
-## Mentor mode (jak appka učí)
-
-- **Jen tabule:** student klikne na tabuli a píše; zadání je karta jen ke čtení.
-- **Lokální trenér:** každý napsaný řádek se kontroluje v prohlížeči (`packages/shared/src/coach.ts`, `stepCheck.ts`, `answers.ts`) bez AI. Režimy: průběžně / až na konec / vypnuto (nabídka maskota).
-- **AI jen jako nástroj:** volá se na výslovnou žádost (nabídka maskota, "Vysvětli"), u neověřitelného výsledku jen s povolením v Nastavení. Start lekce AI nevolá.
-- **Paměť o studentovi:** `learnerProfile.ts` si tiše pamatuje typy chyb a které styly vysvětlení fungují; stručný souhrn jde AI jako `learnerContext`.
-- **Rychlá odezva:** značka ✓/✗ se objeví do ~20 ms po dopsání řádku, komentář učitele do ~250 ms po Escape (psaný řádek) nebo ~450 ms po zvednutí pera (rukou psaný řádek nikdy nekomentujeme uprostřed psaní). Maskot se při psaní „dívá“ za posledním tahem a po zvednutí pera ukáže, že kontroluje. Naměřené časy: [`docs/latency-report.md`](docs/latency-report.md).
-- **Rozhovor s učitelem:** tlačítko vedle maskota otevře sbalitelné okno s historií (ukládá se zvlášť pro každou tabuli). Odpovídáš klepnutím na rychlé odpovědi podle situace („Vysvětli jinak“, „Ukaž další krok“, „Chápu“, „Nechápu“, „Příklad“), hlasem (mikrofon) nebo volitelně napsanou zprávou. Běžné otázky k appce (co znamená ✓/✗, jak přepnout hlídání, jak smazat řádek) se zodpovědí lokálně bez AI; ostatní jdou AI i s krátkým kontextem konverzace. Bez připojené AI to appka řekne a nabídne místní pomoc.
-- **Živý maskot:** čeká, sleduje pero, kontroluje, přemýšlí (tečky), raduje se (konfety u správného výsledku), mračí se u chyby, ukáže na řádek a pro mluvení otevírá pusu; při uvítání mává. Při omezeném pohybu (`prefers-reduced-motion`) se všechno ukáže bez animací.
-- **Plán a testy:** zásuvka "Plán a cesta" (procenta z mastery) a sestavení testu na doma s klíčem odpovědí (tisk / PDF).
-- **Předměty:** matematika, VŠ předměty, fyzika a chemie; úlohy s kresbou jsou označené a AI kresby zatím nevidí.
-
-### Rukopis na tabuli
-
-Student píše přímo na tabuli a nemusí nic přepínat. Řádek z tahů se čte
-lokálně, bez sítě; u řádku je vidět přepis a u nejistých symbolů kandidáti.
-Oprava jedním klepnutím přepočítá jen dotčený řádek a zachová krok. Když AI
-není připojená, HUD to řekne, ale čtení i ✓/✗ fungují dál. AI volitelně
-dostane přepis, kandidáty, pořadí tahů a jistotu; obrázek jen jako doplněk,
-protože ho oba provideři zatím v neinteraktivním režimu neumí přečíst.
-
-Naměřeno na held-out datech: **98,99 %** MNIST, **97,57 %** pendigits,
-**92,08 %** neviděné fonty, **100 %** celých řádků v testované mřížce a
-**91 %** řádků s neviděnými číslicemi. Medián čtení řádku je kolem **20–22 ms**
-(p95 25–26 ms). Známé záměny (`x`/`×`, ojedinělé `4`/`7` v cizích fontech)
-řeší kandidáti a oprava; podrobnosti a otevřené mezery jsou v
-[`docs/handwriting-e2e-report.md`](docs/handwriting-e2e-report.md).
-
-### Přesnost a první posouzení
-
-Lokální kontrola nemá plošnou 1% toleranci: porovnává hodnotu a skutečné zaokrouhlení na zapsaný počet míst. Zaokrouhlení měřených hodnot je omezené relativně na 1e-3; výslovné školní zlomky mají výjimku pro dvě a více desetinných míst a dovolují i zkrácení (2/3 → 0,66); desetinná aritmetika funguje s čárkou i tečkou. Jednotky mají aliasy (např. g cm^-3 / g·cm⁻³ / g/cm3 a M / mol/l); vynechaná jednotka je nadále tolerovaná.
-
-Odlišné číslo podobné výsledku slovní úlohy vyvolá jen měkký dotaz. „Je to výsledek“ ho posoudí jako finální, „Nevyšlo mi to“ zapíše neúspěch; bez kliknutí se neúspěch nezapočítá. Opsaná data a mezivýsledky se za chybný výsledek neoznačují. Režim Vypnuto nekontroluje. Mastery a profil započítají jen první finální posouzení úlohy, pozdější správná oprava nepřidá druhý úspěch. Procenta kurzu jsou zaokrouhlená a nemusí se změnit po každém pokusu. Lokální kontrola zpracuje nejvýš 400 znaků na řádek, tabule zůstává beze změny.
