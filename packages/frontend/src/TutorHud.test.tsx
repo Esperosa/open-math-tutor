@@ -63,7 +63,7 @@ it('keeps all actions disabled through the return transition and cancels a visit
   expect(screen.getByTestId('tutor-hud')).toHaveAttribute('data-visiting', 'false');
   expect(vi.getTimerCount()).toBe(0);
 });
-it('offers at most 3 choices on wrong line: primary Nápověda (AI or local), Vysvětli, and Zkusím sám', () => {
+it('offers on a wrong line: primary Nápověda (AI or local), delete-and-retry, Vysvětli and a quiet Zkusím sám', () => {
   vi.useFakeTimers();
   const onChoice = vi.fn();
   const { rerender } = render(<TutorHud {...base} canRequest={false} onChoice={onChoice} message={{ id: 'w', kind: 'wrong', text: 'Chyba.', stepId: 'line-1' }} />);

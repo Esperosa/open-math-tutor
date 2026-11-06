@@ -125,8 +125,9 @@ export function TutorHud(p: Props) {
       </div>}
       {message.kind === 'wrong' && <div className="row">
         <button className="primary" disabled={p.running} onClick={() => p.onChoice(p.canRequest ? 'hint' : 'local_hint')}>{t.offerHint}</button>
+        <button onClick={() => p.onChoice('retry_line')}>{t.offerRetryLine}</button>
         <button disabled={p.running} onClick={() => p.onChoice('explain')}>{t.offerExplain}</button>
-        <button onClick={() => p.onChoice('dismiss')}>{t.offerDismiss}</button>
+        <button type="button" className="link-btn" onClick={() => p.onChoice('dismiss')}>{t.offerDismiss}</button>
       </div>}
       {message.kind === 'solved' && <div className="row">
         {p.lessonActive && <button className="primary" onClick={() => p.onChoice('next')}>{t.nextProblem}</button>}

@@ -156,7 +156,8 @@ test('without AI the local coach circles the wrong line, writes a short correcti
   const bubble = page.getByTestId('tutor-bubble');
   await expect(bubble).toHaveAttribute('data-kind', 'wrong', { timeout: 10000 });
   await expect(notes(page)).toHaveCount(2);
-  await expect(page.locator('[data-action-type="write_text"]')).toContainText('4 + 5=9');
+  await expect(page.locator('[data-action-type="write_text"]')).toContainText('Zkus ten řádek přepočítat po operacích');
+  await expect(page.locator('[data-action-type="write_text"]')).not.toContainText('=9'); // the solution is not revealed on the first mistake
   await bubble.getByRole('button', { name: 'Nápověda', exact: true }).click();
   await expect(notes(page)).toHaveCount(3);
   await expect(page.locator('[data-action-type="show_hint"]')).toContainText('Přepočítej');

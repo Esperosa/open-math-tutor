@@ -763,9 +763,9 @@ export function App() {
             ? <><label>{t.task}<textarea rows={2} maxLength={4000} value={board.statement} placeholder={t.taskPlaceholder} autoFocus
                 onChange={e => { stop(false); updateBoard(editTask(board, 'statement', e.target.value)); }} /></label>
                 <button onClick={() => setEditingTask(false)}>{t.taskDone}</button></>
-            : <><p className="task-text" data-testid="task-text">
+            : <><p className="task-text" {...(formattedTaskHtml ? {} : { 'data-testid': 'task-text' })}>
                 {formattedTaskHtml
-                  ? <><span className="sr">{statement}</span><span aria-hidden="true" dangerouslySetInnerHTML={{ __html: formattedTaskHtml }} /></>
+                  ? <><span className="sr" data-testid="task-text">{statement}</span><span aria-hidden="true" dangerouslySetInnerHTML={{ __html: formattedTaskHtml }} /></>
                   : (statement || t.taskEmpty)}
               </p>
                 {displayTopic && <small>{displayTopic}</small>}
