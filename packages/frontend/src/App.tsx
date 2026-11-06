@@ -180,8 +180,10 @@ export function App() {
     pending.current = request; setRunning(true); setStatus(mode === 'ask' ? 'thinkingAnswer' : 'thinking'); setRejected(false);
     const timer = setTimeout(() => { controller.abort(); void bridge.cancel(request.provider, id, AbortSignal.timeout(5000)).catch(() => {}); }, 120000);
     const base = { requestId: id, boardRevision: snapshot.revision,
-      task: { statementText: snapshot.statement, topic: snapshot.topic },
-      stepHistory: snapshot.steps.map(({ stepId, latexGuess, boardRevision }) => ({ stepId, latexGuess, boardRevision })),
+      // Keep the request inside the bridge's limits: no empty lines, bounded lengths and counts.
+      task: { statementText: snapshot.statement.slice(0, 2000), topic: snapshot.topic.slice(0, 100) },
+      stepHistory: snapshot.steps.filter(st => st.latexGuess.trim()).slice(-100)
+        .map(({ stepId, latexGuess, boardRevision }) => ({ stepId, latexGuess: latexGuess.trim().slice(0, 300), boardRevision })),
       locale: settings.locale, model: settings.model };
     try {
       const imageCrop = imageOverride ?? (!mode ? await editor.current?.crop(snapshot) : undefined);

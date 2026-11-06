@@ -385,3 +385,25 @@ body { overflow: hidden; }
   .tutor-hud { bottom: 88px; }
   .tutor-menu { max-height: calc(100dvh - 188px); }
 }
+
+/* Speech bubble: a rounded balloon with a tail toward the teacher, no coloured edge bar */
+.tutor-bubble { position: relative; overflow: visible; border-left: 1px solid var(--glass-border); border-radius: 22px; padding: var(--space-3) var(--space-4); margin-bottom: 12px; background: var(--paper); }
+.tutor-bubble::after { content: ''; position: absolute; right: 30px; bottom: -9px; width: 16px; height: 16px; background: var(--paper);
+  border-right: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border); transform: rotate(45deg); border-bottom-right-radius: 4px; }
+.tutor-bubble-wrong, .tutor-bubble-error { border-left-color: var(--glass-border); }
+.tutor-bubble-wrong, .tutor-bubble-wrong::after { background: color-mix(in srgb, var(--paper) 90%, #c47777); }
+.tutor-bubble-solved, .tutor-bubble-solved::after { background: color-mix(in srgb, var(--paper) 90%, var(--accent)); }
+.tutor-bubble-error, .tutor-bubble-error::after { background: color-mix(in srgb, var(--paper) 90%, var(--warning)); }
+.tutor-bubble-thinking::after { display: none; }
+
+/* Speech bubble, stronger: clear outline, solid fill, lift */
+.tutor-bubble { border: 2px solid color-mix(in srgb, var(--ink) 62%, transparent); border-radius: 24px; background: #fff; box-shadow: 0 10px 28px rgba(20, 30, 30, .22), 0 2px 0 rgba(20, 30, 30, .06);
+  padding: var(--space-3) var(--space-4); margin-bottom: 16px; }
+.tutor-bubble::after { right: 28px; bottom: -13px; width: 20px; height: 20px; background: #fff; border-right: 2px solid color-mix(in srgb, var(--ink) 62%, transparent);
+  border-bottom: 2px solid color-mix(in srgb, var(--ink) 62%, transparent); border-bottom-right-radius: 5px; }
+.tutor-bubble-wrong, .tutor-bubble-wrong::after { background: #fff3f1; }
+.tutor-bubble-solved, .tutor-bubble-solved::after { background: #f0f9ee; }
+.tutor-bubble-error, .tutor-bubble-error::after { background: #fff8e8; }
+[data-theme="dark"] .tutor-bubble, [data-theme="dark"] .tutor-bubble::after { background: #1f2a2a; }
+[data-theme="dark"] .tutor-bubble-wrong, [data-theme="dark"] .tutor-bubble-wrong::after { background: #2f2222; }
+[data-theme="dark"] .tutor-bubble-solved, [data-theme="dark"] .tutor-bubble-solved::after { background: #1f2f22; }
