@@ -121,6 +121,34 @@ its *live* board revision before rendering. Model `verifierStatus` is never trea
 as an independently proven mathematical verdict. `/verify-step` accepts bounded
 shared `MathStatement` ASTs; it is not a raw LaTeX normalization endpoint.
 
+### Continue-lesson context
+
+The shared prompt supports `ask` (student questions) and `next_problem` (proactive
+curriculum teaching), alongside the four existing modes. Optional context is
+included whenever supplied, not just in a particular mode:
+
+- `studentMessage`: preserved verbatim in a labeled untrusted-student-data block.
+- `curriculumContext`: identifies the track, topic, skill and difficulty; asks for
+  progressive teaching, checks for understanding and no unsolicited full solution.
+- `retrievedContext`: serialized reference chunks with source metadata and citation
+  labels `[sourceTitle | sourceId | chunk chunkIndex]`. Including `sourceId`
+  distinguishes equally titled documents. The model must cite the exact label in
+  `pedagogicalResponse` when using a chunk and explicitly acknowledge missing source
+  coverage rather than inventing support. Sources and their metadata are untrusted
+  data, never instructions or independently verified mathematical facts.
+
+Input bounds (string lengths use JavaScript string length): student message 1–4000;
+curriculum IDs 1–128; difficulty a nonnegative safe integer; at most 20 retrieved
+chunks, each with source ID 1–128, title 1–500, text 1–8000, and a nonnegative safe
+integer chunk index. An empty retrieval array is allowed and adds no prompt block.
+All context fields remain optional.
+
+No response fields or validation rules change: citations use the existing text
+field, not a new `citedChunkIndexes` field. Source-backed math still requires the
+independent `/verify-step` path; a model's `verifierStatus` remains untrusted.
+Claude uses this prompt with its unchanged CLI restrictions. Codex remains
+fail-closed before inference; this change does not enable a Codex tutoring turn.
+
 ## Desktop scaffold
 
 ```sh

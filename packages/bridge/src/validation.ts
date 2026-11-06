@@ -29,7 +29,19 @@ export function validRequest(value: unknown, image: boolean): boolean {
   for (const key of ['statementText', 'statementLatex']) {
     if (value.task[key] !== undefined && !text(value.task[key], 2000)) return false;
   }
-  if (!image) return oneOf(value.mode, ['check', 'hint', 'next_step', 'explain_differently']);
+  if (!image) {
+    if (!oneOf(value.mode, ['check', 'hint', 'next_step', 'explain_differently', 'ask', 'next_problem'])) return false;
+    if (value.studentMessage !== undefined && !text(value.studentMessage, 4000)) return false;
+    const curriculum = value.curriculumContext;
+    if (curriculum !== undefined && (!record(curriculum) ||
+        !text(curriculum.trackId, 128) || !text(curriculum.topicId, 128) || !text(curriculum.skillId, 128) ||
+        !revision(curriculum.difficultyLevel))) return false;
+    const chunks = value.retrievedContext;
+    if (chunks !== undefined && (!Array.isArray(chunks) || chunks.length > 20 || !chunks.every(chunk =>
+      record(chunk) && text(chunk.sourceId, 128) && text(chunk.sourceTitle, 500) &&
+      revision(chunk.chunkIndex) && text(chunk.text, 8000)))) return false;
+    return true;
+  }
   const crop = value.imageCrop;
   return record(crop) && Number.isInteger(crop.width) && Number.isInteger(crop.height) &&
     (crop.width as number) > 0 && (crop.width as number) <= 4096 &&
