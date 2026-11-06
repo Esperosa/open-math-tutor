@@ -49,8 +49,11 @@ export interface RecognizedLine {
   symbols: RecognizedSymbol[];
   parserCompatible: boolean;
   ignoredStrokeIds: string[];
+  /** Ambiguous layout or context-only unit spelling must be confirmed. */
+  uncertain?: boolean;
 }
 export interface RecognitionOptions {
+  unitAliases?: readonly string[];
   /** Native Excalidraw elements are in scene coordinates. Viewport never alters them. */
   inputSpace?: 'scene' | 'screen';
   viewport?: { zoom: number; scrollX: number; scrollY: number; offsetLeft?: number; offsetTop?: number };

@@ -1,7 +1,8 @@
 import type { ExpectedAnswer } from '@openmathtutor/shared';
-import { expectedAnswerFor, parseMathStatement, validateBoardActions, type BoardAction, type AnalyzeBoardResponse, type RecognizedStep } from '@openmathtutor/shared';
+import { expectedAnswerFor, unitFromLine, parseMathStatement, validateBoardActions, type BoardAction, type AnalyzeBoardResponse, type RecognizedStep } from '@openmathtutor/shared';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import type { BinaryFiles } from '@excalidraw/excalidraw/types';
+import { unitAliasesFor } from './handwriting/units';
 import { parseLine, recognizeBoardLines, type RecognizedLine, type RecognizedSymbol } from './handwriting';
 
 export interface Box { x: number; y: number; width: number; height: number }
@@ -84,16 +85,21 @@ export function inkSymbolKey(strokeIds: readonly string[], elements: readonly Ex
 
 /** The same safe parser decides whether a composed line is a usable statement. */
 function parserCompatible(text: string): boolean {
-  try { parseMathStatement(text); return true; } catch { return false; }
+  try { parseMathStatement(text); return true; } catch {
+    const unit = unitFromLine(text);
+    if (!unit || !unitAliasesFor(unit).includes(unit)) return false;
+    try { parseMathStatement(text.slice(0, -unit.length).trim()); return true; } catch { return false; }
+  }
 }
 
 /** Apply one-tap symbol edits, then let the same spatial parser recompose the line. */
 export function correctedInkLine(line: RecognizedLine, edits: Record<string, string>, elements: readonly ExcalidrawElement[]) {
+  if (!line.symbols.some(symbol => edits[inkSymbolKey(symbol.strokeIds, elements)])) return line;
   const symbols = line.symbols.map(symbol => {
     const label = edits[inkSymbolKey(symbol.strokeIds, elements)];
     return label && correctionLabels(symbol).includes(label) ? { ...symbol, label, uncertain: false } : symbol;
   });
-  const parsed = parseLine(symbols);
+  const parsed = parseLine(symbols, undefined, unitAliasesFor(unitFromLine(line.text)));
   return { ...line, symbols, text: parsed.text, confidence: parsed.confidence, parserCompatible: parserCompatible(parsed.text) };
 }
 
@@ -103,14 +109,14 @@ export function correctionLabels(symbol: RecognizedSymbol): string[] {
   for (const pair of [['1', '7'], ['4', '9'], ['x', '×'], [',', '.']]) if (pair.some(label => labels.includes(label))) labels.push(...pair);
   return [...new Set(labels)];
 }
-function uncertainInk(line: Pick<RecognizedLine, 'symbols' | 'parserCompatible' | 'confidence'>): boolean {
-  return !line.parserCompatible || line.confidence < .5 || line.symbols.some(symbol => symbol.uncertain);
+function uncertainInk(line: Pick<RecognizedLine, 'symbols' | 'parserCompatible' | 'confidence' | 'uncertain'>): boolean {
+  return !!line.uncertain || !line.parserCompatible || line.confidence < .5 || line.symbols.some(symbol => symbol.uncertain);
 }
 
 export type InkRecognizer = (elements: readonly ExcalidrawElement[]) => RecognizedLine[];
 
 export function commitStudent(state: BoardState, incoming: readonly ExcalidrawElement[], files = state.files,
-  recognize: InkRecognizer = elements => recognizeBoardLines(elements)): BoardState {
+  recognize: InkRecognizer = elements => recognizeBoardLines(elements, { unitAliases: unitAliasesFor(state.expected?.unit, state.statement) })): BoardState {
   const elements = incoming.filter(isStudent);
   if (fingerprint(elements) === fingerprint(state.elements) && files === state.files) return state;
   if (fingerprint(elements) === fingerprint(state.elements)) return { ...state, files };
@@ -155,11 +161,11 @@ export function correctInk(state: BoardState, key: string, label: string): Board
   if (!target?.symbols) return state;
   const revision = state.revision + 1, edits = { ...state.inkEdits, [key]: label };
   const symbols = target.symbols.map(symbol => inkSymbolKey(symbol.strokeIds, state.elements) === key ? { ...symbol, label, uncertain: false } : symbol);
-  const parsed = parseLine(symbols), compatible = parserCompatible(parsed.text);
+  const parsed = parseLine(symbols, undefined, unitAliasesFor(state.expected?.unit, state.statement)), compatible = parserCompatible(parsed.text);
   // A chip must not turn a readable row into unsupported syntax.
   if (target.parserCompatible && !compatible) return state;
   const corrected = { ...target, symbols, boardRevision: revision, latexGuess: parsed.text, confidence: parsed.confidence,
-    uncertain: uncertainInk({ symbols, parserCompatible: compatible, confidence: parsed.confidence }), parserCompatible: compatible };
+    uncertain: uncertainInk({ symbols, parserCompatible: compatible, confidence: parsed.confidence, uncertain: parsed.uncertain }), parserCompatible: compatible };
   const steps = state.steps.map(step => step === target ? corrected : { ...step, boardRevision: revision });
   return { ...state, revision, steps, inkEdits: edits, annotations: [] };
 }

@@ -1,4 +1,4 @@
-import { parseMathStatement } from '@openmathtutor/shared';
+import { parseMathStatement, unitFromLine } from '@openmathtutor/shared';
 import { applyCorrections } from './corrections';
 import { recognizeSymbol } from './model';
 import { parseLine } from './parse';
@@ -117,18 +117,21 @@ export function createHandwritingRecognizer(): {
             candidates: candidates.map(c => ({ ...c })), uncertain: candidates[0].probability < threshold || candidates[0].probability - candidates[1].probability < margin };
         });
         contextualize(symbols);
-        const parsed = parseLine(symbols), alternatives: Alternative[] = [];
+        const parsed = parseLine(symbols, undefined, opts.unitAliases), alternatives: Alternative[] = [];
         for (let i = 0; i < symbols.length; i++) for (let rank = 0; rank < symbols[i].candidates.length; rank++) {
           const choices = symbols.map(() => -1); choices[i] = rank;
-          const alternative = parseLine(symbols, choices);
+          const alternative = parseLine(symbols, choices, opts.unitAliases);
           if (alternative.text !== parsed.text && !alternatives.some(a => a.text === alternative.text)) alternatives.push({ text: alternative.text, confidence: alternative.confidence });
         }
         const strokeIds = line.symbols.flatMap(s => s.strokes).sort((a, b) => a.order - b.order).map(s => s.id);
         let parserCompatible = true;
-        try { parseMathStatement(parsed.text); } catch { parserCompatible = false; }
+        try { parseMathStatement(parsed.text); } catch {
+          const unit = unitFromLine(parsed.text);
+          try { if (!unit || !opts.unitAliases?.includes(unit)) throw new Error('Unsupported unit'); parseMathStatement(parsed.text.slice(0, -unit.length).trim()); } catch { parserCompatible = false; }
+        }
         return { id: stableId(strokeIds), strokeIds, text: parsed.text, confidence: parsed.confidence,
           alternatives: alternatives.sort((a, b) => b.confidence - a.confidence).slice(0, 3), bbox: { ...line.bbox }, symbols, parserCompatible,
-          ignoredStrokeIds: ignored.map(s => s.id) };
+          ignoredStrokeIds: ignored.map(s => s.id), ...(parsed.uncertain ? { uncertain: true } : {}) };
       });
       for (const key of symbolCache.keys()) if (!usedKeys.has(key)) symbolCache.delete(key);
       return recognized;

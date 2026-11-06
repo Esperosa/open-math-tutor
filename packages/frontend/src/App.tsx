@@ -10,6 +10,7 @@ import { catalog } from '@openmathtutor/content';
 import type { BinaryFiles } from '@excalidraw/excalidraw/types';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { Board, type BoardHandle } from './Board';
+import { unitAliasesFor } from './handwriting/units';
 import { applyResponse, commitStudent, correctInk, editTask, fingerprint, newBoard, removeAnnotation, stableMathCandidate, type BoardState } from './boardState';
 import { createHandwritingRecognizer } from './handwriting';
 import { bridge, BridgeError, type ProviderEntry } from './api';
@@ -293,7 +294,7 @@ export function App() {
   function commit(elements: readonly ExcalidrawElement[], files: BinaryFiles) {
     const current = live.current.boards.find(b => b.id === live.current.activeId)!;
     const recognizer = recognizerFor(current.id);
-    const next = commitStudent(current, elements, files, els => recognizer.recognize(els));
+    const next = commitStudent(current, elements, files, els => recognizer.recognize(els, { unitAliases: unitAliasesFor(current.expected?.unit, current.statement) }));
     if (next.revision === current.revision) { if (next !== current) updateBoard(next); return; }
     boardEdited(); setStatus('waiting'); updateBoard(next); schedule(next);
   }

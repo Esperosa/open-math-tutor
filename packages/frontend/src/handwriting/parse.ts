@@ -1,7 +1,8 @@
 import { bottom, centerX, centerY, isBar, median, right, union } from './strokes';
 import type { BBox, RecognizedSymbol } from './types';
+import { readUnitSuffix } from './units';
 
-export interface ParsedLine { text: string; confidence: number; symbols: RecognizedSymbol[] }
+export interface ParsedLine { text: string; confidence: number; symbols: RecognizedSymbol[]; uncertain?: boolean }
 interface Token { text: string; bbox: BBox }
 const canonical = (label: string): string => ({ '×': '*', '·': '*', '÷': '/', ':': '/', '[': '(', ']': ')', '{': '(', '}': ')', '≤': '<=', '≥': '>=' } as Record<string, string>)[label] ?? label;
 
@@ -70,7 +71,7 @@ function layout(input: Token[], depth = 0): string {
 }
 
 /** Pure spatial composition; does not use a solver or change a wrong equation into a correct one. */
-export function parseLine(symbols: readonly RecognizedSymbol[], choices?: readonly number[]): ParsedLine {
+export function parseLine(symbols: readonly RecognizedSymbol[], choices?: readonly number[], unitAliases: readonly string[] = []): ParsedLine {
   if (symbols.length > 128) throw new RangeError('At most 128 symbols per line');
   if (!symbols.length) return { text: '', confidence: 0, symbols: [] };
   let logConfidence = 0;
@@ -83,6 +84,7 @@ export function parseLine(symbols: readonly RecognizedSymbol[], choices?: readon
   });
   // A bare long line is a drawing/dash, not enough evidence of a mathematical minus.
   if (tokens.length === 1 && tokens[0].text === '-' && isBar(tokens[0].bbox)) return { text: '', confidence: 0, symbols: [...symbols] };
-  const text = normalizeExpression(layout(tokens));
-  return { text, confidence: Math.exp(logConfidence / symbols.length), symbols: [...symbols] };
+  const raw = layout(tokens), unit = readUnitSuffix(raw, unitAliases);
+  const text = unit ? `${normalizeExpression(unit.expression)} ${unit.unit}` : normalizeExpression(raw);
+  return { text, confidence: Math.exp(logConfidence / symbols.length), symbols: [...symbols], ...(unit?.uncertain ? { uncertain: true } : {}) };
 }
