@@ -5,7 +5,8 @@ export interface CorrectedStrokes { active: Stroke[]; ignored: Stroke[]; ambiguo
 
 /**
  * Conservative chronological heuristic, NOT semantic intent detection. A later
- * straight cross-out must be 45% wider than the old glyph; a dense scribble can
+ * straight cross-out must be substantially wider than the old glyph, or extend
+ * beyond both edges of a completed digit horizontally; a dense scribble can
  * be narrower. Preserve 7 crossbars, +, ≠ and slashed-zero/∅. Underlines below
  * ink are annotations. Ambiguous short cross-outs require human confirmation.
  */
@@ -55,15 +56,28 @@ export function applyCorrections(strokes: readonly Stroke[]): CorrectedStrokes {
       const symbols = groupSymbols(active);
       const crossed = symbols.filter(s => {
         const old = s.bbox;
+        const previous = s.strokes.at(-1)!;
+        const late = stroke.order - previous.order >= 2 || (stroke.createdAt !== undefined
+          && previous.createdAt !== undefined && stroke.createdAt - previous.createdAt > 1500);
+        // A narrow horizontal strike extends beyond BOTH edges. Unlike a slash
+        // inside zero or a 7 crossbar, it crosses the completed glyph's envelope.
+        const horizontalStrike = straight && b.height < old.height * .2
+          && b.x < old.x - stroke.width * 2 && right(b) > right(old) + stroke.width * 2;
+        // A 1 top hook has a narrow lower stem; pen tremor alone is not a hook.
+        const lower = s.strokes.flatMap(s => s.points).filter(p => p[1] > old.y + old.height * .45);
+        const lowerWidth = lower.length ? Math.max(...lower.map(p => p[0])) - Math.min(...lower.map(p => p[0])) : old.width;
+        const firstPoint = s.strokes[0].points[0];
+        const hookedOne = old.width > old.height * .25 && lowerWidth < old.width * .45
+          && firstPoint[1] > old.y + old.height * .1;
         // A first vertical stem is not a completed glyph: a later horizontal
         // stroke may finish + or *. Do not mistake ordinary construction for undo.
         if (s.strokes.length === 1) {
           const points = s.strokes[0].points;
           let path = 0;
           for (let i = 1; i < points.length; i++) path += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
-          if (path < Math.hypot(old.width, old.height) * 1.35) return false;
+          if (path < Math.hypot(old.width, old.height) * 1.35 && !(horizontalStrike && (late || old.width > old.height * .4 || hookedOne))) return false;
         }
-        if (old.height < stroke.width * 3 || b.width < Math.max(old.width * (dense ? .9 : 1.6), old.height * (dense ? .7 : 1.2))) return false;
+        if (old.height < stroke.width * 3 || (!horizontalStrike && b.width < Math.max(old.width * (dense ? .9 : 1.6), old.height * (dense ? .7 : 1.2)))) return false;
         if (centerX(old) < b.x || centerX(old) > right(b)) return false;
         const first = stroke.points[0], last = stroke.points[stroke.points.length - 1];
         const t = (centerX(old) - first[0]) / (last[0] - first[0] || 1);

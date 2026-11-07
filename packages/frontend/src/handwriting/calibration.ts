@@ -30,6 +30,8 @@ export interface CalibrationConfig {
   temperature: number;
   defaultThreshold: number;
   marginThreshold: number;
+  /** Conservative floor for numeric equivalent-label probability mass. */
+  numericEquivalentThreshold: number;
   /** Expected calibration error on the untouched evaluation half. */
   ece: { before: number; after: number };
   bins: { before: ReliabilityBin[]; after: ReliabilityBin[] };
