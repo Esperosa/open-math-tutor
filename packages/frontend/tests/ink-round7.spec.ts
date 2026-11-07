@@ -2,9 +2,16 @@ import { expect, test, type Page } from '@playwright/test';
 import { drawElements, drawLine, setTask, start } from './inkDriver';
 import { decimalElements, noisyElements, rowElements, standingFractionElements } from './inkFixture';
 import type { ContinueLessonRequest } from '@openmathtutor/shared';
+import { evaluateMathAst, parseMathStatement } from '@openmathtutor/shared';
 
 test.beforeEach(async ({ page }) => {
   await page.route('http://127.0.0.1:4178/**', route => route.abort('connectionrefused'));
+});
+test.afterEach(async ({ page }, info) => {
+  if (info.status !== info.expectedStatus) {
+    const saved = await page.evaluate(() => localStorage.getItem('openmathtutor.frontend.v1'));
+    await info.attach('ink-board', { body: saved ?? 'null', contentType: 'application/json' });
+  }
 });
 const readings = (page: Page) => page.locator('[data-testid^="ink-reading-"]');
 
@@ -27,7 +34,12 @@ for (const shape of ['dot', 'slash', 'hook'] as const) {
   test(`D2 decimal separator ${shape} is not a one or division slash`, async ({ page }) => {
     await start(page);
     await drawElements(page, decimalElements(shape), 'pen');
-    await expect(readings(page).locator('strong')).toHaveText('(25/10)+(15/10)=4');
+    await expect(readings(page).locator('strong')).toHaveText(shape === 'dot' ? '2.5+1.5=4' : '2,5+1,5=4');
+    const parsed = parseMathStatement((await readings(page).locator('strong').textContent())!);
+    expect(parsed.form).toBe('relation');
+    if (parsed.form !== 'relation') throw new Error('Expected a decimal equality');
+    expect(evaluateMathAst(parsed.value.lhs, {})).toBe(4);
+    expect(evaluateMathAst(parsed.value.rhs, {})).toBe(4);
     await expect(page.getByTestId('step-mark-ok')).toBeVisible();
     await expect(page.getByTestId('step-mark-wrong')).toHaveCount(0);
   });
@@ -116,7 +128,9 @@ test('D6 unrelated true arithmetic cannot pass the physics task', async ({ page 
 });
 test('D6 context suggests a handwritten unit but never turns a guess into a tick', async ({ page }) => {
   await physicsTask(page);
-  await drawLine(page, '77/7=11m/s', 13, [420, 300], 'pen');
+  // Exercise the original disconnected m (n + stem), not the new clear
+  // cursive fixture that the improved model now reads without a suggestion.
+  await drawElements(page, rowElements('77/7=11m/s', 13, 40, [420, 300], { cursive: false }), 'pen');
   await expect(readings(page).locator('strong')).toHaveText('77/7=11 m/s');
   await expect(readings(page)).toHaveClass(/uncertain/);
   await expect(page.getByTestId('step-mark-ok')).toHaveCount(0);

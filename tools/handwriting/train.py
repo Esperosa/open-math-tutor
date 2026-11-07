@@ -1,6 +1,7 @@
 """CPU-only deterministic training. No test data is opened by this script."""
 import argparse
 import base64
+import copy
 import gzip
 import hashlib
 import json
@@ -63,7 +64,7 @@ def fixed_raster(strokes):
     return raster(strokes, span * .11)
 
 
-def export(net, metadata):
+def export(net, metadata, output):
     tensors = {}
     for name, t in net.state_dict().items():
         # Float32 LE embedded in JSON: synchronously importable in Node and browser,
@@ -71,8 +72,8 @@ def export(net, metadata):
         array = t.detach().numpy().astype('<f4')
         tensors[name] = {'shape': list(array.shape), 'data': base64.b64encode(array.tobytes()).decode('ascii')}
     payload = {'version': 1, 'labels': LABELS, 'tensors': tensors, 'training': metadata}
-    MODEL.mkdir(exist_ok=True, parents=True)
-    (MODEL / 'weights.json').write_text(json.dumps(payload, separators=(',', ':')), encoding='utf-8')
+    output.parent.mkdir(exist_ok=True, parents=True)
+    output.write_text(json.dumps(payload, separators=(',', ':')), encoding='utf-8')
 
 
 def main():
@@ -83,7 +84,24 @@ def main():
     p.add_argument('--pendigits-variants', type=int, default=6)
     p.add_argument('--threads', type=int, default=12)
     p.add_argument('--seed', type=int, default=20261106)
+    p.add_argument('--init', help='optional earlier weights.json; matching tensors are copied, new labels start random')
+    p.add_argument('--learning-rate', type=float, default=.0018)
+    p.add_argument('--punctuation-multiplier', type=int, default=4)
+    p.add_argument('--comma-weight', type=float, default=3.)
+    p.add_argument('--retention-weight', type=float, default=0., help='warm-start distillation on selected-class replay')
+    p.add_argument('--retention-labels', default='0ox×()l', help='classes anchored by warm-start distillation')
+    p.add_argument('--output', type=Path, default=MODEL / 'weights.json')
     args = p.parse_args()
+    if (args.epochs < 1 or args.synthetic_per_class < 1 or args.pendigits_variants < 1
+            or args.punctuation_multiplier < 1 or args.learning_rate <= 0 or args.comma_weight <= 0
+            or args.retention_weight < 0):
+        p.error('epochs, sample counts, learning rate and class weight must be positive')
+    if args.retention_weight and not args.init:
+        p.error('--retention-weight requires --init')
+    if args.retention_weight and not args.retention_labels:
+        p.error('--retention-weight requires nonempty --retention-labels')
+    if any(label not in LABELS or label == ',' for label in args.retention_labels):
+        p.error('retention labels must be known non-comma classes')
     start = time.perf_counter()
     torch.set_num_threads(args.threads)
     torch.use_deterministic_algorithms(True)
@@ -118,16 +136,19 @@ def main():
         px, py = np.array(px), np.array(py)
         np.savez_compressed(pd_cache, x=px, y=py)
     print('pendigits train', len(px), 'validation', len(pval), flush=True)
-    template_hash = hashlib.sha256((ROOT / 'templates.json').read_bytes() + b'handwriting-v4').hexdigest()[:12]
-    cache = CACHE / f'synthetic-{template_hash}-{args.seed}-{args.synthetic_per_class}.npz'
+    template_hash = hashlib.sha256((ROOT / 'templates.json').read_bytes() + b'handwriting-v6').hexdigest()[:12]
+    cache = CACHE / f'synthetic-{template_hash}-{args.seed}-{args.synthetic_per_class}-{args.punctuation_multiplier}.npz'
     if cache.exists():
         saved = np.load(cache)
         sx, sy = saved['x'], saved['y']
     else:
         sx, sy = [], []
         for label in LABELS:
-            templates = [t for t in TEMPLATES if t['label'] == label]
-            for _ in range(args.synthetic_per_class):
+            templates = [t for t in TEMPLATES if t['label'] == label and not t.get('geometryOnly')]
+            # Isolated . and middle-dot are identical: keep their sampling
+            # balanced and resolve their vertical position in TypeScript.
+            count = args.synthetic_per_class * (args.punctuation_multiplier if label in ',.·' else 1)
+            for _ in range(count):
                 template = templates[rng.integers(len(templates))]
                 strokes, width = augment(template['strokes'], rng)
                 if label == ',':
@@ -140,7 +161,36 @@ def main():
     x = torch.tensor(np.concatenate([x[:55000], sx, px])[:, None], dtype=torch.float32)
     y = torch.tensor(np.concatenate([y[:55000], sy, py]).astype('int64'))
     net = Net()
-    opt = torch.optim.AdamW(net.parameters(), lr=.0018, weight_decay=.0001)
+    init_sha256 = None
+    if args.init:
+        initial_bytes = Path(args.init).read_bytes()
+        init_sha256 = hashlib.sha256(initial_bytes).hexdigest()
+        old = json.loads(initial_bytes.decode('utf-8'))
+        if args.retention_weight and old['labels'] != LABELS:
+            p.error('retention requires an initial checkpoint with the same labels in the same order')
+        tensors = {name: torch.tensor(np.frombuffer(base64.b64decode(t['data']), dtype='<f4').copy().reshape(t['shape']))
+                   for name, t in old['tensors'].items()}
+        state = net.state_dict()
+        for name, tensor in tensors.items():
+            if name in ('d2.weight', 'd2.bias'):
+                rows = [LABELS.index(label) for label in old['labels'] if label in LABELS]
+                state[name].data[rows] = tensor[[old['labels'].index(label) for label in old['labels'] if label in LABELS]]
+            elif name in state and state[name].shape == tensor.shape:
+                state[name].data.copy_(tensor)
+        net.load_state_dict(state)
+    teacher = copy.deepcopy(net).eval().requires_grad_(False) if args.retention_weight else None
+    retention_labels = torch.tensor([LABELS.index(label) for label in args.retention_labels])
+    # Separate seed and samples, never the TS evaluation variants or held-out rows.
+    crng = np.random.default_rng(args.seed + 101)
+    commas = [t for t in TEMPLATES if t['label'] == ',' and not t.get('geometryOnly')]
+    cvx = []
+    for n in range(500):
+        strokes, width = augment(commas[n % len(commas)]['strokes'], crng)
+        cvx.append(raster(strokes, width * crng.uniform(1, 4.5)))
+    cvx = torch.tensor(np.array(cvx)[:, None], dtype=torch.float32)
+    class_weights = torch.ones(len(LABELS))
+    class_weights[LABELS.index(',')] = args.comma_weight
+    opt = torch.optim.AdamW(net.parameters(), lr=args.learning_rate, weight_decay=.0001)
     best = 0
     for epoch in range(args.epochs):
         net.train()
@@ -154,7 +204,16 @@ def main():
             affine[:, :, 2] = torch.randn(len(batch), 2) * .035
             batch = F.grid_sample(batch, F.affine_grid(affine, batch.size(), align_corners=False), align_corners=False)
             logits = net(batch)
-            loss = F.cross_entropy(logits, labels)
+            loss = F.cross_entropy(logits, labels, weight=class_weights)
+            # Preserve the initial model's boundaries for digits/letters while
+            # letting commas move. Only replay TRAIN samples enter this term.
+            if teacher is not None:
+                keep = torch.isin(labels, retention_labels)
+                if keep.any():
+                    with torch.no_grad():
+                        target = (teacher(batch[keep]) / 2).softmax(1)
+                    loss += args.retention_weight * 4 * F.kl_div(
+                        (logits[keep] / 2).log_softmax(1), target, reduction='batchmean')
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -166,18 +225,29 @@ def main():
             mnist_correct = (predicted[:5000] == vy[:5000]).sum().item()
             pendigits_correct = (predicted[5000:] == vy[5000:]).sum().item()
             validation = mnist_correct / 5000 * .5 + pendigits_correct / len(pval) * .5
+            comma_correct = sum((net(b).argmax(1) == LABELS.index(',')).sum().item() for b in cvx.split(256))
         print(f'epoch {epoch + 1} train {correct}/{total} mnist {mnist_correct}/5000 pendigits '
-              f'{pendigits_correct}/{len(pval)} score {validation:.4f} elapsed {time.perf_counter() - start:.1f}s', flush=True)
-        if validation >= best:
+              f'{pendigits_correct}/{len(pval)} comma {comma_correct}/500 score {validation:.4f} '
+              f'elapsed {time.perf_counter() - start:.1f}s', flush=True)
+        if comma_correct >= 490 and validation >= best:
             best = validation
             export(net, {'seed': args.seed, 'epoch': epoch + 1, 'epochsRequested': args.epochs,
                          'syntheticPerClass': args.synthetic_per_class, 'pendigitsVariants': args.pendigits_variants,
                          'mnistTrain': 55000, 'pendigitsTrain': len(px), 'validationScore': best,
                          'mnistValidationCorrect': mnist_correct, 'pendigitsValidationCorrect': pendigits_correct,
-                         'pendigitsValidationTotal': len(pval), 'torch': torch.__version__})
+                         'pendigitsValidationTotal': len(pval), 'torch': torch.__version__,
+                         'learningRate': args.learning_rate, 'commaWeight': args.comma_weight,
+                         'retentionWeight': args.retention_weight,
+                         'retentionLabels': args.retention_labels,
+                         'punctuationMultiplier': args.punctuation_multiplier,
+                         'commaValidationCorrect': comma_correct, 'commaValidationTotal': 500,
+                         'initSha256': init_sha256,
+                         'templatesSha256': hashlib.sha256((ROOT / 'templates.json').read_bytes()).hexdigest()}, args.output)
         for group in opt.param_groups:
             group['lr'] *= .92
-    print('weights bytes', (MODEL / 'weights.json').stat().st_size, flush=True)
+    if best == 0:
+        raise RuntimeError('No checkpoint met comma validation >=98%; existing weights were not replaced')
+    print('weights bytes', args.output.stat().st_size, flush=True)
 
 
 if __name__ == '__main__':

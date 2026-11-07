@@ -32,7 +32,7 @@ def main():
             strokes.append(stroke)
         glyphs[key] = strokes
     out = []
-    letters = 'xyabcnmsgJNVA'
+    letters = 'xyabcnmsgJNVAkhloWPK'
     for family, digits, upper, lower in [('simplex', 700, 501, 601), ('plain', 200, 1, 1)]:
         mapping = {str(i): digits + i for i in range(10)}
         mapping.update({c: (upper if c.isupper() else lower) + ord(c.upper()) - 65 for c in letters})
@@ -91,6 +91,17 @@ def main():
     }
     for label, strokes in own.items():
         out.append({'label': label, 'source': 'own', 'strokes': strokes})
+    # Baseline dots are resolved spatially in the recognizer. Do not mislabel
+    # identical isolated dots as commas; teach the actual tails and hooks here.
+    for name, strokes in {
+        'comma-slash': [[[3, 0], [0, 8]]],
+        'comma-hook': [[[1, 0], [3, 2], [3, 4], [0, 7]]],
+        'comma-short-tail': [[[2, 0], [2, 2], [1, 4]]],
+    }.items():
+        # A straight tail has the same normalized raster as / or 1. It belongs
+        # to spatial regression fixtures, not a contradictory isolated class.
+        out.append({'label': ',', 'source': 'punctuation:' + name, 'strokes': strokes,
+                    'geometryOnly': name != 'comma-hook'})
     variants = {
         'one-hook': ('1', [[[0, 6], [8, 0], [8, 24]]]),
         'one-top-bar': ('1', [[[0, 5], [8, 0], [8, 24]], [[2, 0], [13, 0]]]),

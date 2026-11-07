@@ -1,35 +1,94 @@
 # Handwriting accuracy
 
-Measured on the exported model in `packages/frontend/src/handwriting/model/weights.json`.
-Everything below is produced by `npx vitest run src/handwriting` (the test records the numbers);
-none of these samples are used for training.
+Measured 2026-11-07 on `packages/frontend/src/handwriting/model/weights.json` with the full multiclass
+TypeScript inference, not a digits-only restricted head. Evaluation is recorded by
+`npx vitest run src/handwriting`. Synthetic test seeds/augmentations are separate from training;
+the ordinary synthetic glyph bodies are shared training templates, while held-out fonts, official
+MNIST test images and the 14 test writers are never used by training or checkpoint selection.
+These are reused development regression sets, not a newly collected blind human-writing study.
 
-Environment: Windows, Intel64 CPU, Python 3.10.11, PyTorch 2.7.1+cpu, NumPy 2.2.6, seed 20261106.
-The exported checkpoint is epoch 28 of 32 (best combined validation score, 0.9930).
+Environment: Windows, Intel64 CPU, Node 22.14.0, Python 3.10.11, PyTorch 2.7.1+cpu, NumPy 2.2.6,
+seed 20261106, 8 training threads. Warm start: the merged 58-label course-walk weights at `4a1b3e0`
+(includes `k`, `h`, `l`, `o`, `W`, `P`, `K`). All 58 labels and the `0/o` normalization are retained.
 
-| Test | Samples | Accuracy | Target | Result |
-|---|---:|---:|---:|---|
-| MNIST test split | 10 000 | **98.99 %** | ≥ 97 % | pass |
-| UCI `pendigits`, 14 unseen writers | 3 498 | **97.57 %** | ≥ 95 % | pass |
-| Unseen Hershey fonts (complex + triplex digits) | 1 200 | **92.08 %** | ≥ 85 % | pass |
-| Printed rows, training font families | 270 | **100 %** | ≥ 95 % | pass |
-| Printed rows with held-out digit bodies | 200 | **91.00 %** | ≥ 90 % | pass |
-| Line inference, 15 symbols | 40 runs | median **20.1 ms**, p95 **24.8 ms** | < 50 ms | pass |
+The selected checkpoint is epoch **12/12**. Train-only validation: MNIST **4963/5000**, pendigits
+**493/500**, comma curves **491/500**. Among epochs with comma validation ≥98%, the existing
+50/50 MNIST/pendigits validation score selected **0.9893**. Training replay contains 55 000 MNIST,
+41 964 pendigits variants and 93 800 synthetic samples (5 600 each for comma, dot and middle-dot).
+Comma loss weight **6**, learning rate **0.00012**, retention weight **2**, temperature **2** on
+ground-truth training labels `0ox×()l`. Other digit classes remain free to adapt.
 
-Model size: 900 586 bytes (target < 1 MB), about 169 000 float32 parameters.
+| Test | Correct / total | Merged baseline | Current accuracy | Required | Result |
+|---|---:|---:|---:|---:|---|
+| Raw comma, `variants.test.ts` (simplex) | 49 / 50 | 84.00 % | **98.00 %** | ≥ 98 % | pass |
+| Raw dot, `variants.test.ts` (simplex) | 50 / 50 | 100.00 % | **100.00 %** | ≥ 98 % | pass |
+| MNIST test split | 9909 / 10 000 | 99.13 % | **99.09 %** | ≥ 98.5 % | pass |
+| UCI `pendigits`, 14 independent test writers | 3376 / 3498 | 96.51 % | **96.51 %** | ≥ 96.5 % | pass |
+| Unseen Hershey complex + triplex digits | 1165 / 1200 | 95.67 % | **97.08 %** | ≥ 85 % | pass |
+| Printed rows, training font families | 269 / 270 | 99.63 % | **99.63 %** | ≥ 95 % | pass |
+| Rows with held-out digit bodies | 184 / 200 | 90.00 % | **92.00 %** | ≥ 90 % | pass |
+| Synthetic digits + operators | 1432 / 1440 | 99.38 % | **99.44 %** | ≥ 92 % | pass |
+| All synthetic symbols, 58 labels | 4596 / 4640 | 98.92 % | **99.05 %** | — | measured |
+| Raw synthetic `0` | 77 / 80 | 96.25 % | **96.25 %** | preserve | pass |
+| Raw synthetic `k`, `o` (each) | 80 / 80 | 100.00 % | **100.00 %** | preserve | pass |
+| Catalog text checks, 23 skills (not UI uncertainty gating) | 69 / 69 | 100.00 % | **100.00 %** | ≥ 90 % | pass |
+
+The four additional MNIST mistakes versus the merged baseline are **not** hidden: accuracy decreases
+by 0.04 percentage points, while remaining above the requested floor. Neither individual-class nor
+individual-sample non-regression is claimed. Raw Hershey `x` is 24/50 versus 26/50 before; its similar
+times-cross shape is spatially resolved on a row. The six Czech digit variants remain 50/50 each.
+The catalog probe checks recognized text with `checkAnswerLine` and `computeLineVerdicts`, but does
+not pass recognition uncertainty into the latter. It is not a substitute for the browser course walk;
+that separate run can withhold marks even when the numeric-text checks pass.
+
+Model size: **908 178 bytes** (<1 MB), about 170 000 float32 parameters. Line inference (15 symbols,
+40 cold-cache runs): median **19.03 ms**, p95 **24.20 ms**, target median <50 ms. These timings were
+measured during a browser regression run; use the same environment/load for speed comparisons.
+
+SHA-256:
+- Exported weights: `fd94dbce637759a09719fa56a5b9872858e115888af362d02eacbd1a861f953f`
+- Init weights: `f547fa5f6feb20f829796a7920d9e7378edfd09c82e01814e5068b6d3ba78691`
+- Training templates: `270c3bfd6a53064a4d3fb7768bf3b489b11216d41fa41b5498282fab9f197320`
+
+## Decimal geometry is the primary path
+
+A mark must be substantially smaller than its two full-height digit neighbours, between their
+horizontal bounds, close to the baseline and nearby in x. Its original footprint and tail/loop
+geometry choose dot versus comma; raw classifier labels do not decide whether it is punctuation.
+The regression suite deliberately replaces the top-three predictions with confident `9`, `1`, `/`
+and checks taps, closed dots, slashes, hooks and browser-auto-closed hooks at three sizes.
+The original D2 unit and browser tests retain exact decimal spelling and independently evaluate both
+sides to 4. The user approved replacing stale rational-string expectations, not removing assertions.
+
+Perfectly straight comma tails and one/slash, or dot and middle-dot, can have identical isolated
+normalized rasters. `geometryOnly` tails are excluded from contradictory CNN labels; their real-row
+geometry remains tested. The inherently ambiguous own-dot score is still **0/50** (all `·`) in raw
+classification, but baseline dots are resolved geometrically. This is not a claim of 100% arbitrary
+human punctuation recognition. Contextual prediction and threshold calibration (0.17/0.20) are not added.
 
 ## What the remaining errors look like
 
-- `pendigits`: 85 wrong of 3 498. The largest pairs are 1→2 (5), 1→7 (5), 9→7 (7), 7→1 (7), 8→5 (4),
-  4→`<` (4) and 9→2 (4). The model no longer collapses whole classes; the baseline model scored 25.6 %
-  on these writers and was confidently wrong (mean max probability 0.871).
-- Held-out Hershey fonts: 95 wrong of 1 200. The triplex `8` is often read as `2` (52 cases) and `6` as `2`
-  (11); complex is nearly clean (584/600, only 8→2 and 4→7). This is the price of the extra `2` templates
-  that removed the 2→5 row errors; the row test uses no `8`, so it is not affected.
-- Held-out rows: 18 wrong of 200. Twelve `4`s are read as `7`/`1` across `3*4=12` and `(2+3)*4=20`, one
-  `9` as `7` in `12+7=19`, and five commas in `7:2=3,5` are read as `b`/`.`. All other rows are perfect.
+- `pendigits`: 122 wrong of 3498. Largest pairs: 2→5 (34), 7→1 (8), 5→2 and 1→5 (7 each), 9→7 (6).
+- Held-out fonts: 35 wrong of 1200. Complex 595/600, triplex 570/600 (mostly 8→2: 19).
+- Held-out rows: 16 wrong of 200. Ten errors involve unfamiliar `4` shapes becoming `1`/`7`; one `7`
+  is segmented as `17`. Five rows with commas and serif/triplex `5` still group/read incorrectly
+  (`3,b-`; two also split the division colon). The isolated-comma score is not a segmentation score.
+- Printed rows: one `1/2+1/3` becomes `1/2+1l3`. This remains an actual failed row, not repaired by answers.
+- Synthetic confusions: `x`→`×` (36), `×`→`x` (5), `0`→`o` (3). Synthetic comma is 80/80; the separate
+  variants set has one comma→9. Numeric `0/o` repair remains separate from unit words `mol`/`ohm`.
 
 ## What did not work
+
+Integration experiments (all start from `4a1b3e0`; no test samples entered training):
+- Treating completely straight tails as isolated commas: train-only comma validation peaked at
+  453/500 (90.6%); no checkpoint met 98%, so the candidate was discarded.
+- Curved-comma oversampling, loss weight 3, no retention: comma 50/50, MNIST 9914/10000, pendigits
+  3380/3498, held-out rows 183/200, but raw `0` fell to 72/80 and all-symbol accuracy to 4578/4640.
+- Retention on **all** non-comma replay, weight 2: comma only 47/50 and pendigits 3372/3498 (96.40%);
+  rejected despite better aggregate synthetic accuracy (4597/4640). Selective retention plus comma
+  weight 6 is the shipped recipe, not the highest number cherry-picked from different models.
+
+Earlier pre-integration experiments (historical results, not remeasured here):
 
 - Baseline 8/16-channel, 64-unit head (committed as `8aae2b4`): rows 91 %, pendigits 25.6 %.
 - Widening to 16/32 channels and a 192-unit head fixed capacity, but with the original data the held-out
@@ -42,13 +101,18 @@ Model size: 900 586 bytes (target < 1 MB), about 169 000 float32 parameters.
 - Two `pendigits` variants per sample reached 93.4 % on writers but only 78.5 % on held-out rows.
 - Adding extra `2`, `5`, `7` **and** `9` templates fixed 2→5 but introduced 1→9 (rows 86.5 %). Keeping
   only the extra `2` and `5` templates is the recipe that reached 91 %.
+- Training the 58-label model from scratch for 32 epochs underfit the seven new letters: validation reached
+  0.9902, but printed rows fell to 88.9 % and rows with held-out digits to 73 %. Warm-starting from the
+  51-label checkpoint with `--init` (28 epochs, validation 0.9881) kept every existing metric above target.
 
 ## Reproduce
 
 ```bash
 cd tools/handwriting
 python prepare_templates.py
-python train.py --epochs 32 --synthetic-per-class 1400 --pendigits-variants 6 --threads 12
+# Byte-exact warm start; do not redirect through a UTF-16 PowerShell Out-File.
+python -c "import pathlib,subprocess; pathlib.Path('.cache').mkdir(exist_ok=True); pathlib.Path('.cache/course-walk-init.json').write_bytes(subprocess.check_output(['git','show','4a1b3e0:packages/frontend/src/handwriting/model/weights.json']))"
+python train.py --epochs 12 --synthetic-per-class 1400 --pendigits-variants 6 --threads 8 --seed 20261106 --init .cache/course-walk-init.json --learning-rate 0.00012 --punctuation-multiplier 4 --comma-weight 6 --retention-weight 2 --retention-labels '0ox×()l'
 python prepare_evaluation.py
 cd ../../packages/frontend && npx vitest run src/handwriting
 ```
