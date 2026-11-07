@@ -82,7 +82,6 @@ Desktopové PNG mají 1280 × 720; mobilní telefon má 390 × 844 při deviceSc
 | [scripts/verify.mjs](scripts/verify.mjs) | Kontrola souborů, dekódování videí, velikostí, rozměrů a hashů. | Kontrolní skript. |
 | [capture-report.json](capture-report.json) | Výsledky scénářů, trvání, naměřené časy AI odezvy a metadata. | `capture.mjs` |
 | [verification.json](verification.json) | Přesný seznam všech médií s velikostmi, SHA-256 a parametry videí. | `verify.mjs` |
-| [TODO-media.md](TODO-media.md) | Seznam prezentačních médií se stavem dokončení. | Dokumentace. |
 
 ## Co se nepovedlo a co se nepředstírá
 
