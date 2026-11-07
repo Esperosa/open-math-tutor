@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { BoardActivity, PEN_PAUSE_MS, TEXT_PAUSE_MS, bindGaze } from './activity';
+import { BoardActivity, PEN_PAUSE_MS, PEN_QUICK_MS, TEXT_PAUSE_MS, bindGaze } from './activity';
 
 let clock = 0;
 const make = () => new BoardActivity(() => clock);
@@ -80,4 +80,20 @@ it('points the mascot eyes at the last stroke through CSS variables, at most onc
   expect(Number(el.style.getPropertyValue('--gaze-x'))).toBeLessThan(-0.9); // far to the left
   expect(Math.abs(Number(el.style.getPropertyValue('--gaze-y')))).toBeLessThan(0.1);
   off();
+});
+
+it('uses separate pen deadlines and restarts both at the last lift', () => {
+  const a = make();
+  a.penStart({ x: 0, y: 0 });
+  advance(5000);
+  expect(a.remaining(false)).toBe(PEN_QUICK_MS);
+  a.penEnd();
+  advance(PEN_QUICK_MS);
+  expect(a.remaining(false)).toBe(0);
+  expect(a.remaining(true)).toBe(PEN_PAUSE_MS - PEN_QUICK_MS);
+  a.penStart({ x: 20, y: 0 });
+  expect(a.strokeVersion).toBe(2);
+  advance(100); a.penEnd();
+  expect(a.remaining(false)).toBe(PEN_QUICK_MS);
+  expect(a.remaining(true)).toBe(PEN_PAUSE_MS);
 });

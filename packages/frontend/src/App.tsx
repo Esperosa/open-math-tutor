@@ -190,7 +190,23 @@ export function App() {
     if (settings.coachMode === 'final' && !lines.some(l => looksLikeFinalLine(l.latexGuess, symbols))) return {};
     return markPerStep(computeLineVerdicts(statement, lines, board.expected ?? expectedAnswerFor(statement), board.confirmedFinals), lines);
   }, [statement, lines, board.expected, board.confirmedFinals, settings.coachMode]);
-  const shownVerdicts = useSettledValue(verdicts, activity, board.id);
+  const okVerdicts = useMemo(
+    () => Object.fromEntries(Object.entries(verdicts).filter(([, v]) => v.status === 'ok')),
+    [verdicts],
+  );
+  const wrongVerdicts = useMemo(
+    () => Object.fromEntries(Object.entries(verdicts).filter(([, v]) => v.status === 'wrong')),
+    [verdicts],
+  );
+  const shownOk = useSettledValue(okVerdicts, activity, board.id, false, {});
+  const shownWrong = useSettledValue(wrongVerdicts, activity, board.id, true, {});
+  // Nový tah ihned odvolá chybu; návrat počká na nové ustálení.
+  const shownVerdicts = useMemo(() => {
+    const wrong = phase === 'writing'
+      ? {}
+      : Object.fromEntries(Object.entries(shownWrong).filter(([id]) => wrongVerdicts[id]?.status === 'wrong'));
+    return { ...Object.fromEntries(Object.entries(shownOk).filter(([id]) => okVerdicts[id]?.status === 'ok')), ...wrong };
+  }, [shownOk, shownWrong, okVerdicts, wrongVerdicts, phase]);
   useEffect(() => {
     const away = (e: PointerEvent) => {
       if ((e.target as Element | null)?.closest('.rail, .drawer, .settings-pop, .icon-btn, .tutor-hud, .calculator')) return;
@@ -374,7 +390,11 @@ export function App() {
       boardEdited(); setStatus('waiting');
       // The free-board welcome has done its job once writing starts. Lesson
       // guidance stays available while the student copies the given data.
-      setMessage(m => m?.id === 'welcome' ? null : m);
+      setMessage(m => m?.id === 'welcome' || m?.kind === 'wrong' ? null : m);
+      const current = live.current.boards.find(b => b.id === live.current.activeId)!;
+      if (activity.penDown && current.annotations.some(a => !a.id.startsWith('task-statement'))) {
+        updateBoard({ ...current, annotations: current.annotations.filter(a => a.id.startsWith('task-statement')) });
+      }
     }
     else { schedule(live.current.boards.find(b => b.id === live.current.activeId)!); setCoachTick(n => n + 1); }
   }
@@ -637,18 +657,18 @@ export function App() {
   function flashHappy() { setHappy(true); clearTimeout(happyTimer.current); happyTimer.current = setTimeout(() => setHappy(false), 2500); }
   useEffect(() => () => clearTimeout(happyTimer.current), []);
   /** One pass of the local coach: judge the newest unhandled line and react (speak, mark, offer, record). */
-  function runCoach() {
+  function coachDecision() {
     const cur = live.current;
     const current = cur.boards.find(b => b.id === cur.activeId)!;
     const mode = cur.settings.coachMode;
-    if (mode === 'off' || busy.current || pending.current) return;
+    if (mode === 'off' || busy.current || pending.current) return null;
     const ls = writtenLines(current.steps);
     const task = effectiveStatement(current.statement, ls);
     const expected: ExpectedAnswer | undefined = current.expected ?? expectedAnswerFor(task);
     const handled = new Set(current.handled ?? []);
     const event = nextCoachEvent({ mode, statement: task, steps: ls, expected, handled });
-    if (event.kind === 'idle') return;
-    applyCoachEvent(current, ls, event);
+    if (event.kind === 'idle') return null;
+    return { current, ls, event };
   }
   function applyCoachEvent(current: BoardState, ls: ReturnType<typeof writtenLines>, event: Exclude<CoachEvent, { kind: 'idle' }>) {
     const cur = live.current;
@@ -788,18 +808,21 @@ export function App() {
   }
   useEffect(() => {
     if (settings.coachMode === 'off') return;
-    // The line counts as finished after a short pause that follows the pen-up / Escape, never mid-stroke.
+    // Pochvala přijde rychle, záporný komentář až po delší pauze.
     let timer: ReturnType<typeof setTimeout>;
     const tick = () => {
-      const wait = activity.remaining();
+      const decision = coachDecision();
+      if (!decision) return;
+      const praise = decision.event.kind === 'solved' || decision.event.kind === 'ok_step';
+      const wait = activity.remaining(!praise);
       if (wait > 0) { timer = setTimeout(tick, wait + 10); return; }
-      runCoach();
+      applyCoachEvent(decision.current, decision.ls, decision.event);
     };
-    timer = setTimeout(tick, Math.max(COACH_MIN_DELAY_MS, activity.remaining()));
+    timer = setTimeout(tick, Math.max(COACH_MIN_DELAY_MS, activity.remaining(false)));
     return () => clearTimeout(timer);
-    // runCoach reads live state through refs; re-arm on every committed change of the written work.
+    // Rozhodnutí vždy čte živý stav; pen-up znovu spustí i přerušený časovač.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [board.id, board.revision, settings.coachMode, running, connected, canRequest, coachTick]);
+  }, [board.id, board.revision, settings.coachMode, running, connected, canRequest, coachTick, phase]);
   useEffect(() => {
     // Every tutor remark is part of the board's conversation (a re-render of the same remark is not added twice).
     if (message && message.kind !== 'thinking') chat.add(board.id, 'tutor', message.text, message.id);
