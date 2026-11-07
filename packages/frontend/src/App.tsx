@@ -12,7 +12,7 @@ import type { BinaryFiles } from '@excalidraw/excalidraw/types';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { Board, type BoardHandle } from './Board';
 import { unitAliasesFor } from './handwriting/units';
-import { applyResponse, commitStudent, correctInk, editTask, fingerprint, newBoard, removeAnnotation, stableMathCandidate, type BoardState } from './boardState';
+import { applyResponse, commitStudent, correctInk, editTask, fingerprint, newBoard, removeAnnotation, toggleInkContext, stableMathCandidate, type BoardState } from './boardState';
 import { createHandwritingRecognizer } from './handwriting';
 import { bridge, BridgeError, type ProviderEntry } from './api';
 import { messages, errorKeys, type MessageKey } from './i18n';
@@ -359,7 +359,8 @@ export function App() {
   function commit(elements: readonly ExcalidrawElement[], files: BinaryFiles) {
     const current = live.current.boards.find(b => b.id === live.current.activeId)!;
     const recognizer = recognizerFor(current.id);
-    const next = commitStudent(current, elements, files, els => recognizer.recognize(els, { unitAliases: unitAliasesFor(current.expected?.unit, current.statement) }));
+    const next = commitStudent(current, elements, files, els => recognizer.recognize(els, {
+      unitAliases: unitAliasesFor(current.expected?.unit, current.statement), expectedUnit: current.expected?.unit }));
     if (next.revision === current.revision) { if (next !== current) updateBoard(next); return; }
     boardEdited(); setStatus('waiting'); updateBoard(next); schedule(next);
   }
@@ -381,6 +382,13 @@ export function App() {
     if (next === current) return;
     stop(false); setStatus('waiting'); updateBoard(next); schedule(next);
   }
+  function inkContextToggle(stepId: string) {
+    const current = live.current.boards.find(b => b.id === live.current.activeId)!;
+    const next = toggleInkContext(current, stepId);
+    if (next === current) return;
+    stop(false); setStatus('waiting'); updateBoard(next); schedule(next);
+  }
+
   function switchExercise(id: string) {
     stop(false); setMessage(null); setTutorMenu(false);
     const value = { ...live.current, activeId: id }; live.current = value; setSaved(value); setStatus('idle');
@@ -826,7 +834,7 @@ export function App() {
   const chips = running ? [] : quickReplies({ kind: message?.kind ?? null, canRequest, lessonActive: !!lessonSkillId || !!board.skillId, answeredByAi, hasLines: lines.length > 0 });
   const shownMessage: TutorMessage | null = running ? { id: 'thinking', kind: 'thinking', text: t.tutorThinking } : message;
   return <div className="app-shell">
-    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} onInkCorrection={inkCorrection} verdicts={shownVerdicts} onRemoveAnnotation={id => { stop(false); const current = live.current.boards.find(b => b.id === live.current.activeId)!; updateBoard(removeAnnotation(current, id)); }} onAskHere={() => { setPanel('ask'); setPinned(true); }} onOpenColorLegend={() => setColorLegendOpen(true)} onSendToAi={(stepId) => { updateBoard({ ...board, activeStepId: stepId }); void request('check'); }} canRequest={canRequest} modelSupportsImages={!!model?.supportsImageInput} /></div>
+    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} onInkCorrection={inkCorrection} onInkContextToggle={inkContextToggle} verdicts={shownVerdicts} onRemoveAnnotation={id => { stop(false); const current = live.current.boards.find(b => b.id === live.current.activeId)!; updateBoard(removeAnnotation(current, id)); }} onAskHere={() => { setPanel('ask'); setPinned(true); }} onOpenColorLegend={() => setColorLegendOpen(true)} onSendToAi={(stepId) => { updateBoard({ ...board, activeStepId: stepId }); void request('check'); }} canRequest={canRequest} modelSupportsImages={!!model?.supportsImageInput} /></div>
     <div className={`hud${openPanel ? ' drawer-open' : ''}${settingsOpen ? ' settings-open' : ''}`} data-testid="hud">
       <div className="hud-top-left">
         <span className="sr"><output data-testid="revision">{board.revision}</output></span>

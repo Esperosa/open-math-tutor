@@ -160,6 +160,30 @@ export function groupSymbols(strokes: readonly Stroke[]): StrokeSymbol[] {
       const below = thin.y >= bottom(tall) - typical * .06 && thin.y - bottom(tall) < typical * .35;
       if (above || below) return true;
     }
+    // A percent sign is a slanted stroke plus two small loops: the loops only
+    // touch the slash at their corners, so size/overlap tests alone split it
+    // into a digit and a zero. Merge a compact loop with a straight slant.
+    const compact = (box: BBox): boolean => box.height > typical * .2 && box.height < typical * .6
+      && box.width > box.height * .6 && box.width < box.height * 1.6;
+    const slant = (s: Stroke): boolean => {
+      let path = 0;
+      for (let i = 1; i < s.points.length; i++) path += Math.hypot(s.points[i]![0] - s.points[i - 1]![0], s.points[i]![1] - s.points[i - 1]![1]);
+      const dx = s.bbox.width, dy = s.bbox.height, span = Math.hypot(dx, dy);
+      return span > s.width * 4 && path < span * 1.12 && dx > dy * .25 && dy > dx * .5;
+    };
+    if (((compact(x) && slant(b)) || (compact(y) && slant(a)))
+      && ox > Math.min(x.width, y.width) * .1 && oy > Math.min(x.height, y.height) * .3) return true;
+    // Multi-stroke letters such as V, W and M meet at a corner where their
+    // bounding boxes overlap by less than a pen width. Join them only when a
+    // stroke end really lands on the other stroke and both are tall glyphs.
+    const distance = (p: readonly number[], q: readonly number[]): number => Math.hypot(p[0]! - q[0]!, p[1]! - q[1]!);
+    const nearEnd = Math.min(
+      distance(a.points[0]!, b.points[0]!), distance(a.points[0]!, b.points.at(-1)!),
+      distance(a.points.at(-1)!, b.points[0]!), distance(a.points.at(-1)!, b.points.at(-1)!));
+    const unionWidth = Math.max(right(x), right(y)) - Math.min(x.x, y.x);
+    if (Math.min(x.height, y.height) > typical * .5 && oy > Math.min(x.height, y.height) * .6
+      && ox >= -typical * .03 && unionWidth > typical * .5 && unionWidth < typical * 1.8
+      && nearEnd < typical * .15) return true;
     const tolerance = Math.min(typical * .06, Math.max(a.width, b.width));
     return ox >= -tolerance && oy >= -tolerance
       && (ox > Math.min(x.width, y.width) * .2 || Math.min(x.width, y.width) < tolerance);

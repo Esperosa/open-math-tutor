@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as shared from '@openmathtutor/shared';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
-import { applyResponse, commitStudent, correctInk, correctionLabels, editTask, fingerprint, inkSymbolKey, newBoard, removeAnnotation, renderableActions, stableMathCandidate } from './boardState';
+import { applyResponse, commitStudent, correctInk, correctionLabels, editTask, fingerprint, inkSymbolKey, newBoard, removeAnnotation, renderableActions, stableMathCandidate, toggleInkContext } from './boardState';
 import { recognizeBoardLines, type RecognizedLine } from './handwriting';
 import { rowElements } from './handwriting/__fixtures__/generate';
 
@@ -41,6 +41,21 @@ describe('board commits and stable steps', () => {
     expect(corrected.steps[0]).toMatchObject({ latexGuess: '77/7=11 m/s', uncertain: true });
     const replay = commitStudent(corrected, [...raw, element('other', '1')], {}, () => [reading]);
     expect(replay.steps.find(s => s.origin === 'ink')).toMatchObject({ latexGuess: '77/7=11 m/s', uncertain: true });
+  });
+  it('shows both the raw and contextual reading and lets the writer revert without losing the line', () => {
+    const rawElements = '5mol//'.split('').map((_, i) => ({ ...element(`raw-${i}`, ''), type: 'freedraw', version: 1, versionNonce: i } as ExcalidrawElement));
+    const symbols = '5mol//'.split('').map((label, i) => ({ bbox: { x: i * 25, y: 0, width: 20, height: 40 }, strokeIds: [rawElements[i].id], strokeOrder: [i], uncertain: false,
+      candidates: [{ label, probability: .99 }, { label: '1', probability: .001 }] }));
+    const reading: RecognizedLine = { id: 'ink-context', strokeIds: rawElements.map(e => e.id), text: '5 mol/l', rawText: '5mol//', contextualized: true,
+      symbols, confidence: .99, bbox: { x: 0, y: 0, width: 180, height: 40 }, alternatives: [], parserCompatible: true, ignoredStrokeIds: [] };
+    const state = commitStudent(newBoard(), rawElements, {}, () => [reading]);
+    expect(state.steps[0]).toMatchObject({ latexGuess: '5 mol/l', rawText: '5mol//', contextualText: '5 mol/l', contextualized: true });
+    const reverted = toggleInkContext(state, state.steps[0].stepId);
+    expect(reverted.steps[0]).toMatchObject({ latexGuess: '5mol//', contextualized: false, parserCompatible: false, uncertain: true });
+    expect(reverted.inkRawReadings?.[state.steps[0].stepId]).toBe(true);
+    const restored = toggleInkContext(reverted, state.steps[0].stepId);
+    expect(restored.steps[0]).toMatchObject({ latexGuess: '5 mol/l', contextualized: true, parserCompatible: true });
+    expect(restored.inkRawReadings).toBeUndefined();
   });
   it('keeps a parseable line uncertain when one symbol has weak evidence', () => {
     const raw = rowElements('4=4', 7).map((e, i) => ({ ...e, version: 1, versionNonce: i } as unknown as ExcalidrawElement));

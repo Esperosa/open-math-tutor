@@ -188,6 +188,9 @@ body { overflow: hidden; }
   color: var(--muted); font-size: 11px; line-height: 1.35; box-shadow: var(--shadow-1); }
 .ink-reading.uncertain { border-style: dashed; border-color: var(--warning); }
 .ink-read-label strong { color: var(--ink); font: 600 13px ui-monospace, SFMono-Regular, Consolas, monospace; }
+.ink-raw-reading { opacity: .8; }
+.ink-context-toggle { pointer-events: auto; align-self: flex-start; min-height: 28px; margin-top: 2px; padding: 0 6px;
+  border-radius: 3px; font-size: 11px; }
 .ink-candidates { position: absolute; top: 0; width: max-content; max-width: 280px; pointer-events: none; display: flex; flex-wrap: wrap; gap: 3px; }
 .ink-candidates button { pointer-events: auto; min-width: 44px; min-height: 44px; padding: 0 6px; border-radius: 3px; font: 600 12px ui-monospace, SFMono-Regular, Consolas, monospace; }
 .ai-status { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 8px; border-radius: 999px; color: var(--muted); font-size: 11px; }

@@ -3,6 +3,7 @@ import { createHandwritingRecognizer, recognizeBoardLines } from './index';
 import { elementsToStrokes, groupSymbols } from './strokes';
 import { applyCorrections } from './corrections';
 import { rowElements, symbolElements } from './__fixtures__/generate';
+import { richRowElements } from '../../tests/inkFixture';
 import type { BoardElement } from './types';
 
 it('ignores a later long cross-out, retains replacement ink, and supports undo by deleting the cross-out', () => {
@@ -21,6 +22,12 @@ it('does not erase the European 7 crossbar, and ignores an underline below the b
   const text = rowElements('5', 81);
   const underline: BoardElement = { id: 'u', type: 'freedraw', x: -10, y: 47, points: [[0, 0], [55, 0]], strokeWidth: 2 };
   expect(recognizeBoardLines([...text, underline])[0].text).toBe('5');
+});
+it('does not treat a letter crossbar as an ambiguous cross-out of the previous digit', () => {
+  const lines = recognizeBoardLines(richRowElements('4A', 1131, 40, [100, 200]), { unitAliases: ['A'] });
+  expect(lines[0].text).toBe('4 A');
+  expect(lines[0].uncertain).toBeUndefined();
+  expect(lines[0].crossOutUncertain).toBe(false);
 });
 it('takes a complete late redraw as the new symbol while preserving other symbols', () => {
   const old = rowElements('3+12', 78);
