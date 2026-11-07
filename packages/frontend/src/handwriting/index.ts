@@ -19,7 +19,7 @@ function stableId(ids: readonly string[]): string {
   return `hw-${hash.toString(16).padStart(16, '0')}`;
 }
 
-function contextualize(symbols: RecognizedSymbol[], symbolStrokes: readonly (readonly Stroke[])[]): void {
+function contextualize(symbols: RecognizedSymbol[], symbolStrokes: readonly (readonly Stroke[])[], opts: RecognitionOptions): void {
   const height = median(symbols.map(s => s.bbox.height).filter(h => h > 3));
   const baseline = median(symbols.filter(s => s.bbox.height >= height * .8).map(s => bottom(s.bbox)));
   for (let i = 0; i < symbols.length; i++) {
@@ -27,6 +27,7 @@ function contextualize(symbols: RecognizedSymbol[], symbolStrokes: readonly (rea
     const strokes = symbolStrokes[i];
     let contextual: string | undefined;
     const left = symbols[i - 1], next = symbols[i + 1];
+    let geometryConflict = false;
     // A pair of broad, separated horizontal strokes conflicts with a digit
     // reading. Do not guess equals or recalibrate the model's probability;
     // require the writer to choose, even if the classifier is very confident.
@@ -35,7 +36,7 @@ function contextualize(symbols: RecognizedSymbol[], symbolStrokes: readonly (rea
       if ([a, b].every(box => box.width > height * .35 && box.height < box.width * .45)
         && Math.min(a.width, b.width) > Math.max(a.width, b.width) * .55
         && Math.min(right(a), right(b)) - Math.max(a.x, b.x) > Math.min(a.width, b.width) * .65
-        && Math.abs(centerY(a) - centerY(b)) > median(strokes.map(stroke => stroke.width))) s.uncertain = true;
+        && Math.abs(centerY(a) - centerY(b)) > median(strokes.map(stroke => stroke.width))) { s.uncertain = true; geometryConflict = true; }
     }
     // Tiny baseline mark BETWEEN full-height digits is decimal punctuation,
     // regardless of whether its isolated silhouette resembles 1 or slash.
@@ -82,7 +83,22 @@ function contextualize(symbols: RecognizedSymbol[], symbolStrokes: readonly (rea
       s.label = contextual;
       s.uncertain = true;
     }
-    if (best === '.' || best === '·' || ((best === 'x' || best === '×') && !variableSlot) || '±≠π°∅'.includes(best)) s.uncertain = true;
+    const numericSlot = /^\d$/.test(left?.label ?? left?.candidates[0].label ?? '')
+      && /^\d$/.test(next?.candidates[0].label ?? '');
+    // Sum only spellings with the same numeric meaning; other competing labels
+    // still reject the reading. No mathematical correctness enters this gate.
+    const zeroSlot = contextual !== '°' && (best === '0' || best === 'o')
+      && (/^\d$/.test(left?.candidates[0].label ?? '') || /^\d$/.test(next?.candidates[0].label ?? ''));
+    const equivalent = numericSlot && (best === 'x' || best === '×') ? ['x', '×'] : zeroSlot ? ['0', 'o'] : undefined;
+    if (equivalent && !geometryConflict) {
+      const probability = s.candidates.filter(c => equivalent.includes(c.label)).reduce((sum, c) => sum + c.probability, 0);
+      const competitor = s.candidates.find(c => !equivalent.includes(c.label))?.probability ?? 0;
+      s.uncertain = probability < (opts.confidenceThreshold ?? Math.max(CALIBRATION.numericEquivalentThreshold, uncertaintyThreshold(zeroSlot ? '0' : '×', CALIBRATION.defaultThreshold)))
+        || probability - competitor < (opts.marginThreshold ?? CALIBRATION.marginThreshold);
+    }
+    // x and × already normalize identically between digits. Keep the measured
+    // probability/margin gate, rather than rejecting every multiplication sign.
+    if (best === '.' || best === '·' || ((best === 'x' || best === '×') && !variableSlot && !numericSlot) || '±≠π°∅'.includes(best)) s.uncertain = true;
   }
 }
 
@@ -148,7 +164,7 @@ export function createHandwritingRecognizer(): {
             uncertain: candidates[0].probability < (threshold ?? uncertaintyThreshold(candidates[0].label, CALIBRATION.defaultThreshold))
               || candidates[0].probability - candidates[1].probability < margin };
         });
-        contextualize(symbols, line.symbols.map(s => s.strokes));
+        contextualize(symbols, line.symbols.map(s => s.strokes), opts);
         const parsed = readLine(symbols, { unitAliases: opts.unitAliases, expectedUnit: opts.expectedUnit }), alternatives: Alternative[] = [];
         if (parsed.contextualized && parsed.rawText && !alternatives.some(a => a.text === parsed.rawText)) {
           alternatives.push({ text: parsed.rawText, confidence: parsed.rawConfidence });

@@ -155,3 +155,60 @@ cd ../../packages/frontend && npx vitest run src/handwriting
 
 `pendigits.py` downloads `pendigits.tra`, `pendigits.tes` and `pendigits.names` into `.cache/` and verifies
 their SHA-256. Licence and citation are in `NOTICE.md` and the module docstring (CC BY 4.0).
+
+## Round 8 m12 / m10: numeric uncertainty and cross-outs
+
+Measured against the parent commit recorded in `calibration.json.round8.baselineCommit`.
+Weights, temperature (1), raw class probabilities and per-class thresholds are unchanged.
+Equivalent numeric mass has an additional conservative **0.95** floor (caller overrides
+remain explicit); this avoids accepting low-confidence mixtures in the noisy stress set.
+The numeric gate now sums the top-three mass for **0/o** beside a digit and **x/×**
+between digits: these spellings already normalize to the same numeric token. It does
+not merge variable/unit slots, override explicit caller thresholds, clear geometric
+conflicts, or use equation correctness. Wrong equations deliberately remain wrong.
+
+New deterministic fixture corpus: 400 target symbols, height 60px, ±2px point jitter;
+200 even-seed fitting targets and 200 odd-seed evaluation targets (100 zeros, 100 crosses).
+No per-class thresholds were lowered. This development corpus was reused while
+debugging the gate; its split does not make it a fresh blind evaluation. These are synthetic,
+readability-modelled regression strokes, **not** a blind human-writing study.
+
+| Held-out metric | Before | After |
+|---|---:|---:|
+| Zero flagged uncertain | 1/100 (1%) | 3/100 (3%) |
+| Multiplication flagged uncertain | 100/100 (100%) | 1/100 (1%) |
+| Combined uncertainty | 101/200 (50.5%) | 4/200 (2%) |
+| Silent errors / accepted targets | 0/99 (0%) | 0/196 (0%) |
+| Semantic-decision ECE, 15 bins | 0.14405042 | 0.00326438 |
+| Existing raw multiclass held-out ECE | 0.00536007 | 0.00536007 |
+
+ECE is the weighted gap between confidence and correctness. Semantic-decision ECE
+uses top-1 confidence before and the equivalent-label sum after; it is **not** a
+new claim about the unchanged 58-class model's calibration. All targets in this
+small positive corpus are correctly read, so it cannot establish general safety alone.
+
+A separate 360-row stress corpus includes wrong equations, variables, 40/60px ink,
+and point jitter 0/2/4/6px. Incorrect rows remain **176/360** before and after.
+Accepted rows increase **127 → 187**; silent wrong readings stay **7 → 7** in
+absolute count (7/360 = 1.94% of all inputs), while the accepted-reading error
+**rate decreases from 7/127 (5.51%) to 7/187 (3.74%)**. This residual failure rate is explicitly not zero.
+Tests guard the silent-error count, rate and total wrong-row count; competing-label, caller
+threshold, variable-slot, raised-degree and two-bar geometry vetoes remain tested.
+This stress corpus was used for regression debugging; it is not fresh blind evaluation.
+
+Horizontal cross-outs extending past both edges of a completed digit now remove
+that digit and the strike, not adjacent digits. Native timestamp-free 8/1/7 strokes,
+replacement/undo, ordinary plus stems, European 7 crossbars, underlines and fraction
+bars are tested. Hooked-one geometry distinguishes its top hook from an unfinished
+vertical plus stem; a perfectly straight immediate stem remains inherently ambiguous
+without later ink or import timestamps. Such a stem must not be silently erased as
+though intent were known. Native browser tests use real pen events via inkDriver.
+
+Reproduce from repository root:
+```powershell
+npm exec -w packages/frontend -- vitest run src/handwriting/round8-calibration.test.ts src/handwriting/round8-corrections.test.ts src/handwriting/uncertainty.test.ts
+$env:PLAYWRIGHT_PORT='5365'
+npm exec -w packages/frontend -- playwright test tests/ink-round8-symbols.spec.ts
+```
+Optional `INK_METRICS` and `STRESS_METRICS` absolute paths export the two reports.
+Full before/after counts and corpus definitions are committed in `model/calibration.json`.

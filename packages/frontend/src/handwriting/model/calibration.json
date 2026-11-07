@@ -2,6 +2,7 @@
   "temperature": 1,
   "defaultThreshold": 0.3,
   "marginThreshold": 0.2,
+  "numericEquivalentThreshold": 0.95,
   "fittedTemperatures": {
     "nll": 1.54,
     "ece": 1.33
@@ -1335,6 +1336,105 @@
         "wrongAbove": 0,
         "below": 0,
         "wrongBelow": 0
+      }
+    }
+  },
+  "round8": {
+    "baselineCommit": "030661c937fd4be21b2b037bc176307181f976a2",
+    "policy": "Sum top-3 probability mass of numeric 0/o and digit-flanked x/× only, with conservative 0.95 mass floor. Preserve raw logits, class thresholds, overrides and geometric vetoes. No answer correctness prior.",
+    "corpus": "400 deterministic fixture targets, 60px height, ±2px point jitter; even seeds fitting, odd seeds evaluation. Synthetic regression, not blind human study.",
+    "eceDefinition": "15 equal-width bins; semantic decision correctness versus top-1 confidence before, equivalent-label mass after. Separate from unchanged raw multiclass ECE above.",
+    "before": {
+      "fitting": {
+        "total": 200,
+        "uncertain": 100,
+        "wrong": 0,
+        "accepted": 100,
+        "silentErrors": 0,
+        "silentErrorRate": 0,
+        "ece": 0.1396578211823756
+      },
+      "evaluation": {
+        "total": 200,
+        "uncertain": 101,
+        "wrong": 0,
+        "accepted": 99,
+        "silentErrors": 0,
+        "silentErrorRate": 0,
+        "ece": 0.14405042060595627
+      },
+      "zero": {
+        "total": 100,
+        "uncertain": 1,
+        "wrong": 0,
+        "accepted": 99,
+        "silentErrors": 0,
+        "silentErrorRate": 0,
+        "ece": 0.03285909827187831
+      },
+      "times": {
+        "total": 100,
+        "uncertain": 100,
+        "wrong": 0,
+        "accepted": 0,
+        "silentErrors": 0,
+        "silentErrorRate": null,
+        "ece": 0.2552417429400342
+      }
+    },
+    "after": {
+      "fitting": {
+        "total": 200,
+        "uncertain": 2,
+        "wrong": 0,
+        "accepted": 198,
+        "silentErrors": 0,
+        "silentErrorRate": 0,
+        "ece": 0.0028469221585983957
+      },
+      "evaluation": {
+        "total": 200,
+        "uncertain": 4,
+        "wrong": 0,
+        "accepted": 196,
+        "silentErrors": 0,
+        "silentErrorRate": 0,
+        "ece": 0.003264378988076187
+      },
+      "zero": {
+        "total": 100,
+        "uncertain": 3,
+        "wrong": 0,
+        "accepted": 97,
+        "silentErrors": 0,
+        "silentErrorRate": 0,
+        "ece": 0.004001703768954694
+      },
+      "times": {
+        "total": 100,
+        "uncertain": 1,
+        "wrong": 0,
+        "accepted": 99,
+        "silentErrors": 0,
+        "silentErrorRate": 0,
+        "ece": 0.002527054207197675
+      }
+    },
+    "stress": {
+      "corpus": "360 noisy rows: six expressions, seeds 23000..23059, heights 40/60, jitter amplitudes 0/2/4/6px; includes incorrect equations and variables; accepted only if parser compatible with no symbol/line uncertainty.",
+      "before": {
+        "total": 360,
+        "accepted": 127,
+        "wrong": 176,
+        "silentErrors": 7,
+        "silentErrorRate": 0.05511811023622047
+      },
+      "after": {
+        "total": 360,
+        "accepted": 187,
+        "wrong": 176,
+        "silentErrors": 7,
+        "silentErrorRate": 0.0374331550802139
       }
     }
   }
