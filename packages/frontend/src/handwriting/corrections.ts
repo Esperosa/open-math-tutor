@@ -83,7 +83,11 @@ export function applyCorrections(strokes: readonly Stroke[]): CorrectedStrokes {
       // Never guess its mathematical meaning: ask for an eraser instead.
       if (straight && symbols.some(s => {
         const old = s.bbox, last = s.strokes.at(-1)!;
+        // A real correction slash reaches past both sides of the old glyph. A
+        // crossbar inside a letter (A, H, e) stays within it and must not ask
+        // the student to erase a correct answer.
         return stroke.order - last.order >= 2 && old.height > stroke.width * 5 && b.width > old.width * 1.05
+          && b.x < old.x - stroke.width * .5 && right(b) > right(old) + stroke.width * .5
           && centerX(old) > b.x && centerX(old) < right(b)
           && centerY(b) > old.y + old.height * .2 && centerY(b) < bottom(old) - old.height * .2;
       })) ambiguous.push(stroke);

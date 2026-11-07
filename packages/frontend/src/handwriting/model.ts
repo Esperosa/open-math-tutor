@@ -1,6 +1,7 @@
 import weights from './model/weights.json';
 import type { Candidate, Stroke } from './types';
 import { rasterizeSymbol } from './raster';
+import { CALIBRATION } from './calibration';
 
 // Decode without atob/Buffer so the exact same implementation runs in browsers and Node.
 function decode(encoded: string): Float32Array {
@@ -47,18 +48,32 @@ function dense(input: Float32Array, w: Float32Array, bias: Float32Array, relu: b
   return out;
 }
 
-/** Full multiclass softmax (not a digits-only restricted classifier). Returns top three, unrenormalized. */
-export function classifyRaster(input: Float32Array): Candidate[] {
+/** Raw class logits before softmax, exposed for honest calibration fitting. */
+export function classifyLogits(input: Float32Array): Float32Array {
   if (input.length !== 784 || input.some(v => !Number.isFinite(v) || v < 0 || v > 1)) throw new RangeError('Expected 784 finite pixels in [0,1]');
   const c1 = convolution(input, 28, 1, 16, 5, tensors['c1.weight'], tensors['c1.bias']);
   const c2 = convolution(c1, 12, 16, 32, 3, tensors['c2.weight'], tensors['c2.bias']);
   const d1 = dense(c2, tensors['d1.weight'], tensors['d1.bias'], true);
-  const logits = dense(d1, tensors['d2.weight'], tensors['d2.bias'], false);
-  const max = Math.max(...logits), exp = Array.from(logits, v => Math.exp(v - max)), total = exp.reduce((a, b) => a + b, 0);
+  return dense(d1, tensors['d2.weight'], tensors['d2.bias'], false);
+}
+
+export function softmax(logits: Float32Array | readonly number[], temperature = 1): Candidate[] {
+  const scaled = Array.from(logits, v => temperature === 1 ? v : v / temperature);
+  const max = Math.max(...scaled), exp = scaled.map(v => Math.exp(v - max)), total = exp.reduce((a, b) => a + b, 0);
   return exp.map((v, i) => ({ label: weights.labels[i], probability: v / total }))
     .sort((a, b) => b.probability - a.probability).slice(0, 3);
 }
 
+/** Full multiclass softmax (not a digits-only restricted classifier). Returns top three, unrenormalized. */
+export function classifyRaster(input: Float32Array): Candidate[] {
+  return softmax(classifyLogits(input), 1);
+}
+
+/** Temperature-scaled top three used by the live recognizer. */
+export function classifyRasterCalibrated(input: Float32Array): Candidate[] {
+  return softmax(classifyLogits(input), CALIBRATION.temperature);
+}
+
 export function recognizeSymbol(strokes: readonly Stroke[]): Candidate[] {
-  return classifyRaster(rasterizeSymbol(strokes));
+  return classifyRasterCalibrated(rasterizeSymbol(strokes));
 }

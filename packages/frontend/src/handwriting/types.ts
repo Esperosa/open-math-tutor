@@ -51,12 +51,18 @@ export interface RecognizedLine {
   symbols: RecognizedSymbol[];
   parserCompatible: boolean;
   ignoredStrokeIds: string[];
+  /** Neural top-1 composition before the syntax/unit beam search. */
+  rawText?: string;
+  /** True when context changed the reading; the UI offers a revert. */
+  contextualized?: boolean;
   crossOutUncertain?: boolean;
   /** Ambiguous layout or context-only unit spelling must be confirmed. */
   uncertain?: boolean;
 }
 export interface RecognitionOptions {
   unitAliases?: readonly string[];
+  /** Expected answer unit, used only to rank unit spelling; never a value prior. */
+  expectedUnit?: string;
   /** Native Excalidraw elements are in scene coordinates. Viewport never alters them. */
   inputSpace?: 'scene' | 'screen';
   viewport?: { zoom: number; scrollX: number; scrollY: number; offsetLeft?: number; offsetTop?: number };

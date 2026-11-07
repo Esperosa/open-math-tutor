@@ -1,6 +1,6 @@
 import { normalizeUnit } from '@openmathtutor/shared';
 
-const UNITS = ['m/s', 'km/h', 'kg', 'J', 'N', 'm', 's', 'g', 'mol', 'W', 'V', 'A'];
+const UNITS = ['m/s', 'mol/l', 'km/h', 'kg', 'J', 'N', 'mol', 'Ω', 'Kč', '°C', 'M', '%', 'm', 's', 'g', 'W', 'V', 'A'];
 
 /** Context is an allowlist, not an answer: it can suggest spelling, never a value. */
 export function unitAliasesFor(expectedUnit?: string, statement = ''): string[] {

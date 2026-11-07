@@ -1,5 +1,29 @@
 # Průchod kurzem psaním rukou
 
+## Oprava dvou chybějících značek, 2026-11-07
+
+Poslední běh `COURSE_WALK=1` na portu **5380** dal **23/23** a obě dříve chybějící dovednosti
+prošly na první pokus:
+
+| Dovednost | Zápis | Přečtení | Značka | Pokusy |
+|---|---|---|---|---:|
+| `fy-ohm` | `2 A` | `2 A` | `ok` | 1 |
+| `ch-concentration` | `25 %` | `25 %` | `ok` | 1 |
+
+Příčina nebyla kontrola odpovědi ani model. Šlo o tři chyby ve zpracování tahů:
+
+- `applyCorrections` považoval šikmý tah písmene `A` za nejasné přeškrtnutí předchozího `4`,
+  takže správně přečtený řádek zůstal nejistý. Přeškrtnutí se nyní uzná jen tehdy, když tah
+  přesahuje obě strany starého znaku.
+- `groupSymbols` rozdělil `V` na `l` + `/`, protože dva tahy se potkávají jen v dolním vrcholu.
+  Přidáno je spojení svislých tahů se společným koncem.
+- `%` se rozdělilo na `7` + `0`; nově se spojí kompaktní smyčka se šikmým tahem.
+
+Úklid byl v `corrections.ts`, `strokes.ts` a `units.ts` (doplněné `mol/l`, `%`, `Ω`). Kontextové
+čtení (`context.ts`) a kalibrace prahů jsou zapojené; jejich měření je v
+[`tools/handwriting/ACCURACY.md`](../tools/handwriting/ACCURACY.md). Původní report níže zůstává
+jako historie před opravou.
+
 ## Integrační ověření — `integrate-course-walk`, 2026-11-07
 
 Opravy jsou v commitech `2fc98dc` a `17c0f13`. Nové 58třídové váhy z průchodu kurzy zůstaly

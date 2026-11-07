@@ -1,0 +1,1341 @@
+{
+  "temperature": 1,
+  "defaultThreshold": 0.3,
+  "marginThreshold": 0.2,
+  "fittedTemperatures": {
+    "nll": 1.54,
+    "ece": 1.33
+  },
+  "ece": {
+    "before": 0.005360066833972702,
+    "after": 0.005360066833972702
+  },
+  "bins": {
+    "before": [
+      {
+        "from": 0,
+        "to": 0.06666666666666667,
+        "count": 0,
+        "accuracy": 0,
+        "confidence": 0
+      },
+      {
+        "from": 0.06666666666666667,
+        "to": 0.13333333333333333,
+        "count": 0,
+        "accuracy": 0,
+        "confidence": 0
+      },
+      {
+        "from": 0.13333333333333333,
+        "to": 0.2,
+        "count": 0,
+        "accuracy": 0,
+        "confidence": 0
+      },
+      {
+        "from": 0.2,
+        "to": 0.26666666666666666,
+        "count": 0,
+        "accuracy": 0,
+        "confidence": 0
+      },
+      {
+        "from": 0.26666666666666666,
+        "to": 0.3333333333333333,
+        "count": 0,
+        "accuracy": 0,
+        "confidence": 0
+      },
+      {
+        "from": 0.3333333333333333,
+        "to": 0.4,
+        "count": 3,
+        "accuracy": 0,
+        "confidence": 0.34324478308213896
+      },
+      {
+        "from": 0.4,
+        "to": 0.4666666666666667,
+        "count": 1,
+        "accuracy": 1,
+        "confidence": 0.4255546687567262
+      },
+      {
+        "from": 0.4666666666666667,
+        "to": 0.5333333333333333,
+        "count": 22,
+        "accuracy": 0.5909090909090909,
+        "confidence": 0.5173898907524063
+      },
+      {
+        "from": 0.5333333333333333,
+        "to": 0.6,
+        "count": 22,
+        "accuracy": 0.5909090909090909,
+        "confidence": 0.5681140431298792
+      },
+      {
+        "from": 0.6,
+        "to": 0.6666666666666666,
+        "count": 52,
+        "accuracy": 0.6538461538461539,
+        "confidence": 0.6379346636088093
+      },
+      {
+        "from": 0.6666666666666666,
+        "to": 0.7333333333333333,
+        "count": 40,
+        "accuracy": 0.675,
+        "confidence": 0.7041867074395347
+      },
+      {
+        "from": 0.7333333333333333,
+        "to": 0.8,
+        "count": 72,
+        "accuracy": 0.875,
+        "confidence": 0.7663592021141005
+      },
+      {
+        "from": 0.8,
+        "to": 0.8666666666666667,
+        "count": 44,
+        "accuracy": 0.8181818181818182,
+        "confidence": 0.8352972770174798
+      },
+      {
+        "from": 0.8666666666666667,
+        "to": 0.9333333333333333,
+        "count": 85,
+        "accuracy": 0.9058823529411765,
+        "confidence": 0.9082663538612019
+      },
+      {
+        "from": 0.9333333333333333,
+        "to": 1,
+        "count": 8728,
+        "accuracy": 0.9949587534372135,
+        "confidence": 0.9988673956779949
+      }
+    ],
+    "after": [
+      {
+        "from": 0,
+        "to": 0.06666666666666667,
+        "count": 0,
+        "accuracy": 0,
+        "confidence": 0
+      },
+      {
+        "from": 0.06666666666666667,
+        "to": 0.13333333333333333,
+        "count": 0,
+        "accuracy": 0,
+        "confidence": 0
+      },
+      {
+        "from": 0.13333333333333333,
+        "to": 0.2,
+        "count": 0,
+        "accuracy": 0,
+        "confidence": 0
+      },
+      {
+        "from": 0.2,
+        "to": 0.26666666666666666,
+        "count": 0,
+        "accuracy": 0,
+        "confidence": 0
+      },
+      {
+        "from": 0.26666666666666666,
+        "to": 0.3333333333333333,
+        "count": 0,
+        "accuracy": 0,
+        "confidence": 0
+      },
+      {
+        "from": 0.3333333333333333,
+        "to": 0.4,
+        "count": 3,
+        "accuracy": 0,
+        "confidence": 0.34324478308213896
+      },
+      {
+        "from": 0.4,
+        "to": 0.4666666666666667,
+        "count": 1,
+        "accuracy": 1,
+        "confidence": 0.4255546687567262
+      },
+      {
+        "from": 0.4666666666666667,
+        "to": 0.5333333333333333,
+        "count": 22,
+        "accuracy": 0.5909090909090909,
+        "confidence": 0.5173898907524063
+      },
+      {
+        "from": 0.5333333333333333,
+        "to": 0.6,
+        "count": 22,
+        "accuracy": 0.5909090909090909,
+        "confidence": 0.5681140431298792
+      },
+      {
+        "from": 0.6,
+        "to": 0.6666666666666666,
+        "count": 52,
+        "accuracy": 0.6538461538461539,
+        "confidence": 0.6379346636088093
+      },
+      {
+        "from": 0.6666666666666666,
+        "to": 0.7333333333333333,
+        "count": 40,
+        "accuracy": 0.675,
+        "confidence": 0.7041867074395347
+      },
+      {
+        "from": 0.7333333333333333,
+        "to": 0.8,
+        "count": 72,
+        "accuracy": 0.875,
+        "confidence": 0.7663592021141005
+      },
+      {
+        "from": 0.8,
+        "to": 0.8666666666666667,
+        "count": 44,
+        "accuracy": 0.8181818181818182,
+        "confidence": 0.8352972770174798
+      },
+      {
+        "from": 0.8666666666666667,
+        "to": 0.9333333333333333,
+        "count": 85,
+        "accuracy": 0.9058823529411765,
+        "confidence": 0.9082663538612019
+      },
+      {
+        "from": 0.9333333333333333,
+        "to": 1,
+        "count": 8728,
+        "accuracy": 0.9949587534372135,
+        "confidence": 0.9988673956779949
+      }
+    ]
+  },
+  "overall": {
+    "total": 9069,
+    "correct": 8948,
+    "above": 9069,
+    "wrongAbove": 121,
+    "below": 0,
+    "wrongBelow": 0
+  },
+  "labels": {
+    "0": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 683,
+        "correct": 676,
+        "above": 683,
+        "wrongAbove": 7,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 747,
+        "correct": 741,
+        "above": 747,
+        "wrongAbove": 6,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "1": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 807,
+        "correct": 800,
+        "above": 807,
+        "wrongAbove": 7,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 755,
+        "correct": 748,
+        "above": 755,
+        "wrongAbove": 7,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "2": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 714,
+        "correct": 698,
+        "above": 714,
+        "wrongAbove": 16,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 750,
+        "correct": 734,
+        "above": 750,
+        "wrongAbove": 16,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "3": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 723,
+        "correct": 707,
+        "above": 723,
+        "wrongAbove": 16,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 726,
+        "correct": 713,
+        "above": 726,
+        "wrongAbove": 13,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "4": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 706,
+        "correct": 702,
+        "above": 706,
+        "wrongAbove": 4,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 718,
+        "correct": 714,
+        "above": 718,
+        "wrongAbove": 4,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "5": {
+      "threshold": 0.83,
+      "calibration": {
+        "total": 689,
+        "correct": 652,
+        "above": 663,
+        "wrongAbove": 19,
+        "below": 26,
+        "wrongBelow": 18
+      },
+      "evaluation": {
+        "total": 654,
+        "correct": 629,
+        "above": 639,
+        "wrongAbove": 15,
+        "below": 15,
+        "wrongBelow": 10
+      }
+    },
+    "6": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 697,
+        "correct": 693,
+        "above": 697,
+        "wrongAbove": 4,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 673,
+        "correct": 668,
+        "above": 673,
+        "wrongAbove": 5,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "7": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 734,
+        "correct": 724,
+        "above": 734,
+        "wrongAbove": 10,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 732,
+        "correct": 723,
+        "above": 732,
+        "wrongAbove": 9,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "8": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 662,
+        "correct": 657,
+        "above": 662,
+        "wrongAbove": 5,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 717,
+        "correct": 712,
+        "above": 717,
+        "wrongAbove": 5,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "9": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 731,
+        "correct": 723,
+        "above": 731,
+        "wrongAbove": 8,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 673,
+        "correct": 668,
+        "above": 673,
+        "wrongAbove": 5,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "+": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "-": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "×": {
+      "threshold": 0.61,
+      "calibration": {
+        "total": 51,
+        "correct": 36,
+        "above": 29,
+        "wrongAbove": 2,
+        "below": 22,
+        "wrongBelow": 13
+      },
+      "evaluation": {
+        "total": 60,
+        "correct": 39,
+        "above": 47,
+        "wrongAbove": 13,
+        "below": 13,
+        "wrongBelow": 8
+      }
+    },
+    "÷": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "/": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "=": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "(": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 41,
+        "correct": 40,
+        "above": 41,
+        "wrongAbove": 1,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    ")": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    ".": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    ",": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 41,
+        "correct": 40,
+        "above": 41,
+        "wrongAbove": 1,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 41,
+        "correct": 40,
+        "above": 41,
+        "wrongAbove": 1,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "x": {
+      "threshold": 0.53,
+      "calibration": {
+        "total": 29,
+        "correct": 25,
+        "above": 26,
+        "wrongAbove": 2,
+        "below": 3,
+        "wrongBelow": 2
+      },
+      "evaluation": {
+        "total": 20,
+        "correct": 19,
+        "above": 16,
+        "wrongAbove": 0,
+        "below": 4,
+        "wrongBelow": 1
+      }
+    },
+    "y": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "a": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "b": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "c": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "n": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "%": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "m": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "s": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "g": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "J": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "N": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "V": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "A": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    ":": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "·": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "*": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "[": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "]": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "{": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "}": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "±": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "<": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    ">": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "≤": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "≥": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "≠": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "√": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 41,
+        "correct": 40,
+        "above": 41,
+        "wrongAbove": 1,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "π": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "°": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "∅": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "k": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "h": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "l": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "o": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 41,
+        "correct": 40,
+        "above": 41,
+        "wrongAbove": 1,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 42,
+        "correct": 40,
+        "above": 42,
+        "wrongAbove": 2,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "W": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "P": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    },
+    "K": {
+      "threshold": 0.3,
+      "calibration": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      },
+      "evaluation": {
+        "total": 40,
+        "correct": 40,
+        "above": 40,
+        "wrongAbove": 0,
+        "below": 0,
+        "wrongBelow": 0
+      }
+    }
+  }
+}

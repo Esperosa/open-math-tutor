@@ -15,6 +15,11 @@ export interface Step extends RecognizedStep {
   parserCompatible?: boolean;
   crossOutUncertain?: boolean;
   symbols?: RecognizedSymbol[];
+  /** Neural top-1 line before contextual spelling; retained only when it differed. */
+  rawText?: string;
+  /** The contextual reading that replaced rawText. */
+  contextualText?: string;
+  contextualized?: boolean;
 }
 export interface Explanation {
   id: string; revision: number; text: string; ttsText: string;
@@ -36,6 +41,8 @@ export interface BoardState {
   confirmedFinals?: string[];
   /** One-tap symbol corrections keyed by stroke signature (IDs plus versions). */
   inkEdits?: Record<string, string>;
+  /** Lines where the student chose the raw neural reading instead of context. */
+  inkRawReadings?: Record<string, boolean>;
   /** Whether the lesson task statement has already been animated into view on the board. */
   taskAnimated?: boolean;
   /** Whether the tutor has already announced the color/mark legend for this board. */
@@ -124,7 +131,8 @@ function uncertainInk(line: Pick<RecognizedLine, 'symbols' | 'parserCompatible' 
 export type InkRecognizer = (elements: readonly ExcalidrawElement[]) => RecognizedLine[];
 
 export function commitStudent(state: BoardState, incoming: readonly ExcalidrawElement[], files = state.files,
-  recognize: InkRecognizer = elements => recognizeBoardLines(elements, { unitAliases: unitAliasesFor(state.expected?.unit, state.statement) })): BoardState {
+  recognize: InkRecognizer = elements => recognizeBoardLines(elements, {
+    unitAliases: unitAliasesFor(state.expected?.unit, state.statement), expectedUnit: state.expected?.unit })): BoardState {
   const elements = incoming.filter(isStudent);
   if (fingerprint(elements) === fingerprint(state.elements) && files === state.files) return state;
   if (fingerprint(elements) === fingerprint(state.elements)) return { ...state, files };
@@ -135,7 +143,7 @@ export function commitStudent(state: BoardState, incoming: readonly ExcalidrawEl
   let recognized: RecognizedLine[] = [];
   try { recognized = recognize(elements); } catch { recognized = []; }
   const edits = state.inkEdits ?? {};
-  const used = new Set<string>();
+  const used = new Set<string>(), rawStepIds = new Set<string>();
   const inkSteps: Step[] = recognized.flatMap(line => {
     const corrected = correctedInkLine(line, edits, elements, unitAliasesFor(state.expected?.unit, state.statement));
     if (!corrected.text.trim()) return [];
@@ -143,10 +151,17 @@ export function commitStudent(state: BoardState, incoming: readonly ExcalidrawEl
       && s.elementIds.some(id => line.strokeIds.includes(id)));
     const stepId = old?.stepId ?? line.id;
     used.add(stepId);
+    const rawText = corrected === line && line.contextualized ? line.rawText : undefined;
+    if (rawText) rawStepIds.add(stepId);
+    const useRaw = !!rawText && !!state.inkRawReadings?.[stepId];
+    const activeText = useRaw ? rawText! : corrected.text;
+    const compatible = useRaw ? parserCompatible(activeText) : corrected.parserCompatible;
     return [{
-      stepId, boardRevision: revision, latexGuess: corrected.text, box: { ...line.bbox }, elementIds: [...line.strokeIds],
-      origin: 'ink' as const, confidence: corrected.confidence, uncertain: uncertainInk(corrected),
-      crossOutUncertain: corrected.crossOutUncertain, parserCompatible: corrected.parserCompatible, symbols: corrected.symbols,
+      stepId, boardRevision: revision, latexGuess: activeText, box: { ...line.bbox }, elementIds: [...line.strokeIds],
+      origin: 'ink' as const, confidence: corrected.confidence,
+      uncertain: uncertainInk({ ...corrected, parserCompatible: compatible }),
+      crossOutUncertain: corrected.crossOutUncertain, parserCompatible: compatible, symbols: corrected.symbols,
+      ...(rawText ? { rawText, contextualText: corrected.text, contextualized: !useRaw } : {}),
     }];
   });
   const covered = new Set(recognized.flatMap(line => line.strokeIds));
@@ -158,10 +173,13 @@ export function commitStudent(state: BoardState, incoming: readonly ExcalidrawEl
   const activeStepId = steps.find(s => s.elementIds.some(id => changedIds.has(id)))?.stepId ?? steps.at(-1)?.stepId ?? null;
   const currentKeys = new Set(recognized.flatMap(line => line.symbols.map(symbol => inkSymbolKey(symbol.strokeIds, elements))));
   const inkEdits = Object.fromEntries(Object.entries(edits).filter(([key]) => currentKeys.has(key)));
+  const inkRawReadings = Object.fromEntries(Object.entries(state.inkRawReadings ?? {})
+    .filter(([key]) => rawStepIds.has(key)));
   // Outdated correction annotations are removed when the student changes the mathematical surface; the lesson task stays on the board.
   const taskAnnotations = rebase(state.annotations.filter(a => a.id.startsWith('task-statement')), revision);
   return { ...state, elements: structuredClone(elements), files, steps, revision, activeStepId, annotations: taskAnnotations,
-    ...(Object.keys(inkEdits).length ? { inkEdits } : { inkEdits: undefined }) };
+    ...(Object.keys(inkEdits).length ? { inkEdits } : { inkEdits: undefined }),
+    ...(Object.keys(inkRawReadings).length ? { inkRawReadings } : { inkRawReadings: undefined }) };
 }
 /** One-tap correction of a single recognised symbol; recomposes only its line. */
 export function correctInk(state: BoardState, key: string, label: string): BoardState {
@@ -174,10 +192,31 @@ export function correctInk(state: BoardState, key: string, label: string): Board
   // A chip must not turn a readable row into unsupported syntax.
   if (target.parserCompatible && !compatible) return state;
   const corrected = { ...target, symbols, boardRevision: revision, latexGuess: parsed.text, confidence: parsed.confidence,
+    rawText: undefined, contextualText: undefined, contextualized: undefined,
     uncertain: uncertainInk({ symbols, parserCompatible: compatible, confidence: parsed.confidence, uncertain: parsed.uncertain || target.crossOutUncertain }), parserCompatible: compatible };
   const steps = state.steps.map(step => step === target ? corrected : { ...step, boardRevision: revision });
   const taskAnnotations = rebase(state.annotations.filter(a => a.id.startsWith('task-statement')), revision);
   return { ...state, revision, steps, inkEdits: edits, annotations: taskAnnotations };
+}
+
+/** Switch one ink line between the contextual reading and the raw neural reading. */
+export function toggleInkContext(state: BoardState, stepId: string): BoardState {
+  const target = state.steps.find(step => step.stepId === stepId && step.origin === 'ink');
+  if (!target?.rawText || !target.contextualText) return state;
+  const useRaw = !state.inkRawReadings?.[stepId];
+  const readings = { ...state.inkRawReadings };
+  if (useRaw) readings[stepId] = true; else delete readings[stepId];
+  const text = useRaw ? target.rawText : target.contextualText;
+  const compatible = parserCompatible(text);
+  const revision = state.revision + 1;
+  const step: Step = { ...target, boardRevision: revision, latexGuess: text, contextualized: !useRaw,
+    parserCompatible: compatible,
+    uncertain: uncertainInk({ symbols: target.symbols ?? [], parserCompatible: compatible,
+      confidence: target.confidence ?? 0, uncertain: target.crossOutUncertain }) };
+  const steps = state.steps.map(s => s === target ? step : { ...s, boardRevision: revision });
+  const taskAnnotations = rebase(state.annotations.filter(a => a.id.startsWith('task-statement')), revision);
+  return { ...state, revision, steps, annotations: taskAnnotations,
+    ...(Object.keys(readings).length ? { inkRawReadings: readings } : { inkRawReadings: undefined }) };
 }
 
 export function editTask(state: BoardState, field: 'statement' | 'topic', value: string): BoardState {

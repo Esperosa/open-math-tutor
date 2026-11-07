@@ -62,9 +62,45 @@ sides to 4. The user approved replacing stale rational-string expectations, not 
 
 Perfectly straight comma tails and one/slash, or dot and middle-dot, can have identical isolated
 normalized rasters. `geometryOnly` tails are excluded from contradictory CNN labels; their real-row
-geometry remains tested. The inherently ambiguous own-dot score is still **0/50** (all `·`) in raw
+geometry remains tested. The inherently ambiguous own-dot score is still **0/50** (all `​`) in raw
 classification, but baseline dots are resolved geometrically. This is not a claim of 100% arbitrary
-human punctuation recognition. Contextual prediction and threshold calibration (0.17/0.20) are not added.
+human punctuation recognition. Contextual prediction and threshold calibration are now added; their
+measured evidence follows.
+
+## Calibration and uncertainty thresholds (0.17)
+
+Calibration was fitted on **9,069** even-indexed samples and measured on **9,069** odd-indexed
+samples: 5,000/5,000 official MNIST test digits, 1,749/1,749 UCI pendigits test-writer digits and
+2,320/2,320 synthetic symbols (80 per each of the 58 labels, split by seed index). The split is
+deterministic, and thresholds were chosen only on the fitting half.
+
+Temperature scaling by NLL chose **T = 1.54**; fitting ECE chose **T = 1.33**. Both were rejected:
+on the untouched half the ECE rose from **0.00536** to **0.00643** / **0.00610**, so production keeps
+the identity **T = 1.0** rather than claiming a cosmetic gain. Held-out ECE is **0.00536** before and
+after. The `0.17` requirement is met by the measured reliability curve and thresholds, not by a
+fabricated ECE decrease.
+
+Per-label thresholds were selected on the fitting half to keep accepted predictions below a measured
+error budget. Most labels land at the 0.30 floor; only the confusion-prone classes are higher:
+`5` = **0.83**, `×` = **0.61**, `x` = **0.53**. On the held-out half, **32 / 9,069 (0.35 %)** samples
+fall below their threshold; **19 of those 32 are wrong**, while accepted predictions contain
+**102 / 9,037 = 1.13 %** errors. All 58 labels have a measured curve in
+`packages/frontend/src/handwriting/model/calibration.json`; `calibration.test.ts` guards the schema,
+the held-out ECE claim and the per-symbol lookup. Confidence thresholds remain overridable by callers.
+
+## Contextual line prediction (0.20)
+
+`context.ts` runs a beam search (width 24, top-3 alternatives) over symbol candidates using only
+syntax, decimal/bracket placement, expected-unit matches and the task's unit aliases. It never checks
+whether an equation evaluates correctly. A replacement is shown only when the contextual score wins
+by at least 0.8; the raw reading is retained and the UI shows both, with a toggle to revert
+(`toggleInkContext`). The `5+2=15` test keeps the incorrect answer exactly as written.
+
+Course walk after the fixes and context integration: **23 / 23 skills pass**, including `fy-ohm`
+(`2 A`, mark `ok`, 1 attempt) and `ch-concentration` (`25 %`, mark `ok`, 1 attempt). The two prior
+failures were grouping/cross-out bugs, not answer checking: a letter stroke was treated as a
+cross-out, `V` was split at its bottom vertex, and `%` was split into `7` + `0`. The full raw
+handwriting suite remains green (MNIST 99.09 %, pendigits 96.51 %, rows 269/270).
 
 ## What the remaining errors look like
 

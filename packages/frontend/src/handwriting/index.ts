@@ -1,7 +1,9 @@
 import { parseMathStatement, unitFromLine } from '@openmathtutor/shared';
 import { applyCorrections } from './corrections';
 import { recognizeSymbol } from './model';
+import { CALIBRATION, uncertaintyThreshold } from './calibration';
 import { parseLine } from './parse';
+import { readLine } from './context';
 import { bottom, centerY, elementsToStrokes, groupLines, groupSymbols, median, right } from './strokes';
 import type { Alternative, BoardElement, Candidate, RecognitionOptions, RecognizedLine, RecognizedSymbol, Stroke } from './types';
 
@@ -100,8 +102,8 @@ export function createHandwritingRecognizer(): {
     clear: () => { elementCache.clear(); symbolCache.clear(); },
     recognize(elements, opts = {}) {
       stats.convertedStrokes = 0; stats.inferredSymbols = 0; stats.cachedSymbols = 0;
-      const threshold = opts.confidenceThreshold ?? .8, margin = opts.marginThreshold ?? .2;
-      if (![threshold, margin].every(n => Number.isFinite(n) && n >= 0 && n <= 1)) throw new RangeError('Confidence thresholds must be in [0,1]');
+      const threshold = opts.confidenceThreshold, margin = opts.marginThreshold ?? CALIBRATION.marginThreshold;
+      if (![threshold ?? .8, margin].every(n => Number.isFinite(n) && n >= 0 && n <= 1)) throw new RangeError('Confidence thresholds must be in [0,1]');
       if (elements.length > 10000) throw new RangeError('At most 10000 board elements per recognition');
       elementsToStrokes([], opts); // Validate screen viewport even on an empty/cached board.
       let count = 0;
@@ -142,10 +144,15 @@ export function createHandwritingRecognizer(): {
           if (!candidates) { candidates = recognizeSymbol(symbol.strokes); symbolCache.set(key, candidates); stats.inferredSymbols++; }
           else stats.cachedSymbols++;
           return { bbox: { ...symbol.bbox }, strokeIds: symbol.strokes.map(s => s.id), strokeOrder: symbol.strokes.map(s => s.order),
-            candidates: candidates.map(c => ({ ...c })), uncertain: candidates[0].probability < threshold || candidates[0].probability - candidates[1].probability < margin };
+            candidates: candidates.map(c => ({ ...c })),
+            uncertain: candidates[0].probability < (threshold ?? uncertaintyThreshold(candidates[0].label, CALIBRATION.defaultThreshold))
+              || candidates[0].probability - candidates[1].probability < margin };
         });
         contextualize(symbols, line.symbols.map(s => s.strokes));
-        const parsed = parseLine(symbols, undefined, opts.unitAliases), alternatives: Alternative[] = [];
+        const parsed = readLine(symbols, { unitAliases: opts.unitAliases, expectedUnit: opts.expectedUnit }), alternatives: Alternative[] = [];
+        if (parsed.contextualized && parsed.rawText && !alternatives.some(a => a.text === parsed.rawText)) {
+          alternatives.push({ text: parsed.rawText, confidence: parsed.rawConfidence });
+        }
         for (let i = 0; i < symbols.length; i++) for (let rank = 0; rank < symbols[i].candidates.length; rank++) {
           const choices = symbols.map(() => -1); choices[i] = rank;
           const alternative = parseLine(symbols, choices, opts.unitAliases);
@@ -159,6 +166,7 @@ export function createHandwritingRecognizer(): {
         }
         return { id: stableId(strokeIds), strokeIds, text: parsed.text, confidence: parsed.confidence,
           alternatives: alternatives.sort((a, b) => b.confidence - a.confidence).slice(0, 3), bbox: { ...line.bbox }, symbols, parserCompatible,
+          ...(parsed.contextualized ? { rawText: parsed.rawText, contextualized: true } : {}),
           ignoredStrokeIds: ignored.map(s => s.id), crossOutUncertain: corrected.ambiguous.some(s => strokeIds.includes(s.id)), ...(parsed.uncertain || corrected.ambiguous.some(s => strokeIds.includes(s.id)) ? { uncertain: true } : {}) };
       });
       for (const key of symbolCache.keys()) if (!usedKeys.has(key)) symbolCache.delete(key);

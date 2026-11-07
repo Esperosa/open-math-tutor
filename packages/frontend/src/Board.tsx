@@ -30,6 +30,7 @@ interface Props {
   onCommit(elements: readonly ExcalidrawElement[], files: BinaryFiles): void;
   onBusy(busy: boolean): void;
   onInkCorrection?(key: string, label: string): void;
+  onInkContextToggle?(stepId: string): void;
   onAskHere?(): void;
   verdicts?: Record<string, StepVerdict>;
   onRemoveAnnotation?(id: string): void;
@@ -39,7 +40,7 @@ interface Props {
   modelSupportsImages?: boolean;
 }
 export const Board = forwardRef<BoardHandle, Props>(function Board({
-  board, settings, onCommit, onBusy, onInkCorrection, onAskHere, verdicts, onRemoveAnnotation,
+  board, settings, onCommit, onBusy, onInkCorrection, onInkContextToggle, onAskHere, verdicts, onRemoveAnnotation,
   onOpenColorLegend, onSendToAi, canRequest, modelSupportsImages,
 }, ref) {
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
@@ -385,8 +386,15 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
           data-testid={`ink-reading-${step.stepId}`} data-confidence={step.confidence ?? 0}
           style={{ left: (step.box.x + view.x) * view.zoom, top: (step.box.y + step.box.height + 4 + view.y) * view.zoom }}>
           <span className="ink-read-label" title={step.uncertain ? t.handwritingUncertainFriendly : undefined}>
-            {t.handwritingRead} <strong>{step.latexGuess}</strong>{step.uncertain ? ` — ${t.handwritingUncertain} ${t.handwritingUncertainFriendly}` : ''}
+            {t.handwritingRead} <strong>{step.latexGuess}</strong>{step.uncertain ? ` - ${t.handwritingUncertain} ${t.handwritingUncertainFriendly}` : ''}
+            {step.rawText && step.rawText !== step.latexGuess && <span className="ink-raw-reading"> ({t.handwritingOriginally}: {step.rawText})</span>}
           </span>
+          {step.rawText && step.contextualText && <button type="button" className="ink-context-toggle"
+            data-testid={`ink-context-toggle-${step.stepId}`} onClick={e => { e.stopPropagation(); onInkContextToggle?.(step.stepId); }}
+            title={step.contextualized ? t.handwritingShowRaw : t.handwritingUseContext}>
+            {step.contextualized ? t.handwritingShowRaw : t.handwritingUseContext}
+          </button>}
+
 
           {step.uncertain && <span role="link" tabIndex={0} className="ink-guide-toggle-btn"
             data-testid={`ink-guide-toggle-${step.stepId}`} aria-expanded={isPopoverOpen}
