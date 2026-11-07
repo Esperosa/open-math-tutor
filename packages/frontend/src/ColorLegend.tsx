@@ -108,7 +108,7 @@ export function ColorLegendDialog({ open, onClose, locale, t }: Props) {
         data-testid="color-legend-dialog"
       >
         <div className="color-legend-head">
-          <h2 id="color-legend-title">{t.colorLegendTitle}</h2>
+          <h2 id="color-legend-title" className="color-legend-title">{t.colorLegendTitle}</h2>
           <button
             type="button"
             className="color-legend-close"
@@ -138,9 +138,9 @@ export function ColorLegendDialog({ open, onClose, locale, t }: Props) {
                 {item.shape === 'cross' && <span>✗</span>}
                 {item.shape === 'question-dot' && <span>?</span>}
               </span>
-              <div className="legend-text">
-                <strong>{item.label[locale]}</strong>
-                <small>{item.shapeDesc[locale]}</small>
+              <div className="legend-text legend-item-body">
+                <strong className="legend-item-title">{item.label[locale]}</strong>
+                <small className="legend-item-desc">{item.shapeDesc[locale]}</small>
               </div>
             </li>
           ))}

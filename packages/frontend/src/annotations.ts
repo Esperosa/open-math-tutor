@@ -93,7 +93,7 @@ export function annotationElements(actions: BoardAction[], locate: StepLocator, 
     }
     if (!skeleton || !box) continue;
     const elements = convertToExcalidrawElements([skeleton], { regenerateIds: false });
-    const deleteBox = avoidCollisions({ x: box.x + box.width + 8, y: box.y - 8, width: 28, height: 28 }, [...occupied, ...notes.map(n => n.deleteBox)]);
+    const deleteBox = avoidCollisions({ x: box.x + box.width + 14, y: box.y - 8, width: 28, height: 28 }, [...occupied.filter(b => b !== box), ...notes.map(n => n.deleteBox)]);
     occupied.push(deleteBox);
     notes.push({ action: a, elements, box, deleteBox, text, duration: text ? Math.max(240, [...text].length * 32) : 480 });
   }

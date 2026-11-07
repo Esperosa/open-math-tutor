@@ -118,15 +118,15 @@ export function TutorHud(p: Props) {
         ? <p className="tutor-handwriting tutor-thinking-line" role="status">{(p.slow ? cm.stillThinking : message.text).replace(/…$/, '')}<span className="think-dots" aria-hidden="true"><i /><i /><i /></span></p>
         : <BubbleText id={message.id} text={message.text} count={count} away={visit.away} more={t.moreText} less={t.lessText} />}
       <fieldset className="tutor-choices" disabled={visit.away} aria-hidden={visit.away || undefined}>
-      {message.kind === 'thinking' && p.running && <div className="row"><button type="button" className="stop" onClick={() => p.onChoice('cancel')}>{cm.cancelRequest}</button></div>}
+      {message.kind === 'thinking' && p.running && <div className="row tutor-thinking-actions"><button type="button" className="stop" onClick={() => p.onChoice('cancel')}>{cm.cancelRequest}</button></div>}
       {message.kind === 'check_in' && <div className="row">
         <button onClick={() => p.onChoice('report_failed')}>{t.checkInFailed}</button>
         <button onClick={() => p.onChoice('confirm_final')}>{t.checkInFinal}</button>
         <button onClick={() => p.onChoice('dismiss')}>{t.offerDismiss}</button>
       </div>}
-      {message.kind === 'wrong' && <div className="row">
+      {message.kind === 'wrong' && <div className="row tutor-choices-wrong">
         <button className="primary" disabled={p.running} onClick={() => p.onChoice(p.canRequest ? 'hint' : 'local_hint')}>{t.offerHint}</button>
-        <button onClick={() => p.onChoice('retry_line')}>{t.offerRetryLine}</button>
+        <button className="secondary" onClick={() => p.onChoice('retry_line')} title={t.offerRetryLineFull} aria-label={t.offerRetryLineFull}>{t.offerRetryLine}</button>
         <button disabled={p.running} onClick={() => p.onChoice('explain')}>{t.offerExplain}</button>
         <button type="button" className="link-btn" onClick={() => p.onChoice('dismiss')}>{t.offerDismiss}</button>
       </div>}
