@@ -1,16 +1,16 @@
 {
   "mp4Count": 8,
   "screenshotCount": 18,
-  "maximumFileBytes": 327924,
+  "maximumFileBytes": 335794,
   "files": [
     {
       "file": "01-first-lesson.mp4",
-      "bytes": 107947,
-      "sha256": "eb45b53878b64a309176c5e41a6ef6652483a77a47a6c7e4f58895178fccecc2",
+      "bytes": 108450,
+      "sha256": "ded8dec8f1a81ad1defbd5888ee4c3fa502e9408a84054f4c2559539fb7d01b5",
       "media": {
         "width": 1280,
         "height": 720,
-        "durationSeconds": 11,
+        "durationSeconds": 11.04,
         "codec": "h264",
         "audio": false,
         "decoded": true
@@ -18,12 +18,12 @@
     },
     {
       "file": "01-first-lesson.webm",
-      "bytes": 142457,
-      "sha256": "bab3cbba4c9874b1d81bae9ccd9241c7ebe770916d4beb3df2455f83537e04b2",
+      "bytes": 143542,
+      "sha256": "5fe7569d95cb0db51b99962d51b5506951b7efbeb953052af48d1b51b095ec6d",
       "media": {
         "width": 1280,
         "height": 720,
-        "durationSeconds": 11,
+        "durationSeconds": 11.04,
         "codec": "vp9",
         "audio": false,
         "decoded": true
@@ -40,8 +40,8 @@
     },
     {
       "file": "02-courses.png",
-      "bytes": 57441,
-      "sha256": "62917cbc39f06d40645d82e742a641246adc922aa8a78a93b57d5170d7662ef1",
+      "bytes": 57645,
+      "sha256": "8158ed0da88aae7f6175ef40b6040c7ecee33f185256cc3c526188ea988b2875",
       "image": {
         "width": 1280,
         "height": 720
@@ -49,8 +49,8 @@
     },
     {
       "file": "02-handwriting-check.mp4",
-      "bytes": 104946,
-      "sha256": "c171821f8bcd65e303e367788d6b036239195dff0bfb2e9acc9f6a0758279fe2",
+      "bytes": 111069,
+      "sha256": "47c9899b9e20043dbb11be8f532cd1c27a21653e2552aba22b2b1069f73fee53",
       "media": {
         "width": 1280,
         "height": 720,
@@ -62,8 +62,8 @@
     },
     {
       "file": "02-handwriting-check.webm",
-      "bytes": 147141,
-      "sha256": "2a1778a36ec6a1c2635ed7d9d9d0a431b0cab7af021cfd4e756eb55c84124857",
+      "bytes": 149008,
+      "sha256": "8f742aed72bd270c256068ddbaf1beae7afa5a2cee20ea1b8985581ad15c0fb6",
       "media": {
         "width": 1280,
         "height": 720,
@@ -75,12 +75,12 @@
     },
     {
       "file": "03-ai-teacher-writes.mp4",
-      "bytes": 110451,
-      "sha256": "2461eacb31de0ca6f8acb8faaaa083e137d265616e3608188336666bad9e4887",
+      "bytes": 119206,
+      "sha256": "3b4f7617f991240860ab18e553264aeb9835dee672f4fde7ac5c8233f8d22fa7",
       "media": {
         "width": 1280,
         "height": 720,
-        "durationSeconds": 14.16,
+        "durationSeconds": 13.96,
         "codec": "h264",
         "audio": false,
         "decoded": true
@@ -88,12 +88,12 @@
     },
     {
       "file": "03-ai-teacher-writes.webm",
-      "bytes": 149036,
-      "sha256": "2a3c45b486abb81871b3e0a4535a9bc0bdb45b2b1b320d93e8cc78058db9e450",
+      "bytes": 152997,
+      "sha256": "c125ae6ac531c972037e2903e188b2089a8a14c652e6f56b64c8dfa8a23206b6",
       "media": {
         "width": 1280,
         "height": 720,
-        "durationSeconds": 14.16,
+        "durationSeconds": 13.96,
         "codec": "vp9",
         "audio": false,
         "decoded": true
@@ -101,8 +101,8 @@
     },
     {
       "file": "03-lesson-light.png",
-      "bytes": 63397,
-      "sha256": "4ca3e1f4fc545cf20e3f5a1c548a03ae9e0d75f2f446f482243b540d4eeac4c1",
+      "bytes": 63035,
+      "sha256": "72ae1cbbaad8fa0fd51901291a637506c8dcf5b8be50b1c1c8b6ccbee925ac22",
       "image": {
         "width": 1280,
         "height": 720
@@ -110,12 +110,12 @@
     },
     {
       "file": "04-chat.mp4",
-      "bytes": 134756,
-      "sha256": "8ee1cb83177022225ef9369b18b157cedc75a8fa74c4a4b523c1ead528067a3b",
+      "bytes": 130618,
+      "sha256": "51bc6edf8450675079b807135f807da19683828a48eeb16e49913689eb362d17",
       "media": {
         "width": 1280,
         "height": 720,
-        "durationSeconds": 15,
+        "durationSeconds": 14.64,
         "codec": "h264",
         "audio": false,
         "decoded": true
@@ -123,12 +123,12 @@
     },
     {
       "file": "04-chat.webm",
-      "bytes": 179963,
-      "sha256": "34c7846aa6de2e937ea52588b3ffdee9dfd9e39b0ea67fbe0741588bc0bcf664",
+      "bytes": 175745,
+      "sha256": "00239b29200902c7b799763fbb5cac1ce2aa191e1608bd759f7f370c07cfd9c9",
       "media": {
         "width": 1280,
         "height": 720,
-        "durationSeconds": 15,
+        "durationSeconds": 14.64,
         "codec": "vp9",
         "audio": false,
         "decoded": true
@@ -136,8 +136,8 @@
     },
     {
       "file": "04-local-coach.png",
-      "bytes": 85734,
-      "sha256": "c7d9add7fdd9f9b3a670668b999472a04baa74999f913cf93f5afe84570dc029",
+      "bytes": 84304,
+      "sha256": "e618fcaf765b3a72e7c775b6fa5de2af112aa7c4947db3a499d860252b22008b",
       "image": {
         "width": 1280,
         "height": 720
@@ -145,12 +145,12 @@
     },
     {
       "file": "05-plan-progress.mp4",
-      "bytes": 260067,
-      "sha256": "8f7b38b1e0eed8923d214bebf0e74add7a94befbf3428cec5e41c5ee3f0c665f",
+      "bytes": 293336,
+      "sha256": "9e1f37dfde461208e418aba649aae5dd4d8d79ede3f6c20f9e93de08b41dc2d3",
       "media": {
         "width": 1280,
         "height": 720,
-        "durationSeconds": 18.68,
+        "durationSeconds": 18.64,
         "codec": "h264",
         "audio": false,
         "decoded": true
@@ -158,12 +158,12 @@
     },
     {
       "file": "05-plan-progress.webm",
-      "bytes": 327924,
-      "sha256": "0b5e25e7a4ce7fc716fb7ffc5b61414ca8c1849ddcd14b1de5c9bb6a9efdf81c",
+      "bytes": 335794,
+      "sha256": "19cc27434cabad65302409b9352452337e82679303607703438140c8640073e2",
       "media": {
         "width": 1280,
         "height": 720,
-        "durationSeconds": 18.68,
+        "durationSeconds": 18.64,
         "codec": "vp9",
         "audio": false,
         "decoded": true
@@ -171,12 +171,12 @@
     },
     {
       "file": "06-physics-units.mp4",
-      "bytes": 118467,
-      "sha256": "71ac81bc86d52aa84e8348ce3f1db8e5b13443b66e757eff3082638646ff8b77",
+      "bytes": 131080,
+      "sha256": "ca3c393b56df11bf39ea095a2ee552308b2fd9b5c83538f3ade2685e0bb7c94e",
       "media": {
         "width": 1280,
         "height": 720,
-        "durationSeconds": 12.88,
+        "durationSeconds": 12.8,
         "codec": "h264",
         "audio": false,
         "decoded": true
@@ -184,12 +184,12 @@
     },
     {
       "file": "06-physics-units.webm",
-      "bytes": 168649,
-      "sha256": "f044410cd5e881f314f70e12fdaa81c676b295fa3f551fb67c0912cdcadd0958",
+      "bytes": 191505,
+      "sha256": "bca31aa118d07b6545db96a80c0abae0702534ecf7a25bdfd1d241bc707fb7a8",
       "media": {
         "width": 1280,
         "height": 720,
-        "durationSeconds": 12.88,
+        "durationSeconds": 12.8,
         "codec": "vp9",
         "audio": false,
         "decoded": true
@@ -197,8 +197,8 @@
     },
     {
       "file": "06-plan.png",
-      "bytes": 65211,
-      "sha256": "77614d9694ba8ff0ca9c92c01c22e6d7f7d0be45e996509fd7ae821e6769a24a",
+      "bytes": 65331,
+      "sha256": "8bc6569ee88d5cbfb279048a318fa23e09b9bca7e8d1b4f6287ec7fcbc975aa2",
       "image": {
         "width": 1280,
         "height": 720
@@ -206,8 +206,8 @@
     },
     {
       "file": "07-physics.png",
-      "bytes": 108103,
-      "sha256": "96281783d57515fb5d107de158df92e1b86b93bc1b582253c2066d00ae2061ca",
+      "bytes": 108384,
+      "sha256": "83467b1379d910180136a48c53df2c13816de7168942a8f298a0257be8984163",
       "image": {
         "width": 1280,
         "height": 720
@@ -215,12 +215,12 @@
     },
     {
       "file": "07-test-and-export.mp4",
-      "bytes": 119027,
-      "sha256": "14d2bdfeca6ff4a1c83d87e112478892aaad7117422044ab443d132a30919565",
+      "bytes": 125200,
+      "sha256": "fc386446c4e9447415bc97fe6d1bfd0dd3de99aae3cfe2783adde25a5ddd7df9",
       "media": {
         "width": 1280,
         "height": 720,
-        "durationSeconds": 12.36,
+        "durationSeconds": 12.32,
         "codec": "h264",
         "audio": false,
         "decoded": true
@@ -228,12 +228,12 @@
     },
     {
       "file": "07-test-and-export.webm",
-      "bytes": 163217,
-      "sha256": "baa60ef3ef00e571604e551167b573f97a87ebb89d41ec2a110cef828cd59133",
+      "bytes": 164218,
+      "sha256": "9bf1d60eaf347537cc41f1f6aecf2245dd222c54731e6d786977de4f73934cf5",
       "media": {
         "width": 1280,
         "height": 720,
-        "durationSeconds": 12.36,
+        "durationSeconds": 12.32,
         "codec": "vp9",
         "audio": false,
         "decoded": true
@@ -241,8 +241,8 @@
     },
     {
       "file": "08-settings-paper-voices.mp4",
-      "bytes": 117422,
-      "sha256": "4901b5efd97590a4377dece41fcbef0dce3829e8a70146887ba4c70a7d7d2ec1",
+      "bytes": 116151,
+      "sha256": "72dbc48d7666463c537ba18c55f630449d1788278c2ca6bc4d8ce124585d4bbf",
       "media": {
         "width": 1280,
         "height": 720,
@@ -254,8 +254,8 @@
     },
     {
       "file": "08-settings-paper-voices.webm",
-      "bytes": 155330,
-      "sha256": "47e5127e40620725cd5a5b7a6a50f050e7adabeaa595979f03e70eb71b388969",
+      "bytes": 156130,
+      "sha256": "95b54338d91c335f1d0b8364416fff0645a4043d561c03713ca1fc2719285d6d",
       "media": {
         "width": 1280,
         "height": 720,
@@ -267,8 +267,8 @@
     },
     {
       "file": "08-tutor-menu.png",
-      "bytes": 74029,
-      "sha256": "5f6fb66f4216fe987f28bba8793b358cb6b9a5b70fcb4a8da5272a4ebc4fca00",
+      "bytes": 73881,
+      "sha256": "e23b39af0ceaa3c3fff07badaa97b5c779263c1760eb461e9be35ca726bea76d",
       "image": {
         "width": 1280,
         "height": 720
@@ -276,8 +276,8 @@
     },
     {
       "file": "09-board-dark.png",
-      "bytes": 59106,
-      "sha256": "9200b475cbb3f6eef3783797f8bb82ae31f654ff1123d02daa4a033cfeec4c9e",
+      "bytes": 59267,
+      "sha256": "ee9052373ac13685aca840877a566b61dd963c01b967082c487a733d259584dc",
       "image": {
         "width": 1280,
         "height": 720
@@ -285,8 +285,8 @@
     },
     {
       "file": "10-phone-dark.png",
-      "bytes": 36277,
-      "sha256": "b2c4580277fd4e6b6da3ba0378943535cc2a96ded09cc4f334594ee34b8f2b49",
+      "bytes": 36489,
+      "sha256": "1410871c54585b6641a64eceba04969fcdc4a68b3c3a6653812fa3a7d7a25871",
       "image": {
         "width": 390,
         "height": 844
@@ -294,8 +294,8 @@
     },
     {
       "file": "11-phone-light.png",
-      "bytes": 27647,
-      "sha256": "fd56804442fa06ececd0b5f172938d2d95114d9901015c7448bd97ec8bd1c3e3",
+      "bytes": 27726,
+      "sha256": "1f3b00e02acdbb28826b8190f3caca955eecedb92c3522e58a8e5ef381e55d4d",
       "image": {
         "width": 390,
         "height": 844
@@ -303,18 +303,18 @@
     },
     {
       "file": "README.md",
-      "bytes": 10440,
-      "sha256": "93f38a1c18082d04c71623eb53e981f659d6e157b35ed860a3503a31d04b96eb"
+      "bytes": 10533,
+      "sha256": "9939eaabcaa9c12428ce8f1292cb3c86a5de721dd92705d151d3120a22c4e960"
     },
     {
       "file": "TODO-media.md",
-      "bytes": 5004,
-      "sha256": "531753bdcc8b2ab9892a4e6b8569df64bcd25274851688717f30f98914d19b92"
+      "bytes": 5051,
+      "sha256": "df490906499a2df1910ad5b71da916ef6d856f53b3ef0184652b9164fbb61f1b"
     },
     {
       "file": "capture-report.json",
-      "bytes": 4267,
-      "sha256": "5e85933dcdc27514243ede9720909cd61cec382b03c24982cd3f4617ad16fa3a"
+      "bytes": 4270,
+      "sha256": "580f7c1d1f82add08711485595993ce1498599606cb795f94fccb6c593ec9312"
     },
     {
       "file": "exports/tabule.png",
@@ -327,8 +327,8 @@
     },
     {
       "file": "exports/test.html",
-      "bytes": 8066,
-      "sha256": "8521993561e55bd6457abe4239804e02e99eb947691029c2e667c1949beb4c02"
+      "bytes": 8047,
+      "sha256": "874b94285f8314eaf68a98cb96e8b0933a6211c30d3761993e269f8515a3c5b7"
     },
     {
       "file": "exports/zapisky.md",
@@ -337,23 +337,23 @@
     },
     {
       "file": "scripts/capture.mjs",
-      "bytes": 18791,
-      "sha256": "8e96ccc96e865428a6f1f7aa74b0596f49a24d4d22ccb601ed4574f33925e2d2"
+      "bytes": 19738,
+      "sha256": "01484df1d242d664e3f66296b91b4b1937d646c833dfe03e449ab71f4a70ce8c"
     },
     {
       "file": "scripts/ink.mjs",
-      "bytes": 8380,
-      "sha256": "24511979bf4a909f0f5449c3a70d89de07028695a87b344490e55966b07d8977"
+      "bytes": 8537,
+      "sha256": "0129898c9372ef0e4dd281315d86b5e30bf4447e78b3a66e51eb6c63faf9836c"
     },
     {
       "file": "scripts/verify.mjs",
-      "bytes": 4431,
-      "sha256": "7f9a4f97ae864f4ae337304f496d2935c891756e78716a2b54ef49f3e014074f"
+      "bytes": 4493,
+      "sha256": "8b5496fb30ddc1eff883c1cf070a18735fe057861c3a437fa91c5207b5fb6ace"
     },
     {
       "file": "shot-01-first-lesson.png",
-      "bytes": 63399,
-      "sha256": "185022d680b0a3d3d24526c9b218b93dc7d1ea6c2091910e28c7fb8cf9a86e60",
+      "bytes": 63226,
+      "sha256": "038505249f0163ea93ce96b32f89abc906ff05918da25a12c26dc7aee8fb6b0c",
       "image": {
         "width": 1280,
         "height": 720
@@ -361,8 +361,8 @@
     },
     {
       "file": "shot-02-handwriting.png",
-      "bytes": 43600,
-      "sha256": "75bced3ed4e7093863c47e7d14c42bc2d06725a21440a486236a83cec7864912",
+      "bytes": 43658,
+      "sha256": "ff1c9c370480d2cbc74e245658671e32ff5c0244a61da2216d7cd6de05daa962",
       "image": {
         "width": 1280,
         "height": 720
@@ -370,8 +370,8 @@
     },
     {
       "file": "shot-03-teacher-board.png",
-      "bytes": 86165,
-      "sha256": "7a85562995fba7f12f0ce38f3547001b64f3a6d1615da701ab6c3775c317a6f1",
+      "bytes": 84660,
+      "sha256": "bc34129216985176423d2e0c36aac5be79c592ee23f5030fb560206fc8a13fea",
       "image": {
         "width": 1280,
         "height": 720
@@ -379,8 +379,8 @@
     },
     {
       "file": "shot-04-chat-thread.png",
-      "bytes": 69677,
-      "sha256": "b099a45594e55ed765041b4a7e6fbdf50f084b62d63cb33db43bc4fd5aff04f4",
+      "bytes": 68649,
+      "sha256": "858f4345bb44357bc65a8f5adc830c5b569d33991fc1e25fdffe5928476df1d3",
       "image": {
         "width": 1280,
         "height": 720
@@ -388,8 +388,8 @@
     },
     {
       "file": "shot-05-plan-progress.png",
-      "bytes": 65229,
-      "sha256": "02ee82bc776dd967f93fe8dcbfd46cb798454ad74248fc5486fbc3e8ee0c0b69",
+      "bytes": 65325,
+      "sha256": "3e86e2a4b7850389607120195f968d920541d542abf8da596a38f83365f5a2bb",
       "image": {
         "width": 1280,
         "height": 720
@@ -397,8 +397,8 @@
     },
     {
       "file": "shot-06-physics-units.png",
-      "bytes": 108103,
-      "sha256": "96281783d57515fb5d107de158df92e1b86b93bc1b582253c2066d00ae2061ca",
+      "bytes": 108384,
+      "sha256": "83467b1379d910180136a48c53df2c13816de7168942a8f298a0257be8984163",
       "image": {
         "width": 1280,
         "height": 720
@@ -406,8 +406,8 @@
     },
     {
       "file": "shot-07-test-export.png",
-      "bytes": 19350,
-      "sha256": "e52fc7831c2af446abae5e3504df02708b9a9f65e55010392262625b38668049",
+      "bytes": 19541,
+      "sha256": "ae12ca526eaa1fa0340ee1f306f66b99185e16bceb3b95b035d093ece8dfcb24",
       "image": {
         "width": 1280,
         "height": 720
@@ -415,8 +415,8 @@
     },
     {
       "file": "shot-08-settings-paper.png",
-      "bytes": 78237,
-      "sha256": "db49c56fe06e89d6b89506e1b1bb4241380513ce04219d6b19e6107e14156e55",
+      "bytes": 78360,
+      "sha256": "5ba1387f9ee484bbcda56172585ab0692cf4ae57f024ffd8353b952dea7a36b3",
       "image": {
         "width": 1280,
         "height": 720

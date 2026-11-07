@@ -11,15 +11,15 @@
         {
           "attempt": 1,
           "outcome": "ok",
-          "durationSeconds": 11,
+          "durationSeconds": 11.04,
           "shortenedAIWait": false,
           "evidence": {
             "localOnly": true
           },
           "sourceSegmentsSeconds": [
             [
-              0.368,
-              11.381
+              0.393,
+              11.418
             ]
           ]
         }
@@ -39,8 +39,8 @@
           },
           "sourceSegmentsSeconds": [
             [
-              3.961,
-              15.063
+              3.825,
+              14.915
             ]
           ]
         }
@@ -53,7 +53,7 @@
         {
           "attempt": 1,
           "outcome": "ok",
-          "durationSeconds": 14.16,
+          "durationSeconds": 13.96,
           "shortenedAIWait": false,
           "evidence": {
             "provider": "claude",
@@ -63,12 +63,12 @@
               "circle",
               "write_text"
             ],
-            "responseSeconds": 6.68
+            "responseSeconds": 6.38
           },
           "sourceSegmentsSeconds": [
             [
-              5.099,
-              19.251
+              4.956,
+              18.882
             ]
           ]
         }
@@ -81,17 +81,17 @@
         {
           "attempt": 1,
           "outcome": "ok",
-          "durationSeconds": 15,
+          "durationSeconds": 14.64,
           "shortenedAIWait": false,
           "evidence": {
             "provider": "claude",
             "model": "sonnet",
-            "chatResponseSeconds": 6.04
+            "chatResponseSeconds": 5.7
           },
           "sourceSegmentsSeconds": [
             [
-              2.373,
-              17.382
+              2.221,
+              16.843
             ]
           ]
         }
@@ -104,7 +104,7 @@
         {
           "attempt": 1,
           "outcome": "ok",
-          "durationSeconds": 18.68,
+          "durationSeconds": 18.64,
           "shortenedAIWait": false,
           "evidence": {
             "percentages": [
@@ -121,8 +121,8 @@
           },
           "sourceSegmentsSeconds": [
             [
-              4.471,
-              23.413
+              5.042,
+              23.748
             ]
           ]
         }
@@ -135,15 +135,15 @@
         {
           "attempt": 1,
           "outcome": "ok",
-          "durationSeconds": 12.88,
+          "durationSeconds": 12.8,
           "shortenedAIWait": false,
           "evidence": {
             "localOnly": true
           },
           "sourceSegmentsSeconds": [
             [
-              4.926,
-              17.819
+              4.765,
+              17.584
             ]
           ]
         }
@@ -156,7 +156,7 @@
         {
           "attempt": 1,
           "outcome": "ok",
-          "durationSeconds": 12.36,
+          "durationSeconds": 12.32,
           "shortenedAIWait": false,
           "evidence": {
             "downloads": [
@@ -168,8 +168,8 @@
           },
           "sourceSegmentsSeconds": [
             [
-              6.702,
-              19.067
+              6.538,
+              18.852
             ]
           ]
         }
@@ -191,8 +191,8 @@
           },
           "sourceSegmentsSeconds": [
             [
-              6.155,
-              16.806
+              5.912,
+              16.59
             ]
           ]
         }

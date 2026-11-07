@@ -11,7 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { drawLine } from './ink.mjs';
 
 const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const BASE_URL = 'http://localhost:5173';
+const BASE_URL = process.env.BASE_URL || process.argv.find(a => a.startsWith('--base-url='))?.split('=')[1] || (process.env.PORT ? `http://localhost:${process.env.PORT}` : 'http://localhost:5173');
 const only = process.argv.find(a => a.startsWith('--only='))?.split('=')[1].split(',');
 const aiAttempts = Number(process.argv.find(a => a.startsWith('--ai-attempts='))?.split('=')[1] ?? 3);
 if (!Number.isInteger(aiAttempts) || aiAttempts < 1 || aiAttempts > 3) throw new Error('ai_attempts_must_be_1_to_3');
@@ -306,6 +306,15 @@ try {
         recordVideo: { dir: temp, size: { width: 1280, height: 720 } },
       });
       const p = await context.newPage();
+      await p.route('http://127.0.0.1:4178/**', async route => {
+        const req = route.request();
+        const response = await p.request.fetch(req, {
+          headers: { ...req.headers(), origin: 'http://localhost:5173', host: '127.0.0.1:4178' }
+        });
+        const headers = response.headers();
+        headers['access-control-allow-origin'] = '*';
+        await route.fulfill({ response, headers });
+      });
       const origin = Date.now();
       p.setDefaultTimeout(20000);
       const t = {
