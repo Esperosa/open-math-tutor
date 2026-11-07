@@ -831,7 +831,7 @@ export function App() {
     const value = { ...live.current, boards, activeId: boards[0].id }; live.current = value; setSaved(value);
   }
   if (!settings.activeTrackId && !settings.onboardingDismissed) {
-    return <Onboarding catalog={catalog} t={t} locale={settings.locale} onSelectTrack={startTrack} onSkip={() => { configure({ onboardingDismissed: true }); if (board.statement || board.skillId) createExercise(); }} />;
+    return <Onboarding catalog={catalog} t={t} locale={settings.locale} onLocaleChange={locale => configure({ locale })} onSelectTrack={startTrack} onSkip={() => { configure({ onboardingDismissed: true }); if (board.statement || board.skillId) createExercise(); }} />;
   }
   const openPanel = panel;
   async function exportImage(kind: 'png' | 'svg') {
