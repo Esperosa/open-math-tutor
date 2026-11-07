@@ -5,6 +5,7 @@ import { boardMathToPlain, type BoardAction } from '@openmathtutor/shared';
 import type { Box } from './boardState';
 import type { StepLocator } from './stepLocator';
 import { anchorPoint, avoidCollisions, placedBox, routeArrow } from './annotationLayout';
+import { computeTaskFontSize } from './taskLayout';
 
 // Excalidraw applies its own dark-mode filter to scene ink. These light-scene
 // colors remain legible in that filter and in the unfiltered white PNG export.
@@ -18,11 +19,11 @@ export interface TeacherNote {
   text: string;
   duration: number;
 }
-function wrap(text: string): string {
+function wrap(text: string, maxLen = 30): string {
   return text.split('\n').flatMap(line => {
     const rows: string[] = []; let row = '';
     for (const word of line.split(/\s+/)) {
-      if (row && row.length + word.length > 30) { rows.push(row); row = ''; }
+      if (row && row.length + word.length > maxLen) { rows.push(row); row = ''; }
       row += (row ? ' ' : '') + word;
     }
     rows.push(row); return rows;
@@ -43,14 +44,18 @@ export function annotationElements(actions: BoardAction[], locate: StepLocator, 
     let skeleton: ExcalidrawElementSkeleton | null = null, text = '', box: Box | null = null;
     switch (a.type) {
       case 'write_math': case 'write_text': case 'show_hint': {
-        try { text = wrap(a.type === 'write_math' ? boardMathToPlain(a.latex) : a.text); } catch { break; }
-        const [measured] = convertToExcalidrawElements([{ ...base, type: 'text', text, x: 0, y: 0, fontSize: 22, fontFamily: 1 }], { regenerateIds: false });
+        const isTask = a.id.startsWith('task-statement');
+        const fontSize = isTask
+          ? computeTaskFontSize(a.type === 'write_text' ? a.text.length : 40, typeof window !== 'undefined' && window.innerWidth <= 700)
+          : 22;
+        try { text = wrap(a.type === 'write_math' ? boardMathToPlain(a.latex) : a.text, isTask ? 80 : 30); } catch { break; }
+        const [measured] = convertToExcalidrawElements([{ ...base, type: 'text', text, x: 0, y: 0, fontSize, fontFamily: 1 }], { regenerateIds: false });
         if (!measured) break;
         const size = { width: measured.width, height: measured.height };
         const desired = a.placement ? placedBox(a.placement, size, locate) : a.anchor ? { ...size, x: a.anchor.x, y: a.anchor.y } : null;
         if (!desired) break;
         box = avoidCollisions(desired, occupied);
-        skeleton = { ...base, type: 'text', text, x: box.x, y: box.y, fontSize: 22, fontFamily: 1 };
+        skeleton = { ...base, type: 'text', text, x: box.x, y: box.y, fontSize, fontFamily: 1 };
         occupied.push(box); ink.push(box);
         break;
       }
@@ -93,7 +98,8 @@ export function annotationElements(actions: BoardAction[], locate: StepLocator, 
     }
     if (!skeleton || !box) continue;
     const elements = convertToExcalidrawElements([skeleton], { regenerateIds: false });
-    const deleteBox = avoidCollisions({ x: box.x + box.width + 14, y: box.y - 8, width: 28, height: 28 }, [...occupied.filter(b => b !== box), ...notes.map(n => n.deleteBox)]);
+    // Place delete handle at the top-right corner of the note box, clear of the line's right-side verdict badge
+    const deleteBox = avoidCollisions({ x: box.x + box.width - 8, y: box.y - 12, width: 28, height: 28 }, [...occupied.filter(b => b !== box), ...notes.map(n => n.deleteBox)]);
     occupied.push(deleteBox);
     notes.push({ action: a, elements, box, deleteBox, text, duration: text ? Math.max(240, [...text].length * 32) : 480 });
   }

@@ -26,6 +26,17 @@ export type BoardPattern = 'plain' | 'grid' | 'lines' | 'dots' | 'school';
 export const BOARD_PATTERNS: readonly BoardPattern[] = ['plain', 'grid', 'lines', 'dots', 'school'];
 export interface Saved { version: 1; boards: BoardState[]; activeId: string; settings: Settings }
 const KEY = 'openmathtutor.frontend.v1';
+
+export function detectDefaultLocale(): Locale {
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.language === 'string') {
+      const lang = navigator.language.toLowerCase();
+      if (lang.startsWith('en')) return 'en';
+    }
+  } catch { return 'cs'; }
+  return 'cs';
+}
+
 export const defaultSettings: Settings = {
   locale: 'cs', theme: 'light', auto: true, voiceEnabled: false, voiceURI: '', rate: 1, provider: '', model: '', showAI: true,
   activeTrackId: '', onboardingDismissed: false, startLevel: 1,
@@ -75,7 +86,7 @@ export function load(): Saved {
     }
   } catch { /* Invalid/disabled storage never prevents opening a usable local board. */ }
   const board = newBoard();
-  return { version: 1, boards: [board], activeId: board.id, settings: defaultSettings };
+  return { version: 1, boards: [board], activeId: board.id, settings: { ...defaultSettings, locale: detectDefaultLocale() } };
 }
 export function save(value: Saved): boolean {
   try { localStorage.setItem(KEY, JSON.stringify(value)); return true; } catch { return false; }

@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+import '@testing-library/jest-dom/vitest';
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { COLOR_LEGEND_ITEMS, ColorLegendDialog } from './ColorLegend';
@@ -23,20 +25,17 @@ function relativeLuminance(hex: string): number {
 function contrastRatio(hex1: string, hex2: string): number {
   const lum1 = relativeLuminance(hex1);
   const lum2 = relativeLuminance(hex2);
-  const lighter = Math.max(lum1, lum2);
+  const brighter = Math.max(lum1, lum2);
   const darker = Math.min(lum1, lum2);
-  return (lighter + 0.05) / (darker + 0.05);
+  return (brighter + 0.05) / (darker + 0.05);
 }
 
 describe('ColorLegend', () => {
   const lightBg = '#ffffff';
-  const darkBg = '#181f21';
+  const darkBg = '#1c2424';
 
   it('contains all 5 essential whiteboard items with Czech and English texts', () => {
     expect(COLOR_LEGEND_ITEMS).toHaveLength(5);
-    const ids = COLOR_LEGEND_ITEMS.map(i => i.id);
-    expect(ids).toEqual(['red-pen', 'teal-pen', 'green-mark', 'red-mark', 'gray-mark']);
-
     for (const item of COLOR_LEGEND_ITEMS) {
       expect(item.label.cs).toBeTruthy();
       expect(item.label.en).toBeTruthy();

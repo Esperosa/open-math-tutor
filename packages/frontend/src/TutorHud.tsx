@@ -144,7 +144,7 @@ export function TutorHud(p: Props) {
       </fieldset>
     </div>}
     {chatOpen && p.chat && <ChatPanel {...p.chat} />}
-    {p.menuOpen && !p.quiet && <div className="tutor-menu" role="menu" aria-label={t.tutorMenu}>
+    {p.menuOpen && <div className="tutor-menu" role="menu" aria-label={t.tutorMenu}>
       <div className="tutor-modes" role="radiogroup" aria-label={t.coachModeLabel}>
         {MODES.map(m => <button key={m.mode} role="radio" aria-checked={p.mode === m.mode} className={p.mode === m.mode ? 'primary' : ''} onClick={() => p.onMode(m.mode)}>{t[m.label]}</button>)}
       </div>

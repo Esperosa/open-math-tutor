@@ -56,6 +56,33 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
   const boardRef = useRef(board); boardRef.current = board;
   const [locatorVersion, setLocatorVersion] = useState(0);
   const [popoverStepId, setPopoverStepId] = useState<string | null>(null);
+  const [symbolPage, setSymbolPage] = useState<Record<string, number>>({});
+  const [highlightedSymbol, setHighlightedSymbol] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [dismissedPopovers, setDismissedPopovers] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const handleOutsidePointer = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && !target.closest('.ink-reading')) {
+        const uncertainSteps = boardRef.current.steps.filter(s => s.uncertain);
+        if (uncertainSteps.length > 0) {
+          setDismissedPopovers(new Set(uncertainSteps.map(s => s.stepId)));
+          setPopoverStepId(null);
+          setHighlightedSymbol(null);
+        }
+      }
+    };
+    window.addEventListener('pointerdown', handleOutsidePointer, { passive: true });
+    return () => window.removeEventListener('pointerdown', handleOutsidePointer);
+  }, []);
+
+  const prevRev = useRef(board.revision);
+  useEffect(() => {
+    if (board.revision !== prevRev.current) {
+      prevRev.current = board.revision;
+      setDismissedPopovers(new Set());
+    }
+  }, [board.revision]);
   const registry = useMemo(() => createStepLocatorRegistry((id, symbol) =>
     textStepLocator(boardRef.current.steps, api?.getSceneElements() ?? boardRef.current.elements)(id, symbol)), [api]);
   const notes = useMemo(() => annotationElements(actions, registry.locate,
@@ -378,6 +405,7 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
     </div>
     <div className="ink-layer">
       {board.steps.filter(step => step.origin === 'ink' && step.latexGuess.trim()).map(step => {
+        if (dismissedPopovers.has(step.stepId)) return null;
         const isPopoverOpen = popoverStepId === step.stepId;
         if (!step.uncertain) {
           return <div key={step.stepId} className="ink-reading"
@@ -396,9 +424,13 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
         }
 
         const soft = (step.symbols ?? []).map((symbol, index) => ({ symbol, index }))
-          .filter(({ symbol }) => symbol.uncertain || !step.parserCompatible).slice(0, 6);
+          .filter(({ symbol }) => symbol.uncertain || !step.parserCompatible);
+        const pageSize = 3;
+        const totalPages = Math.max(1, Math.ceil(soft.length / pageSize));
+        const page = (symbolPage[step.stepId] ?? 0) % totalPages;
+        const pagedSymbols = soft.slice(page * pageSize, page * pageSize + pageSize);
         const guides = pickSymbolGuidesForSymbols(step.symbols);
-        const candidates = soft.flatMap(({ symbol, index }) =>
+        const candidates = pagedSymbols.flatMap(({ symbol, index }) =>
           correctionLabels(symbol).map(label => ({ symbol, index, label }))
         );
 
@@ -463,7 +495,16 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
 
             {candidates.length > 0 && (
               <div className="ink-popover-section" aria-label={t.handwritingCorrect}>
-                <span className="ink-section-title">{t.whichSymbolPrompt || 'Který znak to je?'}</span>
+                <div className="ink-section-header">
+                  <span className="ink-section-title">{t.whichSymbolPrompt || 'Který znak to je?'}</span>
+                  {totalPages > 1 && (
+                    <button type="button" className="ink-candidates-page-btn" data-testid={`ink-candidates-page-${step.stepId}`}
+                      onClick={e => { e.stopPropagation(); setSymbolPage(p => ({ ...p, [step.stepId]: (page + 1) % totalPages })); }}>
+                      {t.nextSymbols || 'Další znaky'} ({page + 1}/{totalPages}) →
+                    </button>
+                  )}
+                </div>
+                <small className="ink-chip-explanation">{t.symbolOrderHint || 'Číslo v rohu udává pořadí znaku v řádku.'}</small>
                 <div className="ink-candidates-chips" data-testid={`ink-candidates-${step.stepId}`}>
                   {candidates.map(({ symbol, index, label }) => (
                     <button key={`${index}-${label}`} type="button"
@@ -471,8 +512,19 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
                       data-testid={`ink-candidate-${step.stepId}-${index}-${label}`}
                       aria-label={`${t.handwritingCorrect}: ${index + 1}. ${t.handwritingSymbol} „${symbol.label ?? symbol.candidates[0]?.label}“ → „${label}“`}
                       title={`${index + 1}. ${t.handwritingSymbol}: ${symbol.label ?? symbol.candidates[0]?.label} → ${label}`}
+                      onPointerEnter={() => setHighlightedSymbol(symbol.bbox)}
+                      onPointerLeave={() => setHighlightedSymbol(null)}
+                      onFocus={() => setHighlightedSymbol(symbol.bbox)}
+                      onBlur={() => setHighlightedSymbol(null)}
                       onPointerDown={event => event.stopPropagation()}
-                      onClick={event => { event.stopPropagation(); onInkCorrection?.(inkSymbolKey(symbol.strokeIds, board.elements), label); }}><span className="ink-chip-order" aria-hidden="true" data-order={index + 1} /><span className="ink-chip-symbol">{label}</span></button>
+                      onClick={event => {
+                        event.stopPropagation();
+                        setHighlightedSymbol(null);
+                        onInkCorrection?.(inkSymbolKey(symbol.strokeIds, board.elements), label);
+                      }}>
+                      <span className="ink-chip-order" aria-hidden="true" data-order={index + 1}></span>
+                      <span className="ink-chip-symbol">{label}</span>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -525,8 +577,19 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
             )}
           </div>
         );
-      })}
-    </div>
+      })}    </div>
+    {highlightedSymbol && (
+      <div
+        className="ink-symbol-highlight"
+        data-testid="ink-symbol-highlight"
+        style={{
+          left: (highlightedSymbol.x + view.x) * view.zoom - 4,
+          top: (highlightedSymbol.y + view.y) * view.zoom - 4,
+          width: highlightedSymbol.width * view.zoom + 8,
+          height: highlightedSymbol.height * view.zoom + 8,
+        }}
+      />
+    )}
     {menu_ && <div className="ctx-menu" role="menu" aria-label={t.ctxMenu} style={{ left: menu_.x, top: menu_.y }}>
       <button role="menuitem" onClick={() => menuAction('text')}>{t.ctxText}</button>
       <button role="menuitem" onClick={() => menuAction('eraser')}>{t.ctxEraser}</button>

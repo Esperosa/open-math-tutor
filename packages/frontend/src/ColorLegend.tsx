@@ -70,15 +70,15 @@ export const COLOR_LEGEND_ITEMS: ColorLegendItem[] = [
   {
     id: 'gray-mark',
     label: {
-      cs: 'Šedá ? (s tečkou): nejisté čtení rukopisu',
-      en: 'Grey ? (with dot): uncertain handwriting reading',
+      cs: 'Oranžový přerušovaný rámeček s „?“: nejisté čtení rukopisu',
+      en: 'Orange dashed frame with "?": uncertain handwriting reading',
     },
     shapeDesc: {
-      cs: 'Otazník s výraznou spodní tečkou',
-      en: 'Question mark with a prominent dot',
+      cs: 'Oranžový přerušovaný rámeček s otazníkem upozorňující na symbol k ověření',
+      en: 'Orange dashed border with question mark highlighting symbol to verify',
     },
-    colorLight: '#475467',
-    colorDark: '#bacac5',
+    colorLight: '#c2410c',
+    colorDark: '#fb923c',
     shape: 'question-dot',
   },
 ];
