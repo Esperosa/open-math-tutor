@@ -44,6 +44,29 @@ cd ../../packages/frontend && npx vitest run src/handwriting
 in `.cache/` (gitignored). Re-run `prepare_evaluation.py` after every retraining, otherwise `model.test.ts`
 fails on stale parity or pendigits fixtures.
 
+Punctuation training also accepts `--punctuation-multiplier 4`, `--comma-weight 3` and
+`--learning-rate .0018`. The multiplier increases comma, dot and middle-dot samples (the last two
+must stay balanced: an isolated pen tap has no baseline). The comma loss weight emphasizes confusing
+curved commas without removing any digit/letter replay. Warm-start with `--init` and a smaller learning
+rate when preserving an existing model. See `ACCURACY.md` for the exact measured recipe and init commit.
+`--retention-weight 2` optionally distills the warm-start model at temperature 2 on augmented training
+replay with ground-truth labels in `--retention-labels '0ox×()l'`. It requires an init with identical
+labels, anchors the vulnerable digit/letter boundaries without freezing all digit adaptation, and
+never consults evaluation samples or expected answers. `--output PATH` writes a candidate separately
+from the app's weights (useful while browser tests are running).
+
+Comma validation uses 500 fresh augmented curves, a separate seed and the training templates only.
+Checkpoint selection requires at least 98% on these curves, then maximizes the existing equally weighted
+MNIST/pendigits validation score. If no checkpoint qualifies, training fails without replacing weights.
+No official test images, independent test writers, held-out fonts, TypeScript test seeds or course
+answers participate in training or checkpoint selection.
+
+Templates marked `geometryOnly` are intentionally excluded from isolated classification: a straight
+comma tail normalizes to the same image as a slash/one. Those shapes, and dots, are tested in actual
+rows at multiple scales with deliberately incorrect classifier predictions. The recognizer checks
+their original size, baseline and digit neighbours; a compact tap/closed dot keeps `.`, a visible tail
+keeps `,`. Multiplication dots are distinguished by their raised position, not by solving the equation.
+
 ## Model
 
 Conv 5x5x16, max-pool, Conv 3x3x32, max-pool, Dense 192, Dense `len(LABELS)`; about 169 000 parameters

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { catalog } from '@openmathtutor/content';
-import { formatExpected, getTopicSkills, getTrackTopics, skillCheckLevel, type ExpectedAnswer, type Skill } from '@openmathtutor/shared';
+import { formatExpected, getTopicSkills, getTrackTopics, parseMathStatement, skillCheckLevel, type ExpectedAnswer, type Skill } from '@openmathtutor/shared';
 import { richRowElements, symbolElements } from './inkFixture';
 
 interface ActiveBoard {
@@ -276,6 +276,13 @@ test('offers a correction when a glyph is ambiguous', async ({ page }) => {
   await expect(candidates.first()).toBeVisible({ timeout: 10000 });
   const strong = reading.locator('strong');
   const before = await strong.textContent();
-  await candidates.filter({ hasNotText: before ?? '' }).first().click();
+  // An isolated times sign is intentionally rejected by correctInk's safe
+  // parser. Choose a different *usable* candidate, not merely a different glyph.
+  const replacement = (await candidates.allTextContents()).find(label => {
+    if (label === before) return false;
+    try { parseMathStatement(label); return true; } catch { return false; }
+  });
+  expect(replacement).toBeDefined();
+  await candidates.filter({ hasText: new RegExp(`^${escapeRegExp(replacement!)}$`) }).first().click();
   await expect(strong).not.toHaveText(before ?? '');
 });

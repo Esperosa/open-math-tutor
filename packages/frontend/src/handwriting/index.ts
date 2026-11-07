@@ -22,8 +22,19 @@ function contextualize(symbols: RecognizedSymbol[], symbolStrokes: readonly (rea
   const baseline = median(symbols.filter(s => s.bbox.height >= height * .8).map(s => bottom(s.bbox)));
   for (let i = 0; i < symbols.length; i++) {
     const s = symbols[i], best = s.candidates[0].label;
+    const strokes = symbolStrokes[i];
     let contextual: string | undefined;
     const left = symbols[i - 1], next = symbols[i + 1];
+    // A pair of broad, separated horizontal strokes conflicts with a digit
+    // reading. Do not guess equals or recalibrate the model's probability;
+    // require the writer to choose, even if the classifier is very confident.
+    if (best !== '=' && strokes.length === 2) {
+      const [a, b] = strokes.map(stroke => stroke.bbox);
+      if ([a, b].every(box => box.width > height * .35 && box.height < box.width * .45)
+        && Math.min(a.width, b.width) > Math.max(a.width, b.width) * .55
+        && Math.min(right(a), right(b)) - Math.max(a.x, b.x) > Math.min(a.width, b.width) * .65
+        && Math.abs(centerY(a) - centerY(b)) > median(strokes.map(stroke => stroke.width))) s.uncertain = true;
+    }
     // Tiny baseline mark BETWEEN full-height digits is decimal punctuation,
     // regardless of whether its isolated silhouette resembles 1 or slash.
     if (left && next && /^\d$/.test(left.label ?? left.candidates[0].label) && /^\d$/.test(next.candidates[0].label)
@@ -35,11 +46,18 @@ function contextualize(symbols: RecognizedSymbol[], symbolStrokes: readonly (rea
       // Raster normalization erases absolute size: even a pen tap can look
       // like a midline multiplication dot. Use the original pen footprint,
       // not the class label, to distinguish a dot from a visible comma tail.
-      const strokes = symbolStrokes[i], penWidth = median(strokes.map(stroke => stroke.width));
+      const penWidth = median(strokes.map(stroke => stroke.width));
       const span = Math.max(s.bbox.width, s.bbox.height);
-      const closedDot = span <= Math.min(s.bbox.width, s.bbox.height) * 2 && strokes.every(stroke => {
+      const closedDot = span <= Math.min(s.bbox.width, s.bbox.height) * 1.5 && strokes.every(stroke => {
         const first = stroke.points[0], last = stroke.points[stroke.points.length - 1];
-        return stroke.points.length >= 4 && Math.hypot(last[0] - first[0], last[1] - first[1]) <= span * .35;
+        // Excalidraw may append the first point to a short hook. Closure alone
+        // therefore isn't a dot: require a compact loop with a filled footprint.
+        const area = Math.abs(stroke.points.reduce((sum, a, j, points) => {
+          const b = points[(j + 1) % points.length];
+          return sum + (a[0] - first[0]) * (b[1] - first[1]) - (b[0] - first[0]) * (a[1] - first[1]);
+        }, 0)) / 2;
+        return stroke.points.length >= 4 && Math.hypot(last[0] - first[0], last[1] - first[1]) <= span * .35
+          && area >= s.bbox.width * s.bbox.height * .4;
       });
       s.label = span <= penWidth * .75 || closedDot ? '.' : ',';
       s.uncertain = false;

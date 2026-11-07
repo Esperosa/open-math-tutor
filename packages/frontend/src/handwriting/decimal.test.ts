@@ -23,6 +23,7 @@ for (const height of [24, 40, 72]) for (const [shape, points, separator] of [
   ['closed dot', [[0, 0], [.017, -.017], [.033, 0], [.017, .017], [0, 0]], '.'],
   ['slash', [[0, 0], [-.05, .13]], ','],
   ['hook', [[0, 0], [.03, .05], [-.03, .12]], ','],
+  ['auto-closed hook', [[0, 0], [.033, .05], [-.033, .117], [0, 0]], ','],
 ] as const) {
   it(`uses geometry for a ${shape} at height ${height} despite wrong classifier candidates`, () => {
     const input = rowElements('2,5+1,5=4', 7, height, [-130, 280]);

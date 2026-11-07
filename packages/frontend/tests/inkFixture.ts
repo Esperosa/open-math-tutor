@@ -27,11 +27,11 @@ export function random(seed: number): () => number {
   };
 }
 
-export function symbolElements(label: string, seed: number, source = 'hershey-simplex', height = 40): FixtureStroke[] {
+export function symbolElements(label: string, seed: number, source = 'hershey-simplex', height = 40, options: { cursive?: boolean } = {}): FixtureStroke[] {
   const rng = random(seed);
   const available = [...templates, ...heldout].filter(t => t.label === label && t.source.startsWith(source));
   const template = available[Math.floor(rng() * available.length)] ?? templates.find(t => t.label === label)!;
-  const strokes = cursive[label] ?? template.strokes;
+  const strokes = options.cursive === false ? template.strokes : cursive[label] ?? template.strokes;
   const flat = strokes.flat(), minX = Math.min(...flat.map(p => p[0])), minY = Math.min(...flat.map(p => p[1]));
   const span = Math.max(...flat.map(p => Math.max(p[0] - minX, p[1] - minY)), 8);
   const angle = (rng() - .5) * .26, shear = (rng() - .5) * .36, sx = .85 + rng() * .3, sy = .85 + rng() * .3;
@@ -52,12 +52,12 @@ export function symbolElements(label: string, seed: number, source = 'hershey-si
   });
 }
 
-export function rowElements(text: string, seed: number, height = 40, offset: Point = [0, 0]): FixtureStroke[] {
+export function rowElements(text: string, seed: number, height = 40, offset: Point = [0, 0], options: { cursive?: boolean } = {}): FixtureStroke[] {
   const rng = random(seed), out: FixtureStroke[] = [];
   let cursor = 0, index = 0;
   for (const label of text) {
     if (label === ' ') { cursor += height * .35; index++; continue; }
-    const elements = symbolElements(label, seed * 137 + index + 1, label === 'x' ? 'own' : 'hershey-simplex', height);
+    const elements = symbolElements(label, seed * 137 + index + 1, label === 'x' ? 'own' : 'hershey-simplex', height, options);
     const points = elements.flatMap(e => e.points);
     const x = Math.min(...points.map(p => p[0])), y = Math.min(...points.map(p => p[1]));
     const w = Math.max(...points.map(p => p[0])) - x, h = Math.max(...points.map(p => p[1])) - y;

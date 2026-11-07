@@ -30,6 +30,8 @@ it('measures every Czech notation variant separately, including inherently ambig
   if (process.env.HANDWRITING_VARIANTS_REPORT) writeFileSync(process.env.HANDWRITING_VARIANTS_REPORT, JSON.stringify(result, null, 2));
   for (const key of ['variant:one-hook', 'variant:one-top-bar', 'variant:seven-crossbar', 'variant:four-open', 'variant:four-closed', 'variant:nine-european']) expect(result[key].correct / result[key].total).toBeGreaterThanOrEqual(.92);
   expect(result['∅'].confusion['0'] ?? 0).toBe(0);
+  expect(result[','].correct / result[','].total).toBeGreaterThanOrEqual(.98);
+  expect(result['.'].correct / result['.'].total).toBeGreaterThanOrEqual(.98);
 }, 60000);
 
 it('normalizes division, multiplication, brackets, decimals and implied multiplication without silently changing unsupported symbols', () => {

@@ -14,7 +14,7 @@ function record(name: string, result: unknown): void {
   if (process.env.HANDWRITING_REPORT) writeFileSync(process.env.HANDWRITING_REPORT, JSON.stringify(measured, null, 2));
 }
 
-it('scores all 10000 official held-out MNIST images with the full multiclass TS model (>=97%)', () => {
+it('scores all 10000 official held-out MNIST images with the full multiclass TS model (>=98.5%)', () => {
   const images = gunzipSync(readFileSync(new URL('./__fixtures__/t10k-images-idx3-ubyte.gz', import.meta.url)));
   const labels = gunzipSync(readFileSync(new URL('./__fixtures__/t10k-labels-idx1-ubyte.gz', import.meta.url)));
   expect(images.readUInt32BE(0)).toBe(2051); expect(images.readUInt32BE(4)).toBe(10000);
@@ -29,7 +29,7 @@ it('scores all 10000 official held-out MNIST images with the full multiclass TS 
     if (prediction === String(label)) { correct++; perClass[label].correct++; }
   }
   record('mnist', { correct, total: 10000, accuracy: correct / 10000, perClass, elapsedMs: performance.now() - start });
-  expect(correct).toBeGreaterThanOrEqual(9700);
+  expect(correct).toBeGreaterThanOrEqual(9850);
 }, 120000);
 
 it('scores unseen noisy Hershey/own stroke augmentations; digits+operators >=92%', () => {
@@ -52,7 +52,7 @@ it('scores unseen noisy Hershey/own stroke augmentations; digits+operators >=92%
   expect(correct / total).toBeGreaterThanOrEqual(.92);
 }, 60000);
 
-it('scores UCI pendigits digits from writers never used in training (>=95%)', () => {
+it('scores UCI pendigits digits from writers never used in training (>=96.5%)', () => {
   // Raw 8-point pen trajectories, not bitmaps: the same rasterizeSymbol and
   // classifyRaster path the board uses. The official test split was never
   // touched by train.py, so this is the writer-independent number.
@@ -69,7 +69,7 @@ it('scores UCI pendigits digits from writers never used in training (>=95%)', ()
     else confusion[`${sample.label}->${prediction}`] = (confusion[`${sample.label}->${prediction}`] ?? 0) + 1;
   }
   record('pendigits', { correct, total: fixture.samples.length, accuracy: correct / fixture.samples.length, confusion });
-  expect(correct / fixture.samples.length).toBeGreaterThanOrEqual(.95);
+  expect(correct / fixture.samples.length).toBeGreaterThanOrEqual(.965);
 }, 120000);
 
 it('scores digits drawn in Hershey families that were never used for training (serif and triplex)', () => {
