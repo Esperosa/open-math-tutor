@@ -39,10 +39,10 @@ it('does not comment on a line while the pen is down and comments one pen pause 
   const lifted = Date.now();
   act(() => { fireEvent.pointerUp(pad); });
   expect(screen.getByTestId('tutor')).toHaveAttribute('data-mood', 'checking'); // looks at once, comments after the pause
-  await waitFor(() => expect(screen.getByTestId('tutor-bubble')).toHaveAttribute('data-kind', 'wrong'), { timeout: 3000 });
+  await waitFor(() => expect(screen.getByTestId('tutor-bubble')).toHaveAttribute('data-kind', 'wrong'), { timeout: PEN_PAUSE_MS + 1500 });
   const waited = Date.now() - lifted;
   expect(waited).toBeGreaterThanOrEqual(PEN_PAUSE_MS - 60);
-  expect(waited).toBeLessThan(1400);
+  expect(waited).toBeLessThan(PEN_PAUSE_MS + 900);
 });
 
 it('answers app questions locally, says plainly that the AI is missing for the rest, and remembers the thread per board', async () => {

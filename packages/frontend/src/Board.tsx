@@ -160,10 +160,15 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
       }) : [];
       // Read live student elements each frame; never write a lagging React copy
       // over a pen stroke or feed teacher frames into OCR/revision tracking.
-      const student = api.getSceneElementsIncludingDeleted().filter(isStudent);
-      api.updateScene({ elements: [...student, ...shapes], captureUpdate: CaptureUpdateAction.NEVER });
+      // While the pen is down, replacing the scene interrupts Excalidraw's
+      // in-progress freedraw and silently dropped the last digit.
+      const drawing = pointerDown.current || !!api.getAppState().newElement;
+      if (!drawing) {
+        const student = api.getSceneElementsIncludingDeleted().filter(isStudent);
+        api.updateScene({ elements: [...student, ...shapes], captureUpdate: CaptureUpdateAction.NEVER });
+      }
       setWriting(active);
-      if (!active.size && timer) clearInterval(timer);
+      if (!drawing && !active.size && timer) clearInterval(timer);
     };
     paint();
     if (!reduced && settings.showAI) timer = setInterval(paint, 32);

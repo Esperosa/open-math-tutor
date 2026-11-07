@@ -26,6 +26,13 @@ describe("nextCoachEvent", () => {
     expect(nextCoachEvent(base({ mode: "final", statement: "2x+3=7", steps: [step("a", "2x=5")], expected }))).toEqual({ kind: "idle" });
     expect(nextCoachEvent(base({ mode: "final", statement: "2x+3=7", steps, expected }))).toMatchObject({ kind: "wrong_step", n: 1 });
   });
+  it("asks for the unit when a word problem has the right number only", () => {
+    const expected = { value: 11, tolerance: 1e-9, unit: "m/s", wordProblem: true, givens: [77, 7] };
+    const statement = "Auto ujede 77 m za 7 s. Jakou má průměrnou rychlost?";
+    expect(nextCoachEvent(base({ statement, steps: [step("a", "11")], expected }))).toEqual({ kind: "unit_missing", key: expect.any(String), n: 1 });
+    expect(nextCoachEvent(base({ statement, steps: [step("a", "11m/s")], expected })).kind).toBe("solved");
+    expect(nextCoachEvent(base({ mode: "final", statement, steps: [step("a", "11")], expected })).kind).toBe("unit_missing");
+  });
   it("is honest about lines it cannot check", () => {
     expect(nextCoachEvent(base({ statement: "Urči obsah kruhu", steps: [step("a", "S = pi r^2")] })).kind).toBe("unclear");
   });

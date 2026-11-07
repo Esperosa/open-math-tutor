@@ -1,7 +1,11 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 
-/** Quiet time after a pen stroke before the written line counts as finished (the student may add the next digit). */
-export const PEN_PAUSE_MS = 450;
+/**
+ * Quiet time after a pen stroke before the written line counts as finished.
+ * Measured pauses between digits of one handwritten number reach 2 s; a
+ * shorter window judged half-written lines (`12+7=1` before the final `9`).
+ */
+export const PEN_PAUSE_MS = 2400;
 /** Quiet time after the end of a typed line (Escape, Ctrl+Enter or a click elsewhere); the line is complete, so this is short. */
 export const TEXT_PAUSE_MS = 220;
 /** While typing, the mascot keeps watching until the keys stay quiet this long. */

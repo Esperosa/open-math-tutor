@@ -45,7 +45,9 @@ async function instrument(page: Page) {
     };
     const set = (name: string) => { if (window.__lat[name] === undefined && window.__lat.t0 !== undefined) window.__lat[name] = performance.now() - window.__lat.t0; };
     document.addEventListener('keydown', e => { if (kind === 'key' && e.key === 'Escape') window.__lat.t0 = performance.now(); }, true);
-    document.addEventListener('pointerup', () => { if (kind === 'pen') window.__lat.t0 = performance.now(); }, true);
+    // Window capture runs before the app's document capture listener, so the
+    // stopwatch is running before React commits the "checking" mood.
+    window.addEventListener('pointerup', () => { if (kind === 'pen') window.__lat.t0 = performance.now(); }, true);
     document.addEventListener('click', e => { if (kind === 'click' && (e.target as Element).closest('[role="menuitem"]')) window.__lat.t0 = performance.now(); }, true);
     const scan = () => {
       if (window.__lat.t0 === undefined) return;

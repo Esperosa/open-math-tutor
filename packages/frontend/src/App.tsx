@@ -169,6 +169,8 @@ export function App() {
   const [profile, setProfileState] = useState<LearnerProfile>(loadProfile);
   const profileRef = useRef(profile); profileRef.current = profile;
   const stepErrors = useRef<Map<string, number>>(new Map());
+  /** Explicit hint requests per line; only the second one may reveal the computed step. */
+  const hintAsks = useRef<Map<string, number>>(new Map());
   const resetting = useRef(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => () => { clearTimeout(hoverTimer.current); clearTimeout(leaveTimer.current); }, []);
@@ -645,7 +647,6 @@ export function App() {
     const expected: ExpectedAnswer | undefined = current.expected ?? expectedAnswerFor(task);
     const handled = new Set(current.handled ?? []);
     const event = nextCoachEvent({ mode, statement: task, steps: ls, expected, handled });
-    console.log("DEBUG_COACH:", JSON.stringify({ mode, task, ls: ls.map(l => l.latexGuess), expected, event }));
     if (event.kind === 'idle') return;
     applyCoachEvent(current, ls, event);
   }
@@ -700,6 +701,13 @@ export function App() {
       }
       case 'check_in':
         updateBoard(marked); say('check_in'); break;
+      case 'unit_missing': {
+        updateBoard(marked);
+        const text = messages[locale].unitMissing;
+        setMessage({ id: event.key, kind: 'info', text, stepId: ls[event.n - 1]?.stepId });
+        voice.speak(text);
+        break;
+      }
       case 'unclear': {
         updateBoard(marked);
         const line = ls.find(l => stepKey(l) === event.key);
@@ -750,7 +758,13 @@ export function App() {
       const hint = messages[cur.settings.locale][message.reason === 'arithmetic' ? 'hintArithmetic' : 'hintStep'];
       const action: BoardAction = { id: `hint-${stepId}`, type: 'show_hint', boardRevision: current.revision, text: hint,
         placement: { relativeToStepId: stepId, side: 'below', offsetEm: 0.4 } };
-      const teacherSol = localTeacherActions(lines.find(l => l.stepId === stepId), current.revision, cur.settings.locale, { revealSolution: true });
+      const asks = (hintAsks.current.get(stepId) ?? 0) + 1;
+      hintAsks.current.set(stepId, asks);
+      // The first hint only names the operation; the computed value appears
+      // after an explicit second request.
+      const teacherSol = asks >= 2
+        ? localTeacherActions(lines.find(l => l.stepId === stepId), current.revision, cur.settings.locale, { revealSolution: true })
+        : [];
       const shouldSpeakLegend = !current.colorLegendSpoken;
       updateBoard({
         ...current,
