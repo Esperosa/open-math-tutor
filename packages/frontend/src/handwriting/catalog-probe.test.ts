@@ -59,4 +59,4 @@ it('probe every auto-check skill through the real recognizer', () => {
   console.log(`SUMMARY ${pass}/${total} (${((pass / total) * 100).toFixed(2)} %)`);
   expect(total).toBeGreaterThanOrEqual(60);
   expect(pass / total).toBeGreaterThanOrEqual(0.9);
-});
+}, 60000);

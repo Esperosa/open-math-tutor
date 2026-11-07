@@ -100,7 +100,8 @@ def test_limits_fail_structurally_at_http_boundary(client, monkeypatch):
 
 
 @pytest.mark.parametrize("body", [b"{", b"null", b"{\"x\":NaN}", b"{\"x\":Infinity}", b"{\"x\":1,\"x\":2}",
-                                  b"\xff", b"[" * 1500, b" " * (MAX_REQUEST_BYTES + 1)])
+                                  b"\xff", b"[" * 1500, b" " * (MAX_REQUEST_BYTES + 1)],
+                         ids=["open-brace", "null", "nan", "infinity", "duplicate-key", "bad-utf8", "deep-nesting", "oversized"])
 def test_malformed_and_oversized_json(client, body):
     response = client.post("/verify-step", content=body, headers={"content-type": "application/json"})
     assert response.status_code == 200

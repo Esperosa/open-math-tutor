@@ -926,9 +926,9 @@ export function App() {
               {provider && provider.id === "google" && !provider.authStatus.authenticated && provider.authStatus.keyPresent === false &&
                 <p className="muted" role="alert">{t.googleKeyMissing}</p>}
               <small className="muted">{t.aiRunsLocally}</small>
-              <p className="muted">{t.controlsHelp}</p>
             </div>
           </details>
+          <p className="muted">{t.controlsHelp}</p>
         </section>
 
         <section className="settings-section" aria-label={t.settingsSectionVoice || 'Hlas a řeč'}>
