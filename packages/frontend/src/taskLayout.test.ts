@@ -74,6 +74,12 @@ describe('whiteboard task layout and visible placement (D1)', () => {
     expect(check.visible).toBe(true);
   });
 
+  test('mobile default clears the two-row toolbar and relocated HUD card', () => {
+    const layout = computeTaskLayout({ viewportWidth: 360, viewportHeight: 740, statementText: longPhysics });
+    expect(layout.viewportY).toBeGreaterThanOrEqual(364);
+    expect(layout.viewportY + layout.estimatedHeight).toBeLessThan(740 - 80);
+  });
+
   test('converts viewport coordinates accurately with zoom and pan', () => {
     const layout = computeTaskLayout({
       viewportWidth: 1000,
