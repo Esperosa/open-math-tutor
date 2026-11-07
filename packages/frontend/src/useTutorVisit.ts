@@ -6,6 +6,7 @@ const HOME = { x: 0, y: 0, visiting: false, returning: false, snap: true };
 
 function controlRects(): TutorRect[] {
   return [...document.querySelectorAll<HTMLElement>(CONTROLS)].filter(e => {
+    if (e.closest('.teacher-layer') || e.closest('.layer-badge')) return false;
     const s = getComputedStyle(e);
     return s.visibility !== 'hidden' && s.display !== 'none' && s.opacity !== '0';
   }).map(e => e.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0);

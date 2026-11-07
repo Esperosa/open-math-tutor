@@ -12,7 +12,8 @@ export function clearTutorRoute(from: TutorRect, to: TutorRect, obstacles: Tutor
     width: Math.max(from.x + from.width, to.x + to.width) - Math.min(from.x, to.x),
     height: Math.max(from.y + from.height, to.y + to.height) - Math.min(from.y, to.y),
   };
-  return !obstacles.some(o => overlaps(route, o, 0));
+  const routeObstacles = obstacles.filter(o => !overlaps(o, from, 0) && !overlaps(o, to, 0));
+  return !routeObstacles.some(o => overlaps(route, o, 0));
 }
 
 /**
@@ -49,7 +50,7 @@ export function tutorDestination(
   // 2. Left of row (only if clear of obstacles)
   // 3. Below row on phone (only if completely free of obstacles / strokes)
   const candidates: TutorRect[] = [
-    { ...home, x: row.x + row.width + 48, y },
+    { ...home, x: row.x + row.width + 56, y },
     { ...home, x: row.x - home.width - 24, y },
     { ...home, x: row.x, y: row.y + row.height + 24 },
   ];

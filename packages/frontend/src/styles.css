@@ -51,7 +51,7 @@ small, .muted { color: var(--muted); font-size: 12px; line-height: 1.5; }
 .math-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
 .math-annotation { position: absolute; transform-origin: top left; background: #fff7e7; color: #8e3908; padding: 6px 12px; border-left: 3px solid #b54708; border-radius: 3px; display: flex; align-items: center; gap: 10px; animation: math-reveal 650ms ease-out both; font-size: 22px; box-shadow: var(--shadow-1); }
 .math-annotation small { color: #8e3908; font: 600 10px system-ui; }
-.layer-badge { position: absolute; top: 76px; right: 16px; bottom: auto; left: auto; pointer-events: auto; z-index: 12; padding: 4px 10px; border-radius: var(--radius-sm); background: #fff3de; color: #803800; font-size: 11px; display: flex; align-items: center; gap: 8px; }
+.layer-badge { position: absolute; bottom: 16px; left: 140px; pointer-events: auto; z-index: 20; padding: 4px 10px; border-radius: var(--radius-sm); background: #fff3de; color: #803800; font-size: 11px; display: flex; align-items: center; gap: 8px; }
 .graph-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
 .graph-annotation { position: absolute; transform-origin: top left; background: #fff7e7; border: 1px solid #b54708; border-radius: 4px; padding: 4px; animation: math-reveal 650ms ease-out both; box-shadow: var(--shadow-1); }
 .graph-annotation small { color: #8e3908; font: 600 10px system-ui; display: block; margin-bottom: 2px; }
