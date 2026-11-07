@@ -377,79 +377,146 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
     </div>
     <div className="ink-layer">
       {board.steps.filter(step => step.origin === 'ink' && step.latexGuess.trim()).map(step => {
-        const soft = step.uncertain ? (step.symbols ?? []).map((symbol, index) => ({ symbol, index }))
-          .filter(({ symbol }) => symbol.uncertain || !step.parserCompatible).slice(0, 6) : [];
         const isPopoverOpen = popoverStepId === step.stepId;
-        const guides = isPopoverOpen ? pickSymbolGuidesForSymbols(step.symbols) : [];
-        return <div key={step.stepId} className={`ink-reading${step.uncertain ? ' uncertain' : ''}`}
-          data-testid={`ink-reading-${step.stepId}`} data-confidence={step.confidence ?? 0}
-          style={{ left: (step.box.x + view.x) * view.zoom, top: (step.box.y + step.box.height + 4 + view.y) * view.zoom }}>
-          <span className="ink-read-label" title={step.uncertain ? t.handwritingUncertainFriendly : undefined}>
-            {t.handwritingRead} <strong>{step.latexGuess}</strong>{step.uncertain ? ` — ${t.handwritingUncertain} ${t.handwritingUncertainFriendly}` : ''}
-          </span>
+        if (!step.uncertain) {
+          return (
+            <div key={step.stepId} className="ink-reading"
+              data-testid={`ink-reading-${step.stepId}`} data-confidence={step.confidence ?? 0}
+              style={{ left: (step.box.x + view.x) * view.zoom, top: (step.box.y + step.box.height + 4 + view.y) * view.zoom }}>
+              <span className="ink-read-label">
+                {t.handwritingRead} <strong>{step.latexGuess}</strong>
+              </span>
+            </div>
+          );
+        }
 
-          {step.uncertain && <span role="link" tabIndex={0} className="ink-guide-toggle-btn"
-            data-testid={`ink-guide-toggle-${step.stepId}`} aria-expanded={isPopoverOpen}
-            onClick={e => { e.stopPropagation(); setPopoverStepId(isPopoverOpen ? null : step.stepId); }}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); setPopoverStepId(isPopoverOpen ? null : step.stepId); } }}
-            title={t.handwritingGuideBtn}>
-            {t.handwritingGuideBtn}
-          </span>}
-          {isPopoverOpen && <div className="ink-uncertain-popover" data-testid="ink-uncertain-popover" role="dialog" aria-label={t.handwritingGuideBtn}>
-            <p className="ink-popover-desc">{t.handwritingUncertainFriendly}</p>
-            <div className="ink-guide-patterns" data-testid="ink-guide-patterns">
-              {guides.map(guide => (
-                <div key={guide.id} className="ink-guide-card" data-testid={`guide-${guide.id}`}>
-                  <div className="ink-guide-svg-box">
-                    <svg viewBox="0 0 40 44" width="40" height="44" aria-hidden="true">
-                      {guide.renderSvg()}
-                    </svg>
-                  </div>
-                  <div className="ink-guide-card-info">
-                    <strong>{guide.title[settings.locale]}</strong>
-                    <small>{guide.tip[settings.locale]}</small>
-                  </div>
+        const soft = (step.symbols ?? []).map((symbol, index) => ({ symbol, index }))
+          .filter(({ symbol }) => symbol.uncertain || !step.parserCompatible).slice(0, 6);
+        const guides = pickSymbolGuidesForSymbols(step.symbols);
+        const candidates = soft.flatMap(({ symbol, index }) =>
+          correctionLabels(symbol).map(label => ({ symbol, index, label }))
+        );
+
+        // Kolizní umístění vedle/pod řádek (nepřekrývá rukopis ani HUD)
+        const zoom = view.zoom;
+        const screenX = (step.box.x + view.x) * zoom;
+        const screenY = (step.box.y + view.y) * zoom;
+        const screenW = step.box.width * zoom;
+        const screenH = step.box.height * zoom;
+
+        const popoverWidth = 340;
+        const popoverHeight = isPopoverOpen ? 380 : 200;
+
+        let left = Math.max(16, screenX);
+        let top = screenY + screenH + 8;
+
+        const hudLeft = typeof window !== 'undefined' ? window.innerWidth - 360 : 900;
+        const hudTop = typeof window !== 'undefined' ? window.innerHeight - 360 : 500;
+        const collidesWithHud = left + popoverWidth > hudLeft && top + popoverHeight > hudTop;
+
+        const otherSteps = board.steps.filter(s => s.stepId !== step.stepId);
+        const collidesWithOther = otherSteps.some(s => {
+          const sx = (s.box.x + view.x) * zoom;
+          const sy = (s.box.y + view.y) * zoom;
+          const sw = s.box.width * zoom;
+          const sh = s.box.height * zoom;
+          return left < sx + sw && left + popoverWidth > sx && top < sy + sh && top + popoverHeight > sy;
+        });
+
+        if (collidesWithHud || collidesWithOther || (typeof window !== 'undefined' && top + popoverHeight > window.innerHeight - 80)) {
+          // Zkus umístění vpravo vedle řádku
+          const rightX = screenX + screenW + 16;
+          if (typeof window !== 'undefined' && rightX + popoverWidth <= window.innerWidth - 20) {
+            left = rightX;
+            top = Math.max(16, screenY);
+          } else if (screenY - popoverHeight - 8 >= 80) {
+            // Zkus nad řádek
+            top = screenY - popoverHeight - 8;
+          }
+        }
+
+        return (
+          <div key={step.stepId}
+            className="ink-reading uncertain"
+            data-testid={`ink-reading-${step.stepId}`}
+            data-confidence={step.confidence ?? 0}
+            style={{ left: Math.round(left), top: Math.round(top) }}>
+            <div className="ink-uncertain-header">
+              <span className="ink-read-label">
+                {t.handwritingRead} <strong>{step.latexGuess}</strong>
+              </span>
+              <p className="ink-popover-desc">
+                <strong>{t.handwritingUncertain}</strong> {t.handwritingUncertainFriendly}
+              </p>
+            </div>
+
+            {candidates.length > 0 && (
+              <div className="ink-popover-section" aria-label={t.handwritingCorrect}>
+                <span className="ink-section-title">{t.whichSymbolPrompt || 'Který znak to je?'}</span>
+                <div className="ink-candidates-chips" data-testid={`ink-candidates-${step.stepId}`}>
+                  {candidates.map(({ symbol, index, label }) => (
+                    <button key={`${index}-${label}`} type="button"
+                      className="ink-candidate-chip ink-candidate-btn"
+                      data-testid={`ink-candidate-${step.stepId}-${index}-${label}`}
+                      aria-label={`${t.handwritingCorrect}: ${index + 1}. ${t.handwritingSymbol} „${symbol.label ?? symbol.candidates[0]?.label}“ → „${label}“`}
+                      title={`${index + 1}. ${t.handwritingSymbol}: ${symbol.label ?? symbol.candidates[0]?.label} → ${label}`}
+                      onPointerDown={event => event.stopPropagation()}
+                      onClick={event => { event.stopPropagation(); onInkCorrection?.(inkSymbolKey(symbol.strokeIds, board.elements), label); }}>
+                      <span className="ink-chip-order" aria-hidden="true">{index + 1}</span>
+                      <span className="ink-chip-symbol">{label}</span>
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
-            {soft.length > 0 && <div className="ink-popover-section">
-              <span className="ink-section-title">{t.correctByTap}</span>
-              <div className="ink-candidates-grid" aria-label={t.handwritingCorrect}>
-                {soft.flatMap(({ symbol, index }) => correctionLabels(symbol).map(label => ({ symbol, index, label }))
-                  .map(({ symbol, index, label }) => <button key={`${index}-${label}`} type="button"
-                    className="ink-candidate-btn"
-                    data-testid={`ink-candidate-${step.stepId}-${index}-${label}`}
-                    aria-label={`${t.handwritingCorrect}: ${index + 1}. ${t.handwritingSymbol} „${symbol.label ?? symbol.candidates[0]?.label}“ → „${label}“`}
-                    title={`${index + 1}. ${t.handwritingSymbol}: ${symbol.label ?? symbol.candidates[0]?.label} → ${label}`}
-                    onPointerDown={event => event.stopPropagation()}
-                    onClick={event => { event.stopPropagation(); onInkCorrection?.(inkSymbolKey(symbol.strokeIds, board.elements), label); }}>
-                    {label}</button>))}
               </div>
-            </div>}
+            )}
+
             <div className="ink-popover-actions">
-              <button type="button" className="ink-action-retry" data-testid={`ink-retry-${step.stepId}`}
-                onClick={e => { e.stopPropagation(); setPopoverStepId(null); removeStepLine(step.stepId); }}>
-                {t.retryWriting}
+              <button type="button" className="ink-guide-toggle-btn"
+                data-testid={`ink-guide-toggle-${step.stepId}`} aria-expanded={isPopoverOpen}
+                onClick={e => { e.stopPropagation(); setPopoverStepId(isPopoverOpen ? null : step.stepId); }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); setPopoverStepId(isPopoverOpen ? null : step.stepId); } }}
+                title={t.handwritingGuideBtn}>
+                {t.handwritingGuideBtn}
               </button>
-              {canRequest && modelSupportsImages ? <button type="button" className="ink-action-ai" data-testid={`ink-send-ai-${step.stepId}`}
-                onClick={e => { e.stopPropagation(); onSendToAi?.(step.stepId); }}>
-                {t.sendAiReading}
-              </button> : <span className="ink-ai-reason" data-testid="ink-ai-reason">
-                {!canRequest ? t.aiOfflineForImage : t.imageUnsupported}
-              </span>}
             </div>
-          </div>}
-          {!isPopoverOpen && soft.length > 0 && <span className="ink-candidates" aria-label={t.handwritingCorrect} style={{ left: Math.max(180, step.box.width * view.zoom + 32) }}>
-            {soft.flatMap(({ symbol, index }) => correctionLabels(symbol).map(label => ({ label }))
-              .map(candidate => <button key={`${index}-${candidate.label}`} type="button"
-                data-testid={`ink-candidate-${step.stepId}-${index}-${candidate.label}`}
-                aria-label={`${t.handwritingCorrect}: ${index + 1}. ${t.handwritingSymbol} „${symbol.label ?? symbol.candidates[0]?.label}“ → „${candidate.label}“`}
-                title={`${index + 1}. ${t.handwritingSymbol}: ${symbol.label ?? symbol.candidates[0]?.label} → ${candidate.label}`}
-                onPointerDown={event => event.stopPropagation()}
-                onClick={event => { event.stopPropagation(); onInkCorrection?.(inkSymbolKey(symbol.strokeIds, board.elements), candidate.label); }}>
-                {candidate.label}</button>))}
-          </span>}
-        </div>;
+
+            {isPopoverOpen && (
+              <div className="ink-uncertain-popover" data-testid="ink-uncertain-popover" role="dialog" aria-label={t.handwritingGuideBtn}>
+                <div className="ink-guide-patterns" data-testid="ink-guide-patterns">
+                  {guides.map(guide => (
+                    <div key={guide.id} className="ink-guide-card" data-testid={`guide-${guide.id}`}>
+                      <div className="ink-guide-svg-box">
+                        <svg viewBox="0 0 40 44" width="40" height="44" aria-hidden="true">
+                          {guide.renderSvg()}
+                        </svg>
+                      </div>
+                      <div className="ink-guide-card-info">
+                        <strong>{guide.title[settings.locale]}</strong>
+                        <small>{guide.tip[settings.locale]}</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="ink-popover-subactions">
+                  <button type="button" className="ink-action-retry" data-testid={`ink-retry-${step.stepId}`}
+                    onClick={e => { e.stopPropagation(); setPopoverStepId(null); removeStepLine(step.stepId); }}>
+                    {t.retryWriting}
+                  </button>
+                  {canRequest && modelSupportsImages ? (
+                    <button type="button" className="ink-action-ai" data-testid={`ink-send-ai-${step.stepId}`}
+                      onClick={e => { e.stopPropagation(); onSendToAi?.(step.stepId); }}>
+                      {t.sendAiReading}
+                    </button>
+                  ) : (
+                    <span className="ink-ai-reason" data-testid="ink-ai-reason">
+                      {!canRequest ? t.aiOfflineForImage : t.imageUnsupported}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
       })}
     </div>
     {menu_ && <div className="ctx-menu" role="menu" aria-label={t.ctxMenu} style={{ left: menu_.x, top: menu_.y }}>
