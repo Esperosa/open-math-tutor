@@ -1,3 +1,5 @@
+import { drawElements, setTask } from './inkDriver';
+import { rowElements } from './inkFixture';
 import { expect, test, type Page } from '@playwright/test';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -45,11 +47,14 @@ async function instrument(page: Page) {
     };
     const set = (name: string) => { if (window.__lat[name] === undefined && window.__lat.t0 !== undefined) window.__lat[name] = performance.now() - window.__lat.t0; };
     document.addEventListener('keydown', e => { if (kind === 'key' && e.key === 'Escape') window.__lat.t0 = performance.now(); }, true);
-    document.addEventListener('pointerup', () => { if (kind === 'pen') window.__lat.t0 = performance.now(); }, true);
+    // Window capture runs before the app's document capture listener, so the
+    // stopwatch is running before React commits the "checking" mood.
+    window.addEventListener('pointerup', () => { if (kind === 'pen') window.__lat.t0 = performance.now(); }, true);
     document.addEventListener('click', e => { if (kind === 'click' && (e.target as Element).closest('[role="menuitem"]')) window.__lat.t0 = performance.now(); }, true);
     const scan = () => {
       if (window.__lat.t0 === undefined) return;
       if (document.querySelectorAll('[data-testid="step-mark-wrong"]').length > baseMarks) set('mark');
+      if (document.querySelector('[data-testid="step-mark-ok"]')) set('ok');
       const mood = document.querySelector('[data-testid="tutor"]')?.getAttribute('data-mood');
       if (mood === 'checking' || mood === 'thinking') set('mascot');
       const bubble = document.querySelector('[data-testid="tutor-bubble"]');
@@ -171,3 +176,33 @@ test('an AI request shows the thinking state immediately and can be cancelled', 
   await expect(page.getByTestId('tutor')).not.toHaveAttribute('data-mood', 'thinking');
   expect(asked.length).toBeGreaterThanOrEqual(3);
 });
+
+for (const correct of [true, false]) {
+  test(`handwritten ${correct ? 'correct' : 'wrong'} verdict has its own pause`, async ({ page }) => {
+    await page.route('http://127.0.0.1:4178/**', route => route.abort('connectionrefused'));
+    await start(page);
+    await setTask(page, '12+7');
+    await instrument(page);
+    await page.evaluate(() => window.__arm('pen'));
+    await drawElements(page, rowElements(correct ? '12+7=19' : '12+7=18', 13, 40, [420, 260]), 'pen');
+    const mark = page.getByTestId(correct ? 'step-mark-ok' : 'step-mark-wrong');
+    await expect(mark).toBeVisible({ timeout: 6000 });
+    const elapsed = (await lat(page))[correct ? 'ok' : 'mark']!;
+    expect(elapsed).toBeGreaterThanOrEqual(correct ? 440 : 2390);
+    expect(elapsed).toBeLessThan(correct ? 850 : 3000);
+    note(`pen-up → ${correct ? '✓' : '✗'} mark`, elapsed);
+    if (!correct) {
+      await expect(page.getByTestId('tutor-bubble')).toHaveAttribute('data-kind', 'wrong');
+      note('pen-up → negative comment', (await lat(page)).bubble!);
+      await page.mouse.move(900, 520);
+      await page.mouse.down();
+      await expect(mark).toHaveCount(0, { timeout: 200 });
+      await expect(page.locator('[data-testid="tutor-bubble"][data-kind="wrong"]')).toHaveCount(0, { timeout: 200 });
+      await page.waitForTimeout(2600);
+      await expect(mark).toHaveCount(0);
+      await page.mouse.up();
+      await page.waitForTimeout(500);
+      await expect(mark).toHaveCount(0);
+    }
+  });
+}

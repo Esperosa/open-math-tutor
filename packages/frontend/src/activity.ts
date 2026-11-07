@@ -1,7 +1,13 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 
-/** Quiet time after a pen stroke before the written line counts as finished (the student may add the next digit). */
-export const PEN_PAUSE_MS = 450;
+/**
+ * Quiet time after a pen stroke before the written line counts as finished.
+ * Measured pauses between digits of one handwritten number reach 2 s; a
+ * shorter window judged half-written lines (`12+7=1` before the final `9`).
+ */
+export const PEN_PAUSE_MS = 2400;
+/** Krátká pauza pro pochvalu; oprava čeká celou PEN_PAUSE_MS. */
+export const PEN_QUICK_MS = 450;
 /** Quiet time after the end of a typed line (Escape, Ctrl+Enter or a click elsewhere); the line is complete, so this is short. */
 export const TEXT_PAUSE_MS = 220;
 /** While typing, the mascot keeps watching until the keys stay quiet this long. */
@@ -19,6 +25,7 @@ export type InputKind = 'pen' | 'text';
  */
 export class BoardActivity {
   penDown = false;
+  strokeVersion = 0;
   point: Point | null = null;
   lastKind: InputKind | null = null;
   private lastEndAt = Number.NEGATIVE_INFINITY;
@@ -29,14 +36,18 @@ export class BoardActivity {
   constructor(private readonly now: () => number = () => performance.now()) {}
 
   get phase(): WritingPhase { return this._phase; }
-  pause(): number { return this.lastKind === 'pen' ? PEN_PAUSE_MS : TEXT_PAUSE_MS; }
+  pause(negative = true): number {
+    if (this.lastKind === 'pen') return negative ? PEN_PAUSE_MS : PEN_QUICK_MS;
+    return TEXT_PAUSE_MS;
+  }
   /** Milliseconds until the last line counts as finished; a pen that is down is never finished. */
-  remaining(): number {
-    if (this.penDown) return PEN_PAUSE_MS;
-    return Math.max(0, this.lastEndAt + this.pause() - this.now());
+  remaining(negative = true): number {
+    if (this.penDown) return this.pause(negative);
+    return Math.max(0, this.lastEndAt + this.pause(negative) - this.now());
   }
 
   penStart(point: Point) {
+    this.strokeVersion++;
     this.penDown = true; this.lastKind = 'pen'; this.moveTo(point);
     this.setPhase('writing');
   }

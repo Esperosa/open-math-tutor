@@ -5,7 +5,7 @@
  */
 import { statementHasSymbols } from "./stepCheck.js";
 import { judgeLines } from "./judgement.js";
-import { checkAnswerLine, looksLikeFinalLine, type ExpectedAnswer } from "./answers.js";
+import { checkAnswerLine, looksLikeFinalLine, unitFromLine, type ExpectedAnswer } from "./answers.js";
 
 export type CoachMode = "live" | "final" | "off";
 export type WrongReason = "arithmetic" | "not_equivalent" | "wrong_value";
@@ -17,6 +17,7 @@ export type CoachEvent =
   | { kind: "check_in"; key: string; n: number }
   | { kind: "solved"; key: string; n: number }
   | { kind: "wrong_final"; key: string; n: number; reason?: "unit" }
+  | { kind: "unit_missing"; key: string; n: number }
   | { kind: "unclear"; key: string; n: number };
 
 export interface CoachInput {
@@ -62,6 +63,9 @@ export function nextCoachEvent(input: CoachInput): CoachEvent {
     if (input.expected) {
       const answer = checkAnswerLine(input.expected, newest.latexGuess);
       if (answer === "correct" && verdicts[newest.stepId]?.status === "ok") return { kind: "solved", key, n: newest.n };
+      // A correct value written without the required unit is not a failed
+      // reading: ask for the unit instead of staying silent or crossing it out.
+      if (answer === "correct" && input.expected.wordProblem && input.expected.unit && !unitFromLine(newest.latexGuess)) return { kind: "unit_missing", key, n: newest.n };
       if (answer === "wrong") return { kind: "wrong_final", key, n: newest.n };
       if (answer === "maybe") return { kind: "check_in", key, n: newest.n };
       if (answer === "unit") return { kind: "wrong_final", key, n: newest.n, reason: "unit" };
@@ -80,6 +84,7 @@ export function nextCoachEvent(input: CoachInput): CoachEvent {
   if (input.expected && newest === written.at(-1)) {
     const answer = checkAnswerLine(input.expected, newest.latexGuess);
     if (answer === "correct" && verdict.status === "ok") return { kind: "solved", key, n: newest.n };
+    if (answer === "correct" && final && input.expected.wordProblem && input.expected.unit && !unitFromLine(newest.latexGuess)) return { kind: "unit_missing", key, n: newest.n };
     if (answer === "wrong" && final) return { kind: "wrong_final", key, n: newest.n };
     if (answer === "maybe" && final) return { kind: "check_in", key, n: newest.n };
     if (answer === "unit" && final) return { kind: "wrong_final", key, n: newest.n, reason: "unit" };
