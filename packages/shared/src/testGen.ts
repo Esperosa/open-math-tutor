@@ -67,7 +67,10 @@ export function generateTest(catalog: CourseCatalog, scope: { trackId: string; t
     if (!templates.length) continue;
     for (let i = 0; i < Math.min(perSkill, templates.length); i++) {
       const template = templates[Math.min(templates.length - 1, Math.round(i * (templates.length - 1) / Math.max(1, perSkill - 1)))]!;
-      const problem = instantiateProblem(template, random);
+      const tpl = (locale === "en" && template.statementTemplateEn)
+        ? { ...template, statementTemplate: template.statementTemplateEn }
+        : template;
+      const problem = instantiateProblem(tpl, random);
       const statement = readableTestStatement(problem.statement, locale);
       items.push({ n: items.length + 1, skillId: skill.id, skillTitle: skill.title[locale], statement,
         ...(problem.expected ? { expected: problem.expected } : {}), ...(template.answerNote ? { answerNote: template.answerNote } : {}), drawing: skill.drawing === true });

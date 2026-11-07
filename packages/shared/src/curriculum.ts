@@ -25,6 +25,8 @@ export interface ProblemTemplate {
   difficultyLevel: number;
   /** Plain-grammar statement (mathAst.ts grammar) or LaTeX-ready text; `generator` fields (if present) are substituted in before parsing. */
   statementTemplate: string;
+  /** Optional English statement template. When locale is 'en', this is used instead of statementTemplate. */
+  statementTemplateEn?: string;
   /** Optional integer ranges for randomized coefficients, e.g. { a: [2, 9], b: [-5, 5] }. Substituted into statementTemplate as {a}, {b}, etc. */
   generatorRanges?: Record<string, [min: number, max: number]>;
   topic: string;
@@ -153,7 +155,7 @@ export function trackProgress(catalog: CourseCatalog, trackId: string, masteredS
   return { masteredCount, totalCount: skillIds.size };
 }
 
-const fold = (value: string) => value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const fold = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 export type SearchHit =
   | { kind: "track"; trackId: string; label: string }

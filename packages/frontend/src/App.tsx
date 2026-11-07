@@ -1,10 +1,9 @@
-import katex from 'katex';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BoardAction, ContinueLessonRequest, ExpectedAnswer, ProviderId } from '@openmathtutor/shared';
 import {
-  recordAttempt, retrieveTopChunks, isMastered, instantiateProblem, expectedAnswerFor, statementHasSymbols,
+  recordAttempt, retrieveTopChunks, isMastered, expectedAnswerFor, statementHasSymbols,
   looksLikeFinalLine, nextCoachEvent, coachLine, stepKey, recordError, recordSolved, chooseStyle, recordStyleShown,
-  resolveStyleOutcome, profileSummary, generateTest, topicMastered, getTopicSkills, nextUnlockedTopic, nextUnlockedSkill, pickTemplateForDifficulty,
+  resolveStyleOutcome, profileSummary, generateTest, topicMastered,
   type CoachEvent, confirmCoachFinal, type ExplainStyle, type LearnerProfile,
 } from '@openmathtutor/shared';
 import { catalog } from '@openmathtutor/content';
@@ -49,7 +48,9 @@ import { AskPanel } from './AskPanel';
 import { UploadBoard, type UploadedImage } from './UploadBoard';
 import { CustomSourcesPanel } from './CustomSourcesPanel';
 import { loadSources, saveSources, addSource, removeSource, allChunks } from './customSources';
-import { formatTaskForBoard } from './taskFormatting';
+import { renderMathStatement } from './taskFormatting';
+import { computeTaskLayout } from './taskLayout';
+import { pickNextProblemForSkill, pickNextProblemForTrack } from './problemSelection';
 import { ColorLegendDialog } from './ColorLegend';
 
 type Mode = ContinueLessonRequest['mode'];
@@ -80,50 +81,10 @@ function providerStatusLabel(p: ProviderEntry, t: Record<MessageKey, string>): s
 }
 
 
-function renderMathStatement(raw: string): string | null {
-  if (!raw) return null;
-  if (!/[/^=<>≤≥·]/.test(raw) && !/lim/i.test(raw)) return null;
-
-  let prefix = '';
-  let math = raw;
-
-  const colonIdx = raw.indexOf(':');
-  if (colonIdx !== -1 && /[a-zA-Z\u00C0-\u024F]/.test(raw.slice(0, colonIdx))) {
-    prefix = raw.slice(0, colonIdx + 1) + ' ';
-    math = raw.slice(colonIdx + 1).trim();
-  } else {
-    const wordPrefixMatch = /^([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽa-záčďéěíňóřšťúůýž\s]+?)\s+([0-9a-zA-Z(].*)$/.exec(raw);
-    if (wordPrefixMatch && !/[=<>+\-*/^]/.test(wordPrefixMatch[1])) {
-      prefix = wordPrefixMatch[1] + ' ';
-      math = wordPrefixMatch[2];
-    }
-  }
-
-  let suffix = '';
-  if (math.endsWith('.')) {
-    suffix = '.';
-    math = math.slice(0, -1);
-  }
-
-  let latex = math.trim();
-  latex = latex.replace(/lim\s*\(([a-z]+)\s*(?:→|->)\s*(?:∞|\\infty)\)/gi, '\\lim_{$1 \\to \\infty}');
-  latex = latex.replace(/\(([^)]+)\)\/\(([^)]+)\)/g, '\\frac{$1}{$2}');
-  latex = latex.replace(/\(([^)]+)\)\/([0-9a-zA-Z]+)/g, '\\frac{$1}{$2}');
-  latex = latex.replace(/([0-9a-zA-Z]+)\/\(([^)]+)\)/g, '\\frac{$1}{$2}');
-  latex = latex.replace(/(\b[0-9a-zA-Z]+)\/(\b[0-9a-zA-Z]+)/g, '\\frac{$1}{$2}');
-  latex = latex.replace(/\*/g, ' \\cdot ');
-
-  try {
-    const rendered = katex.renderToString(latex, { throwOnError: false, displayMode: false, strict: 'ignore' });
-    return (prefix ? `${prefix}` : '') + rendered + suffix;
-  } catch {
-    return null;
-  }
-}
-
 export function App() {
   const [saved, setSaved] = useState<Saved>(load);
   const live = useRef(saved); live.current = saved;
+  const recentStatementsRef = useRef<string[]>([]);
   const board = saved.boards.find(b => b.id === saved.activeId)!;
   const settings = saved.settings;
   const t = messages[settings.locale];
@@ -416,26 +377,36 @@ export function App() {
     const current = live.current.boards.find(b => b.id === live.current.activeId);
     if (!current || !current.statement?.trim()) return;
     const cleanAnnotations = current.annotations.filter(a => !a.id.startsWith('task-statement'));
-    const taskText = formatTaskForBoard(current.statement);
     const view = editor.current?.getView();
     const zoom = view?.zoom && view.zoom > 0 ? view.zoom : 1;
     const scrollX = view?.scrollX ?? 0;
     const scrollY = view?.scrollY ?? 0;
-    const anchorX = Math.round((340 / zoom) - scrollX);
-    const anchorY = Math.round((80 / zoom) - scrollY);
+    const taskLayout = computeTaskLayout({
+      viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1440,
+      viewportHeight: typeof window !== 'undefined' ? window.innerHeight : 900,
+      zoom,
+      scrollX,
+      scrollY,
+      statementText: current.statement,
+    });
     const action: BoardAction = {
       id: `task-statement-${Date.now()}`,
       type: 'write_text',
-      text: taskText,
+      text: taskLayout.text,
       boardRevision: current.revision,
-      anchor: { x: anchorX, y: anchorY },
+      anchor: { x: taskLayout.sceneX, y: taskLayout.sceneY },
     };
     updateBoard({
       ...current,
       taskAnimated: false,
       annotations: [...cleanAnnotations, action],
     });
-    editor.current?.ensureVisible({ x: anchorX, y: anchorY, width: 300, height: 60 });
+    editor.current?.ensureVisible({
+      x: taskLayout.sceneX,
+      y: taskLayout.sceneY,
+      width: taskLayout.estimatedWidth,
+      height: taskLayout.estimatedHeight,
+    });
   }, [updateBoard]);
 
   function createExercise() {
@@ -444,11 +415,19 @@ export function App() {
     live.current = value; setSaved(value); setStatus('idle');
   }
   function startLesson(lesson: LessonStart) {
-    // A new lesson is a new problem, not an edit of the current one — reusing
-    // the active board here left the previous problem's handwriting and
-    // explanation history visible underneath the new statement.
     stop(false); setPanel(null); setPinned(false);
-    const taskText = formatTaskForBoard(lesson.statementText);
+    const currentView = editor.current?.getView();
+    const zoom = currentView?.zoom && currentView.zoom > 0 ? currentView.zoom : 1;
+    const scrollX = currentView?.scrollX ?? 0;
+    const scrollY = currentView?.scrollY ?? 0;
+    const taskLayout = computeTaskLayout({
+      viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1440,
+      viewportHeight: typeof window !== 'undefined' ? window.innerHeight : 900,
+      zoom,
+      scrollX,
+      scrollY,
+      statementText: lesson.statementText,
+    });
     const next: BoardState = {
       ...newBoard(),
       topic: lesson.topic,
@@ -460,12 +439,13 @@ export function App() {
         {
           id: `task-statement-${Date.now()}`,
           type: 'write_text',
-          text: taskText,
+          text: taskLayout.text,
           boardRevision: 0,
-          anchor: { x: 340, y: 70 },
+          anchor: { x: taskLayout.sceneX, y: taskLayout.sceneY },
         },
       ],
     };
+    recentStatementsRef.current = [...recentStatementsRef.current.slice(-11), lesson.statementText];
     setMessage(null);
     const value = { ...live.current, boards: [...live.current.boards, next], activeId: next.id };
     live.current = value; setSaved(value);
@@ -477,25 +457,30 @@ export function App() {
     const greeting = intro.replace('{skill}', skill?.title[settings.locale] ?? lesson.topic);
     setMessage({ id: `lesson-${next.id}`, kind: 'info', text: greeting });
     voice.speak(greeting);
+    editor.current?.ensureVisible({
+      x: taskLayout.sceneX,
+      y: taskLayout.sceneY,
+      width: taskLayout.estimatedWidth,
+      height: taskLayout.estimatedHeight,
+    });
   }
   function startNext(trackId: string, level: number) {
-    const masteredIds = new Set(Object.values(mastery).filter(isMastered).map(s => s.skillId));
-    const topic = nextUnlockedTopic(catalog, trackId, masteredIds);
-    const skill = topic ? nextUnlockedSkill(getTopicSkills(catalog, topic.id), masteredIds) : null;
-    if (!topic || !skill) { createExercise(); return; }
-    const difficultyLevel = mastery[skill.id]?.difficultyLevel ?? level;
-    const previous = live.current.boards.find(b => b.id === live.current.activeId)?.statement;
-    let template = pickTemplateForDifficulty(catalog, skill.id, difficultyLevel);
-    if (!template) return;
-    let problem = instantiateProblem(template);
-    for (let i = 0; i < 8 && problem.statement === previous; i++) {
-      template = pickTemplateForDifficulty(catalog, skill.id, i < 4 ? difficultyLevel : 0) ?? template;
-      problem = instantiateProblem(template);
-    }
+    const res = pickNextProblemForTrack({
+      catalog,
+      trackId,
+      level,
+      mastery,
+      recentStatements: recentStatementsRef.current,
+      locale: live.current.settings.locale,
+    });
+    if (!res) { createExercise(); return; }
+    const topic = catalog.topics.find(tp => tp.id === res.topicId);
     startLesson({
-      skillId: skill.id, statementText: problem.statement, topic: topic.title[settings.locale],
-      ...(problem.expected ? { expected: problem.expected } : {}),
-      curriculumContext: { trackId, topicId: topic.id, skillId: skill.id, difficultyLevel: template.difficultyLevel },
+      skillId: res.skillId,
+      statementText: res.problem.statement,
+      topic: topic?.title[live.current.settings.locale] ?? res.topicId,
+      ...(res.problem.expected ? { expected: res.problem.expected } : {}),
+      curriculumContext: { trackId, topicId: res.topicId, skillId: res.skillId, difficultyLevel: res.template.difficultyLevel },
     });
   }
   function startTrack(trackId: string, level: StartLevel = 1) {
@@ -507,30 +492,22 @@ export function App() {
     const skill = catalog.skills.find(sk => sk.id === skillId);
     if (!topic || !skill) return;
     const trackId = settings.activeTrackId || catalog.tracks.find(tr => tr.topicIds.includes(topicId))?.id || '';
-    let template = pickTemplateForDifficulty(catalog, skillId, mastery[skillId]?.difficultyLevel ?? settings.startLevel);
-    if (!template) return;
-    let problem = instantiateProblem(template);
-    const previous = live.current.boards.find(b => b.id === live.current.activeId)?.statement;
-    if (problem.statement === previous) {
-      // Resample, then try the skill's other templates, so "next problem" is never the same task again.
-      const others = catalog.problemTemplates.filter(tp => tp.skillId === skillId);
-      for (let i = 0; i < 6 && problem.statement === previous; i++) problem = instantiateProblem(template);
-      for (const other of others) {
-        if (problem.statement !== previous) break;
-        const candidate = instantiateProblem(other);
-        if (candidate.statement !== previous) { template = other; problem = candidate; }
-      }
-      if (problem.statement === previous) {
-        // The skill has no more variety: move on to a sibling skill of the topic instead of repeating.
-        const sibling = topic.skillIds.map(id => catalog.skills.find(sk => sk.id === id))
-          .find(sk => sk && sk.id !== skillId && sk.problemTemplateIds.length && instantiateProblem(catalog.problemTemplates.find(tp => tp.id === sk.problemTemplateIds[0])!).statement !== previous);
-        if (sibling) { startSkill(topicId, sibling.id); return; }
-      }
-    }
+    const diffLevel = mastery[skillId]?.difficultyLevel ?? settings.startLevel;
+    const res = pickNextProblemForSkill({
+      catalog,
+      skillId,
+      difficultyLevel: diffLevel,
+      recentStatements: recentStatementsRef.current,
+      locale: live.current.settings.locale,
+    });
+    if (!res) return;
     setPanel(null); setPinned(false);
     startLesson({
-      skillId, statementText: problem.statement, topic: topic.title[settings.locale], ...(problem.expected ? { expected: problem.expected } : {}),
-      curriculumContext: { trackId, topicId, skillId, difficultyLevel: template.difficultyLevel },
+      skillId: res.skillId,
+      statementText: res.problem.statement,
+      topic: topic.title[live.current.settings.locale],
+      ...(res.problem.expected ? { expected: res.problem.expected } : {}),
+      curriculumContext: { trackId, topicId, skillId: res.skillId, difficultyLevel: res.template.difficultyLevel },
     });
   }
   function buildTest(scope: { topicId?: string }, mode: 'print' | 'download') {
@@ -542,7 +519,8 @@ export function App() {
     const html = buildTestHtml(test, `${t.testTitle}: ${topicTitle ?? trackTitle}`, t, settings.locale);
     if (mode === 'print') printHtml(html); else downloadBlob(new Blob([html], { type: 'text/html' }), 'test.html');
     setMessage({ id: `test-${Date.now()}`, kind: 'info', text: t.testReady });
-    setTestNotice(`${t.testReady} (${test.items.length})`);
+    const countLabel = settings.locale === 'cs' ? `${test.items.length} úloh` : `${test.items.length} problems`;
+    setTestNotice(`${t.testReady} (${countLabel})`);
   }
   function nextProblem() {
     const skillId = board.skillId;
@@ -831,6 +809,8 @@ export function App() {
     : message?.kind === 'wrong' ? 'concerned' : message?.kind === 'solved' || happy ? 'happy' : 'idle';
   const cm = chatMessages[settings.locale];
   const answeredByAi = !!aiAnswerId && message?.id === aiAnswerId;
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 700;
+  const hasUncertainPopover = isMobile && board.steps.some(s => s.origin === 'ink' && s.latexGuess.trim() && s.uncertain);
   const chips = running ? [] : quickReplies({ kind: message?.kind ?? null, canRequest, lessonActive: !!lessonSkillId || !!board.skillId, answeredByAi, hasLines: lines.length > 0 });
   const shownMessage: TutorMessage | null = running ? { id: 'thinking', kind: 'thinking', text: t.tutorThinking } : message;
   return <div className="app-shell">
@@ -870,58 +850,88 @@ export function App() {
       </div>
       <aside className={`settings-pop${settingsOpen ? ' open' : ''}`} aria-label={t.settings}>
         <div className="settings-header"><h2>{t.settings}</h2><button className="close-btn" aria-label={t.close} onClick={() => setSettingsOpen(false)}>×</button></div>
-        <label>{t.language}<select value={settings.locale} onChange={e => configure({ locale: e.target.value as Settings['locale'], voiceURI: '' })}>
-          <option value="cs">Čeština</option><option value="en">English</option></select></label>
-        <button onClick={() => configure({ theme: settings.theme === 'light' ? 'dark' : 'light' })}>{settings.theme === 'light' ? t.dark : t.light}</button>
-        <div role="radiogroup" aria-label={t.boardPaper}><span className="muted">{t.boardPaper}</span>
-          <div className="pattern-picker">{BOARD_PATTERNS.map(pattern => <button key={pattern} role="radio" aria-checked={settings.boardPattern === pattern} data-pattern={pattern}
-            onClick={() => configure({ boardPattern: pattern })}><span>{t[({ plain: 'patternPlain', grid: 'patternGrid', lines: 'patternLines', dots: 'patternDots', school: 'patternSchool' } as const)[pattern]]}</span></button>)}</div></div>
-        <div role="radiogroup" aria-label={t.defaultTool}><span className="muted">{t.defaultTool}</span>
-          <div className="pattern-picker">{DEFAULT_TOOLS.map(tool => <button key={tool} role="radio" aria-checked={settings.defaultTool === tool} data-tool={tool}
-            onClick={() => configure({ defaultTool: tool })}><span>{tool === 'freedraw' ? t.toolPen : t.toolText}</span></button>)}</div></div>
-        {connected && <>
-          <label><span>{t.aiProvider}</span><select aria-label={t.provider} value={settings.provider} onChange={e => {
-            const id = e.target.value as ProviderId | '';
-            // Picking a provider should also pick a usable model, not leave
-            // every action silently disabled until the person notices.
-            const match = providers.find(p => p.id === id);
-            configure({ provider: id, model: match?.models[0]?.id ?? '' });
+        
+        <section className="settings-section" aria-label={t.settingsSectionAppearance || 'Jazyk a vzhled'}>
+          <h3>{t.settingsSectionAppearance || 'Jazyk a vzhled'}</h3>
+          <label>{t.language}<select value={settings.locale} onChange={e => {
+            const nextLoc = e.target.value as Settings['locale'];
+            configure({ locale: nextLoc, voiceURI: '' });
+            if (message?.id === 'welcome') setMessage({ id: 'welcome', kind: 'info', text: messages[nextLoc].taskEmpty });
           }}>
-          <option value="">{t.choose}</option>{providers.map(p => <option key={p.id} value={p.id}>{p.id === "google" ? t.googleProvider : p.id}{providerStatusLabel(p, t)}</option>)}</select></label>
-          <small className="muted">{t.aiRunsLocally}</small>
-          <label><span>{t.aiModel}</span><select aria-label={t.model} value={settings.model} onChange={e => configure({ model: e.target.value })}><option value="">{t.choose}</option>
-            {provider?.models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
-          {provider && provider.id === "google" && !provider.authStatus.authenticated && provider.authStatus.keyPresent === false &&
-            <p className="muted" role="alert">{t.googleKeyMissing}</p>}
-          {!verifierOK && <span role="alert">{t.healthVerifier}</span>}
-        </>}
-        <label className="check-label"><input type="checkbox" checked={settings.showAI} onChange={e => configure({ showAI: e.target.checked })} />{t.aiLayer}</label>
-        <label className="check-label"><input type="checkbox" checked={settings.auto} onChange={e => configure({ auto: e.target.checked })} />{t.consent}</label>
-        <button onClick={() => { configure({ activeTrackId: '', onboardingDismissed: false }); setSettingsOpen(false); }}>{t.pickCourseAgain}</button>
-        <label>{t.voiceChoice}<select value={voice.voices.some(v => v.voiceURI === settings.voiceURI) ? settings.voiceURI : ''} onChange={e => configure({ voiceURI: e.target.value })}>
-          <option value="">{t.choose}</option>
-          {voice.systemVoices.length > 0 && <optgroup label={t.voiceSystemGroup}>{voice.systemVoices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</optgroup>}
-          <optgroup label={t.voicePiperGroup}>{voice.piperVoices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</optgroup></select></label>
-        {voice.piper.voice && <div className="piper-voice" data-testid="piper-voice">
-          {voice.piper.status === 'ready'
-            ? <p className="muted" data-testid="piper-ready">{t.piperReady}</p>
-            : voice.piper.status === 'downloading'
-              ? <><progress max={100} value={downloadPercent(voice.piper.loaded, voice.piper.total)} aria-label={t.piperDownload} />
-                  <p className="muted" data-testid="piper-progress">{t.piperProgress.replace('{done}', formatSize(voice.piper.loaded, settings.locale)).replace('{total}', formatSize(voice.piper.total, settings.locale))}</p>
-                  <div className="row"><button onClick={voice.piper.cancel}>{t.piperCancel}</button></div></>
-              : <><p className="muted">{t.piperSize.replace('{mb}', formatSize(estimateBytes(voice.piper.voice), settings.locale))}</p>
-                  {voice.piper.error && <p className="warning" role="alert" data-testid="piper-error">{t[voice.piper.error]}</p>}
-                  <div className="row"><button className="primary" data-testid="piper-download" onClick={voice.piper.start}>{t.piperDownload}</button></div></>}
-        </div>}
-        <label>{t.rate} ({settings.rate})<input type="range" min="0.5" max="1.5" step="0.1" value={settings.rate} onChange={e => configure({ rate: Number(e.target.value) })} /></label>
-        <label className="check"><input type="checkbox" checked={settings.onlineVoices} onChange={e => configure({ onlineVoices: e.target.checked, voiceURI: '' })} /> {t.onlineVoices}</label>
-        {voice.warning && <p className="warning" role="alert">{t[voice.warning]}</p>}
-        {saveError && <p role="alert" className="warning">{t.localSaveError}</p>}
-        {rejected && <p role="alert" className="warning">{t.rejectedActions}</p>}
-        <p className="muted">{t.controlsHelp}</p>
-        <p className="privacy">{t.privacy}</p>
-        <button className="stop" onClick={eraseEverything}>{t.eraseAll}</button>
-        <Credit locale={settings.locale} />
+            <option value="cs">Čeština</option><option value="en">English</option></select></label>
+          <button onClick={() => configure({ theme: settings.theme === 'light' ? 'dark' : 'light' })}>{settings.theme === 'light' ? t.dark : t.light}</button>
+          <div role="radiogroup" aria-label={t.boardPaper}><span className="muted">{t.boardPaper}</span>
+            <div className="pattern-picker">{BOARD_PATTERNS.map(pattern => <button key={pattern} role="radio" aria-checked={settings.boardPattern === pattern} data-pattern={pattern}
+              onClick={() => configure({ boardPattern: pattern })}><span>{t[({ plain: 'patternPlain', grid: 'patternGrid', lines: 'patternLines', dots: 'patternDots', school: 'patternSchool' } as const)[pattern]]}</span></button>)}</div></div>
+          <div role="radiogroup" aria-label={t.defaultTool}><span className="muted">{t.defaultTool}</span>
+            <div className="pattern-picker">{DEFAULT_TOOLS.map(tool => <button key={tool} role="radio" aria-checked={settings.defaultTool === tool} data-tool={tool}
+              onClick={() => configure({ defaultTool: tool })}><span>{tool === 'freedraw' ? t.toolPen : t.toolText}</span></button>)}</div></div>
+        </section>
+
+        <section className="settings-section" aria-label={t.settingsSectionAi || 'AI asistent'}>
+          <h3>{t.settingsSectionAi || 'AI asistent'}</h3>
+          {connected && <>
+            <label><span>{t.aiProvider}</span><select aria-label={t.provider} value={settings.provider} onChange={e => {
+              const id = e.target.value as ProviderId | '';
+              const match = providers.find(p => p.id === id);
+              configure({ provider: id, model: match?.models[0]?.id ?? '' });
+            }}>
+            <option value="">{t.choose}</option>{providers.map(p => <option key={p.id} value={p.id}>{p.id === "google" ? t.googleProvider : p.id}{providerStatusLabel(p, t)}</option>)}</select></label>
+            <label><span>{t.aiModel}</span><select aria-label={t.model} value={settings.model} onChange={e => configure({ model: e.target.value })}><option value="">{t.choose}</option>
+              {provider?.models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
+            {!verifierOK && <span role="alert">{t.healthVerifier}</span>}
+          </>}
+          <label className="check-label"><input type="checkbox" checked={settings.showAI} onChange={e => configure({ showAI: e.target.checked })} />{t.aiLayer}</label>
+          <label className="check-label"><input type="checkbox" checked={settings.auto} onChange={e => configure({ auto: e.target.checked })} />{t.consent}</label>
+          <details className="settings-advanced-details">
+            <summary>{t.settingsDevGuide || 'Pokročilé: jak připojit AI'}</summary>
+            <div className="settings-advanced-content">
+              {provider && provider.id === "google" && !provider.authStatus.authenticated && provider.authStatus.keyPresent === false &&
+                <p className="muted" role="alert">{t.googleKeyMissing}</p>}
+              <small className="muted">{t.aiRunsLocally}</small>
+              <p className="muted">{t.controlsHelp}</p>
+            </div>
+          </details>
+        </section>
+
+        <section className="settings-section" aria-label={t.settingsSectionVoice || 'Hlas a řeč'}>
+          <h3>{t.settingsSectionVoice || 'Hlas a řeč'}</h3>
+          <label>{t.voiceChoice}<select value={voice.voices.some(v => v.voiceURI === settings.voiceURI) ? settings.voiceURI : ''} onChange={e => configure({ voiceURI: e.target.value })}>
+            <option value="">{t.choose}</option>
+            {voice.systemVoices.length > 0 && <optgroup label={t.voiceSystemGroup}>{voice.systemVoices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</optgroup>}
+            <optgroup label={t.voicePiperGroup}>{voice.piperVoices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>)}</optgroup></select></label>
+          <div className="piper-voice" data-testid="piper-voice">
+            <strong>{t.voicePiperGroup}</strong>
+            {voice.piper.voice
+              ? (voice.piper.status === 'ready'
+                  ? <p className="muted" data-testid="piper-ready">{t.piperReady}</p>
+                  : voice.piper.status === 'downloading'
+                    ? <><progress max={100} value={downloadPercent(voice.piper.loaded, voice.piper.total)} aria-label={t.piperDownload} />
+                        <p className="muted" data-testid="piper-progress">{t.piperProgress.replace('{done}', formatSize(voice.piper.loaded, settings.locale)).replace('{total}', formatSize(voice.piper.total, settings.locale))}</p>
+                        <div className="row"><button onClick={voice.piper.cancel}>{t.piperCancel}</button></div></>
+                    : <><p className="muted">{t.piperSize.replace('{mb}', formatSize(estimateBytes(voice.piper.voice), settings.locale))}</p>
+                        {voice.piper.error && <p className="warning" role="alert" data-testid="piper-error">{t[voice.piper.error]}</p>}
+                        <div className="row"><button className="primary" data-testid="piper-download" onClick={voice.piper.start}>{t.piperDownload}</button></div></>)
+              : <><p className="muted">{t.piperSize.replace('{mb}', '≈ 60 MB')}</p>
+                  {voice.piperVoices.length > 0 && <div className="row"><button className="secondary" onClick={() => {
+                    const firstPiper = voice.piperVoices[0]?.voiceURI;
+                    if (firstPiper) configure({ voiceURI: firstPiper });
+                  }}>{t.choose}: {voice.piperVoices[0]?.name ?? 'Piper'}</button></div>}</>}
+          </div>
+          <label>{t.rate} ({settings.rate})<input type="range" min="0.5" max="1.5" step="0.1" value={settings.rate} onChange={e => configure({ rate: Number(e.target.value) })} /></label>
+          <label className="check"><input type="checkbox" checked={settings.onlineVoices} onChange={e => configure({ onlineVoices: e.target.checked, voiceURI: '' })} /> {t.onlineVoices}</label>
+          {voice.warning && <p className="warning" role="alert">{t[voice.warning]}</p>}
+        </section>
+
+        <section className="settings-section" aria-label={t.settingsSectionData || 'Data a kurz'}>
+          <h3>{t.settingsSectionData || 'Data a kurz'}</h3>
+          <button onClick={() => { configure({ activeTrackId: '', onboardingDismissed: false }); setSettingsOpen(false); }}>{t.pickCourseAgain}</button>
+          {saveError && <p role="alert" className="warning">{t.localSaveError}</p>}
+          {rejected && <p role="alert" className="warning">{t.rejectedActions}</p>}
+          <p className="privacy">{t.privacy}</p>
+          <button className="stop" onClick={eraseEverything}>{t.eraseAll}</button>
+          <Credit locale={settings.locale} />
+        </section>
       </aside>
       <Credit locale={settings.locale} compact />
       {calcOpen && calcPolicy !== 'none' && <Calculator t={t} locale={settings.locale} policy={calcPolicy} examRules={!!activeTrack?.calculator}
@@ -967,11 +977,11 @@ export function App() {
             <span>{t.aiBadge} {i + 1}</span><button onClick={() => { stop(false); updateBoard(removeAnnotation(board, a.id)); }}>{t.undoAnnotation} {i + 1}</button></li>)}</ul></section>
       </aside>
       <TutorHud key={board.id} locateStep={locateStep} locateObstacles={locateObstacles} writing={phase === 'writing'} t={t} locale={settings.locale} activity={activity} slow={slow} celebrate={message?.kind === 'solved'}
-        quiet={settingsOpen || calcOpen || !!openPanel} mood={mood} speaking={voice.speaking} message={shownMessage} menuOpen={tutorMenu} running={running} canRequest={canRequest}
+        quiet={settingsOpen || calcOpen || !!openPanel || hasUncertainPopover} mood={mood} speaking={voice.speaking} message={shownMessage} menuOpen={tutorMenu} running={running} canRequest={canRequest}
         answerChips={answeredByAi ? ['understand', 'lost'] : undefined} onChip={chatChip}
         chat={{ open: chatOpen, onToggle: toggleChat, locale: settings.locale, thread: chat.thread, chips, busy: running, slow, large: chatLarge,
           micAvailable: mic.available, listening: mic.listening, onChip: chatChip, onSend: sendChat, onMic: () => mic.toggle(text => { setChatOpen(true); sendChat(text); }),
-          onCollapse: () => setChatOpen(false), onToggleSize: () => setChatLarge(v => !v), onCancel: () => stop(),
+          onCollapse: () => setChatOpen(false), onToggleSize: () => setChatLarge(v => !v), onCancel: () => { stop(false); setMessage({ id: 'status-cancelled', kind: 'info', text: t.cancelledChat }); },
           onClear: () => { if (window.confirm(cm.chatClearConfirm)) chat.clear(board.id); } }}
         lessonActive={!!lessonSkillId || !!board.skillId} selfAssess={!!board.skillId && !board.expected && !board.outcome} mode={settings.coachMode} voiceOn={settings.tutorVoice} micAvailable={mic.available} listening={mic.listening}
         onToggleMenu={() => openOnly('tutor')}
@@ -987,4 +997,5 @@ export function App() {
     <ColorLegendDialog open={colorLegendOpen} onClose={() => setColorLegendOpen(false)} locale={settings.locale} t={t} />
   </div>;
 }
+
 

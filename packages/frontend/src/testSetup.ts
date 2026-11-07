@@ -1,5 +1,12 @@
 import '@testing-library/jest-dom/vitest';
 
+if (typeof navigator !== 'undefined') {
+  Object.defineProperty(navigator, 'language', {
+    configurable: true,
+    value: 'cs-CZ',
+  });
+}
+
 // jsdom's Blob implements neither arrayBuffer() nor text() yet, while Web Audio reads the WAV that way.
 if (typeof Blob.prototype.arrayBuffer !== 'function') {
   Object.defineProperty(Blob.prototype, 'arrayBuffer', {

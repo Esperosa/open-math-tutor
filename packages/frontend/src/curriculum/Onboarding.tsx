@@ -11,6 +11,7 @@ interface Props {
   locale: Locale;
   onSelectTrack: (trackId: string, level: StartLevel) => void;
   onSkip: () => void;
+  onLocaleChange?: (locale: Locale) => void;
 }
 
 const GROUPS: { id: string; title: MessageKey; hint: MessageKey; trackIds: string[] }[] = [
@@ -23,13 +24,37 @@ const LEVELS: { level: StartLevel; label: MessageKey }[] = [
   { level: 1, label: 'levelFresh' }, { level: 2, label: 'levelRefresh' }, { level: 3, label: 'levelAdvanced' },
 ];
 
-export function Onboarding({ catalog, t, locale, onSelectTrack, onSkip }: Props) {
+export function Onboarding({ catalog, t, locale, onSelectTrack, onSkip, onLocaleChange }: Props) {
   const [groupId, setGroupId] = useState<string | null>(null);
   const [level, setLevel] = useState<StartLevel>(1);
   const group = GROUPS.find(g => g.id === groupId) ?? null;
   const tracks = group ? group.trackIds.map(id => catalog.tracks.find(tr => tr.id === id)).filter(tr => tr !== undefined) : [];
   return <div className="onboarding" role="dialog" aria-label={t.onboardingTitle}>
     <div className="onboarding-card">
+      <div className="onboarding-top-bar">
+        <div className="onboarding-lang-toggle" role="radiogroup" aria-label={t.language}>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={locale === 'cs'}
+            className={`onboarding-lang-btn ${locale === 'cs' ? 'active' : ''}`}
+            data-testid="onboarding-lang-cs"
+            onClick={() => onLocaleChange?.('cs')}
+          >
+            Čeština
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={locale === 'en'}
+            className={`onboarding-lang-btn ${locale === 'en' ? 'active' : ''}`}
+            data-testid="onboarding-lang-en"
+            onClick={() => onLocaleChange?.('en')}
+          >
+            English
+          </button>
+        </div>
+      </div>
       {!group ? <>
         <h1>{t.onboardingTitle}</h1>
         <p className="muted">{t.onboardingSubtitle}</p>
@@ -41,7 +66,7 @@ export function Onboarding({ catalog, t, locale, onSelectTrack, onSkip }: Props)
           </li>)}
         </ul>
       </> : <>
-        <button className="onboarding-skip" onClick={() => setGroupId(null)}>← {t.onboardingBack}</button>
+        <button className="onboarding-skip onboarding-back-btn" data-testid="onboarding-back" onClick={() => setGroupId(null)}>← {t.onboardingBack}</button>
         <h1>{t[group.title]}</h1>
         <p className="muted">{t.levelQuestion}</p>
         <div className="level-picker" role="radiogroup" aria-label={t.levelQuestion}>
