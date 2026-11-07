@@ -288,9 +288,9 @@ The AI tutor uses the structured `board_actions` protocol:
 - **AI status shows "offline":**
   Ensure the local bridge process is running (`npm run dev:bridge` on port 4178). For Claude, verify CLI authentication with `claude auth login`. For Gemini, ensure your key was configured via `npm run set-gemini-key -w packages/bridge`.
 - **Bridge unreachable:**
-  Check `http://127.0.0.1:4178/health` in your browser. It should report `{"status":"ok","verifier":"ok"}`.
-- **localhost vs 127.0.0.1:**
-  Always open the frontend at `http://localhost:5173`. For security (CSRF defense), the bridge explicitly allows `http://localhost:5173` and blocks `http://127.0.0.1:5173`.
+  The “AI connected” indicator in the top bar shows the state. The bridge only answers requests with an allowed origin, so opening `:4178` directly in a browser shows `forbidden_origin`; that is expected. Check that `npm run dev:bridge` and the verifier are running.
+- **Frontend address:**
+  The bridge accepts the origins `http://localhost:5173` and `http://127.0.0.1:5173`. Other origins are rejected on purpose (CSRF protection).
 
 ---
 

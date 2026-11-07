@@ -288,9 +288,9 @@ AI doučovatel komunikuje prostřednictvím strukturovaného protokolu `board_ac
 - **AI hlásí stav „offline“:**
   Ujisti se, že ti v terminálu běží bridge (`npm run dev:bridge` na portu 4178). Pokud používáš Claude, ověř přihlášení příkazem `claude auth login`. Pokud používáš Gemini, zkontroluj zadání klíče příkazem `npm run set-gemini-key -w packages/bridge`.
 - **Bridge je nedostupný nebo neodpovídá:**
-  Ověř ve webovém prohlížeči stav na adrese `http://127.0.0.1:4178/health`. Měl by vrátit stav `{"status":"ok","verifier":"ok"}`.
-- **Rozdíl mezi localhost a 127.0.0.1:**
-  Frontend otevírej vždy jako `http://localhost:5173`. Bridge z bezpečnostních důvodů (ochrana proti CSRF) výslovně povoluje původ `http://localhost:5173`, zatímco `http://127.0.0.1:5173` odmítá.
+  Stav ukazuje indikátor „AI je připojená“ v horní liště appky. Samotný bridge odpovídá jen požadavkům s povoleným původem, takže přímo v prohlížeči na `:4178` uvidíš `forbidden_origin`, to je v pořádku. Zkontroluj, že běží `npm run dev:bridge` a verifikátor.
+- **Adresa frontendu:**
+  Bridge povoluje původy `http://localhost:5173` i `http://127.0.0.1:5173`. Cizí adresy z bezpečnostních důvodů (ochrana proti CSRF) odmítá.
 
 ---
 
