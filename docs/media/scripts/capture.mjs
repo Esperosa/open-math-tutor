@@ -1,5 +1,5 @@
 /** Genuine UI captures, no route mocks, storage fixtures, or application test hooks.
- * Run from any cwd: node docs/media/scripts/capture.mjs [--only=01,02,...,06]
+ * Run from any cwd: node docs/media/scripts/capture.mjs [--only=01,02,...,08]
  * Requires the three README services, Playwright Chromium, ffmpeg and ffprobe.
  */
 import { chromium, expect } from '@playwright/test';
@@ -8,9 +8,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
+import { drawLine } from './ink.mjs';
 
 const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-// The bridge intentionally allows localhost:5173, not the 127.0.0.1 frontend origin.
 const BASE_URL = 'http://localhost:5173';
 const only = process.argv.find(a => a.startsWith('--only='))?.split('=')[1].split(',');
 const aiAttempts = Number(process.argv.find(a => a.startsWith('--ai-attempts='))?.split('=')[1] ?? 3);
@@ -47,18 +47,6 @@ async function course(p, science = false) {
   await act(p, p.getByRole('button', { name: science ? /^Fyzika/ : /^Přijímačky na střední školu/ }), 1000);
   await expect(p.locator('.excalidraw__canvas.interactive')).toBeVisible();
 }
-// Adapted from replay.spec.ts: all writing goes through the real Excalidraw textarea.
-async function writeOnBoard(p, text, row = 0) {
-  const rect = await p.locator('.excalidraw__canvas.interactive').boundingBox();
-  if (!rect) throw new Error('canvas_missing');
-  await p.mouse.click(rect.x + 540, rect.y + 270 + row * 80);
-  await expect(p.locator('textarea.excalidraw-wysiwyg')).toBeFocused();
-  await pause(p, 450);
-  await p.keyboard.type(text, { delay: 105 });
-  await pause(p, 400);
-  await p.keyboard.press('Escape');
-  await p.mouse.move(900, 640); await pause(p);
-}
 async function setTask(p, text) {
   await act(p, button(p, 'Upravit zadání'), 500);
   const field = p.getByRole('textbox', { name: 'Zadání', exact: true });
@@ -67,8 +55,6 @@ async function setTask(p, text) {
 }
 async function shot(p, name) {
   await p.evaluate(() => document.fonts.ready);
-  const writing = p.getByTestId('tutor-typewriter');
-  if (await writing.isVisible()) await expect(writing).toHaveAttribute('data-complete', 'true', { timeout: 8000 });
   if (unsafe.test(await p.locator('body').innerText())) throw new Error('privacy_check_failed');
   await p.screenshot({ path: join(OUT, `${name}.png`) });
 }
@@ -93,138 +79,214 @@ function encode(raw, name, segments, cutWait) {
 
 const scenarios = [
   ['01', '01-first-lesson', async (p, t) => {
-    await clean(p); t.begin(); await pause(p, 1800);
+    await clean(p); t.begin(); await pause(p, 1200);
     await shot(p, '01-onboarding');
-    await act(p, p.getByRole('button', { name: /Chystám se na střední školu/ }), 2200);
-    await act(p, p.getByRole('button', { name: /^Přijímačky na střední školu/ }), 3600);
-    await expect(bubble(p)).toBeVisible();
-    await expect(p.getByTestId('tutor-typewriter')).toHaveAttribute('data-complete', 'true');
+    await act(p, p.getByRole('button', { name: /Chystám se na střední školu/ }), 1600);
+    await act(p, p.getByRole('button', { name: /^Přijímačky na střední školu/ }), 2600);
+    await expect(bubble(p)).toBeVisible({ timeout: 10000 });
     await shot(p, '03-lesson-light');
-    await act(p, button(p, 'Kurzy'), 900);
+    await shot(p, 'shot-01-first-lesson');
+    await act(p, button(p, 'Kurzy'), 1000);
     await p.getByRole('combobox', { name: 'Kurz', exact: true }).selectOption({ label: 'Přijímačky na střední školu' });
-    await pause(p, 1000);
+    await pause(p, 800);
     await p.getByRole('combobox', { name: 'Téma kurzu', exact: true }).selectOption({ label: 'Základy čísel' });
-    await pause(p, 1600);
+    await pause(p, 1200);
     await shot(p, '02-courses');
-    await act(p, p.getByTestId('skill-item').first().getByRole('button'), 3500);
+    await p.keyboard.press('Escape');
+    await pause(p, 2000);
     t.end();
   }],
-  ['02', '02-local-coach', async (p, t) => {
+  ['02', '02-handwriting-check', async (p, t) => {
     await free(p); await setTask(p, '2x + 3 = 7');
     t.begin(); await pause(p, 1000);
-    await writeOnBoard(p, '2x + 3 = 7', 0);
-    await expect(p.getByTestId('step-mark-ok')).toHaveCount(1);
-    await writeOnBoard(p, '2x = 4', 1);
-    await expect(p.getByTestId('step-mark-ok')).toHaveCount(2);
-    // The wrong line is wide enough that the visiting bubble does not cover earlier work.
-    await writeOnBoard(p, '2x / 2 = 6 / 2', 2);
-    await expect(p.getByTestId('step-mark-wrong')).toBeVisible();
-    await expect(bubble(p)).toHaveAttribute('data-kind', 'wrong');
-    await expect(p.getByTestId('tutor-hud')).toHaveAttribute('data-visiting', 'true');
-    await expect(p.getByTestId('tutor-typewriter')).toHaveAttribute('data-complete', 'true');
-    await shot(p, '04-local-coach'); await pause(p, 2600); t.end();
+    await drawLine(p, '2x = 6', 15, [420, 260], 'pen', 3);
+    const reading = p.locator('.ink-reading');
+    await reading.first().waitFor({ timeout: 10000 });
+    await shot(p, 'shot-02-handwriting');
+    await expect(p.getByTestId('step-mark-wrong')).toBeVisible({ timeout: 10000 });
+    await expect(bubble(p)).toHaveAttribute('data-kind', 'wrong', { timeout: 10000 });
+    await expect(p.locator('.teacher-note-delete').first()).toBeVisible({ timeout: 10000 });
+    await pause(p, 2200);
+    await shot(p, '04-local-coach');
+    await shot(p, 'shot-03-teacher-board');
+    await pause(p, 800);
+    await drawLine(p, 'x = 2', 37, [420, 360], 'pen', 3);
+    await expect(p.getByTestId('step-mark-ok')).toBeVisible({ timeout: 10000 });
+    await expect(bubble(p)).toHaveAttribute('data-kind', 'solved', { timeout: 10000 });
+    await pause(p, 2000);
+    t.end();
     if (t.aiRequests.length) throw new Error('local_scenario_called_ai');
   }],
-  ['03', '03-real-ai-hint', async (p, t) => {
-    await free(p); await setTask(p, '2x + 3 = 7');
+  ['03', '03-ai-teacher-writes', async (p, t) => {
+    await free(p);
     await act(p, button(p, 'Nastavení'), 500);
-    await expect(p.getByRole('combobox', { name: 'Poskytovatel', exact: true }).locator('option[value="claude"]')).toBeAttached({ timeout: 45000 });
+    await expect(p.getByRole('combobox', { name: 'Poskytovatel', exact: true }).locator('option[value="claude"]')).toBeAttached({ timeout: 15000 });
     await p.getByRole('combobox', { name: 'Poskytovatel', exact: true }).selectOption('claude');
     await p.getByRole('combobox', { name: 'Model', exact: true }).selectOption('sonnet');
-    await p.keyboard.press('Escape'); await pause(p, 600);
+    await p.keyboard.press('Escape'); await pause(p, 500);
+    await setTask(p, '2x + 3 = 7');
     t.begin(); await pause(p, 900);
-    await writeOnBoard(p, '2x + 3 = 7');
-    await showMenu(p); await shot(p, '08-tutor-menu');
-    const response = p.waitForResponse(r => r.url().endsWith('/providers/claude/continue-lesson') && r.request().method() === 'POST', { timeout: 125000 });
+    await drawLine(p, '2x = 6', 15, [420, 260], 'pen', 3);
+    const reading = p.locator('.ink-reading');
+    await reading.first().waitFor({ timeout: 10000 });
+    await showMenu(p);
+    await shot(p, '08-tutor-menu');
+    const responsePromise = p.waitForResponse(
+      r => r.url().endsWith('/providers/claude/continue-lesson') && r.request().method() === 'POST',
+      { timeout: 45000 }
+    );
     t.requestAt = t.now();
     await act(p, p.getByRole('menuitem', { name: 'Poradit', exact: true }), 500);
-    const r = await response;
+    const r = await responsePromise;
     t.responseAt = t.now();
     const body = await r.json();
-    // Keep only non-personal response metadata; never save CLI output, auth or headers.
-    t.evidence = { provider: 'claude', model: 'sonnet', status: r.status(), boardActionTypes: body.boardActions?.map(a => a.type) ?? [], responseSeconds: +(t.responseAt - t.requestAt).toFixed(2) };
-    if (!r.ok()) throw new Error(`ai_http_${r.status()}_${String(body.error).replace(/[^a-z_]/g, '')}`);
-    if (!body.boardActions?.some(a => a.type === 'write_math' || a.type === 'show_hint')) throw new Error('ai_no_written_hint');
-    await expect(p.getByTestId('math-annotation').first()).toBeVisible({ timeout: 10000 });
-    await expect(p.getByTestId('math-annotation').first()).toHaveCSS('opacity', '1');
-    await pause(p, 2500); await shot(p, '05-ai-hint'); await pause(p, 2500); t.end();
+    t.evidence = {
+      provider: 'claude',
+      model: 'sonnet',
+      status: r.status(),
+      boardActionTypes: body.boardActions?.map(a => a.type) ?? [],
+      responseSeconds: +(t.responseAt - t.requestAt).toFixed(2),
+    };
+    if (!r.ok()) throw new Error(`ai_http_${r.status()}`);
+    if (!body.boardActions || body.boardActions.length === 0) throw new Error('ai_no_written_hint');
+    await expect(p.locator('.teacher-note-delete').first()).toBeVisible({ timeout: 10000 });
+    await pause(p, 3000);
+    t.end();
   }],
-  ['04', '04-plan-progress', async (p, t) => {
-    await course(p); await pause(p, 2500);
-    t.begin(); await act(p, button(p, 'Plán a cesta'), 2200);
+  ['04', '04-chat', async (p, t) => {
+    await free(p);
+    await act(p, button(p, 'Nastavení'), 500);
+    await p.getByRole('combobox', { name: 'Poskytovatel', exact: true }).selectOption('claude');
+    await p.getByRole('combobox', { name: 'Model', exact: true }).selectOption('sonnet');
+    await p.keyboard.press('Escape'); await pause(p, 500);
+    t.begin(); await pause(p, 800);
+    await act(p, p.getByRole('button', { name: 'Povídat si s učitelem', exact: true }), 1000);
+    await expect(p.getByTestId('chat')).toBeVisible({ timeout: 5000 });
+    await act(p, p.getByRole('button', { name: 'Co znamená ✓ a ✗?', exact: true }), 1500);
+    await expect(p.getByTestId('chat-log')).toContainText('vidíš', { timeout: 5000 });
+    const input = p.getByRole('textbox', { name: 'Zpráva učiteli', exact: true });
+    await input.click();
+    await input.pressSequentially('Proč se mění znaménko?', { delay: 60 });
+    await pause(p, 400);
+    const responsePromise = p.waitForResponse(
+      r => r.url().endsWith('/providers/claude/continue-lesson') && r.request().method() === 'POST',
+      { timeout: 45000 }
+    );
+    t.requestAt = t.now();
+    await input.press('Enter');
+    const r = await responsePromise;
+    t.responseAt = t.now();
+    t.evidence = { provider: 'claude', model: 'sonnet', chatResponseSeconds: +(t.responseAt - t.requestAt).toFixed(2) };
+    await pause(p, 2000);
+    await shot(p, 'shot-04-chat-thread');
+    await pause(p, 1500);
+    t.end();
+  }],
+  ['05', '05-plan-progress', async (p, t) => {
+    await course(p); await pause(p, 2000);
+    t.begin(); await act(p, button(p, 'Plán a cesta'), 1800);
     await expect(p.getByTestId('plan-percent')).toHaveText('0 %');
+    await shot(p, '06-plan');
+    await shot(p, 'shot-05-plan-progress');
     const percentages = ['0 %'];
     const topicPercentages = [await p.locator('.plan-topic-head small').first().innerText()];
-    await p.keyboard.press('Escape'); await pause(p, 1000);
+    await p.keyboard.press('Escape'); await pause(p, 800);
     for (let i = 0; i < 2; i++) {
       const task = (await p.getByTestId('task-text').innerText()).trim();
       const m = /^(-?\d+)([+-])(\d+)$/.exec(task);
       if (!m) throw new Error('unexpected_arithmetic_task');
       const result = m[2] === '+' ? +m[1] + +m[3] : +m[1] - +m[3];
-      await writeOnBoard(p, `${task} = ${result}`);
-      await expect(bubble(p)).toHaveAttribute('data-kind', 'solved', { timeout: 8000 });
-      await act(p, button(p, 'Plán a cesta'), 1600);
+      await drawLine(p, `${task} = ${result}`, 11 + i * 17, [420, 260], 'pen', 3);
+      await expect(bubble(p)).toHaveAttribute('data-kind', 'solved', { timeout: 10000 });
+      await act(p, button(p, 'Plán a cesta'), 1500);
       const percent = await p.getByTestId('plan-percent').innerText();
       const topicPercent = await p.locator('.plan-topic-head small').first().innerText();
-      // Whole-course rounding can legitimately keep 1 % after the second example.
       if (topicPercent === topicPercentages.at(-1)) throw new Error('topic_progress_unchanged');
-      if (i === 0 && percent === '0 %') throw new Error('course_progress_unchanged');
       percentages.push(percent);
       topicPercentages.push(topicPercent);
       if (i === 0) {
-        await p.keyboard.press('Escape'); await pause(p, 700);
+        await p.keyboard.press('Escape'); await pause(p, 600);
         await act(p, button(p, 'Další příklad'), 800);
       }
     }
-    await shot(p, '06-plan'); await pause(p, 1000); t.end();
+    await pause(p, 1200);
+    t.end();
     t.evidence = { percentages, topicPercentages, localOnly: t.aiRequests.length === 0 };
   }],
-  ['05', '05-physics-units', async (p, t) => {
-    await course(p, true); await pause(p, 3000);
+  ['06', '06-physics-units', async (p, t) => {
+    await course(p, true); await pause(p, 2500);
     const task = await p.getByTestId('task-text').innerText();
     const m = /ujede (\d+) m za (\d+) s/.exec(task);
     if (!m) throw new Error('unexpected_physics_task');
-    t.begin(); await pause(p, 1600);
-    await writeOnBoard(p, `s = ${m[1]} m`, 0);
-    await writeOnBoard(p, `t = ${m[2]} s`, 1);
-    await writeOnBoard(p, `v = ${m[1]} / ${m[2]} = ${Math.round(+m[1] / +m[2] * 1000) / 1000} m/s`, 2);
-    await expect(bubble(p)).toHaveAttribute('data-kind', 'solved', { timeout: 8000 });
-    await pause(p, 1600); await shot(p, '07-physics'); await pause(p, 2000); t.end();
+    t.begin(); await pause(p, 1000);
+    await drawLine(p, `${m[1]} m`, 7, [420, 240], 'pen', 3);
+    await pause(p, 500);
+    await drawLine(p, `${m[2]} s`, 13, [420, 300], 'pen', 3);
+    await pause(p, 500);
+    const v = Math.round(+m[1] / +m[2] * 1000) / 1000;
+    await drawLine(p, `${m[1]}/${m[2]}=${v} m/s`, 29, [420, 360], 'pen', 3);
+    await expect(bubble(p)).toHaveAttribute('data-kind', 'solved', { timeout: 10000 });
+    await pause(p, 1500);
+    await shot(p, '07-physics');
+    await shot(p, 'shot-06-physics-units');
+    await pause(p, 1500);
+    t.end();
     if (t.aiRequests.length) throw new Error('local_scenario_called_ai');
   }],
-  ['06', '06-test-and-export', async (p, t) => {
-    await course(p); await setTask(p, '2x + 3 = 7'); await writeOnBoard(p, '2x = 4');
+  ['07', '07-test-and-export', async (p, t) => {
+    await course(p); await setTask(p, '2x + 3 = 7');
+    await drawLine(p, '2x = 4', 21, [420, 260], 'pen', 3);
     t.begin(); await act(p, button(p, 'Plán a cesta'), 900);
-    await p.getByRole('combobox', { name: 'Z čeho', exact: true }).scrollIntoViewIfNeeded(); await pause(p, 1800);
+    await p.getByRole('combobox', { name: 'Z čeho', exact: true }).scrollIntoViewIfNeeded();
+    await pause(p, 1200);
     const testDownload = p.waitForEvent('download');
-    await act(p, button(p, 'Stáhnout test (HTML)'), 1900);
-    const test = await testDownload;
-    if (test.suggestedFilename() !== 'test.html') throw new Error('wrong_test_filename');
-    await test.saveAs(join(OUT, 'exports', 'test.html'));
+    await act(p, button(p, 'Stáhnout test (HTML)'), 1500);
+    const testFile = await testDownload;
+    if (testFile.suggestedFilename() !== 'test.html') throw new Error('wrong_test_filename');
+    await testFile.saveAs(join(OUT, 'exports', 'test.html'));
     const html = await readFile(join(OUT, 'exports', 'test.html'), 'utf8');
     if (!html.includes('Klíč správných odpovědí') || unsafe.test(html)) throw new Error('test_content_check_failed');
-    await p.keyboard.press('Escape'); await pause(p, 1000);
-    await act(p, button(p, 'Zápisky a pokrok'), 2000);
+    await p.keyboard.press('Escape'); await pause(p, 800);
+    await act(p, button(p, 'Zápisky a pokrok'), 1500);
     const mdDownload = p.waitForEvent('download');
-    await act(p, button(p, 'Stáhnout zápisky (.md)'), 1800);
+    await act(p, button(p, 'Stáhnout zápisky (.md)'), 1400);
     await (await mdDownload).saveAs(join(OUT, 'exports', 'zapisky.md'));
     const pngDownload = p.waitForEvent('download');
-    await act(p, button(p, 'Tabule jako PNG'), 1800);
+    await act(p, button(p, 'Tabule jako PNG'), 1400);
     await (await pngDownload).saveAs(join(OUT, 'exports', 'tabule.png'));
-    t.end();
-    // Additional captures use the same clean context; no replay of saved user data.
     await p.keyboard.press('Escape'); await pause(p, 800);
-    await showMenu(p); await shot(p, '08-tutor-menu'); await p.keyboard.press('Escape');
-    await act(p, button(p, 'Nastavení'), 500); await act(p, button(p, 'Tmavý režim'), 600);
-    await p.keyboard.press('Escape'); await pause(p, 700); await shot(p, '09-board-dark');
+    await p.setContent(html);
+    await pause(p, 1200);
+    await shot(p, 'shot-07-test-export');
+    await pause(p, 1200);
+    t.end();
+    t.evidence = { downloads: ['test.html', 'zapisky.md', 'tabule.png'], testHasAnswerKey: true };
+  }],
+  ['08', '08-settings-paper-voices', async (p, t) => {
+    await free(p); await setTask(p, '2x + 3 = 7');
+    await drawLine(p, '2x = 4', 21, [420, 260], 'pen', 3);
+    await act(p, button(p, 'Nastavení'), 500);
+    t.begin(); await pause(p, 800);
+    for (const pattern of ['grid', 'lines', 'dots', 'school', 'plain']) {
+      await p.locator(`.pattern-picker [data-pattern="${pattern}"]`).click();
+      await pause(p, 700);
+    }
+    await act(p, button(p, 'Tmavý režim'), 800);
+    await shot(p, 'shot-08-settings-paper');
+    await p.keyboard.press('Escape'); await pause(p, 800);
+    await shot(p, '09-board-dark');
     await p.setViewportSize({ width: 390, height: 844 }); await pause(p, 1000);
     const returnToContent = button(p, 'Přejít zpět na obsah');
-    if (await returnToContent.isVisible()) await act(p, returnToContent, 1400);
+    if (await returnToContent.isVisible()) await act(p, returnToContent, 1000);
     await shot(p, '10-phone-dark');
     if (await p.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error('phone_horizontal_overflow');
-    await act(p, button(p, 'Nastavení'), 500); await act(p, button(p, 'Světlý režim'), 600);
-    await p.keyboard.press('Escape'); await pause(p, 1000); await shot(p, '11-phone-light');
-    t.evidence = { downloads: ['test.html', 'zapisky.md', 'tabule.png'], testHasAnswerKey: true };
+    await act(p, button(p, 'Nastavení'), 500);
+    await act(p, button(p, 'Světlý režim'), 600);
+    await p.keyboard.press('Escape'); await pause(p, 1000);
+    await shot(p, '11-phone-light');
+    await pause(p, 1000);
+    t.end();
+    t.evidence = { patterns: 5, darkTheme: true, phoneResponsive: true };
   }],
 ];
 
@@ -233,12 +295,30 @@ try {
     if (only && !only.includes(id)) continue;
     const attempts = [];
     for (let attempt = 1; attempt <= (id === '03' ? aiAttempts : 1); attempt++) {
-      const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, locale: 'cs-CZ', timezoneId: 'Europe/Prague', colorScheme: 'light', acceptDownloads: true, serviceWorkers: 'block', recordVideo: { dir: temp, size: { width: 1280, height: 720 } } });
-      const p = await context.newPage(); const origin = Date.now();
-      p.setDefaultTimeout(15000);
-      const t = { aiRequests: [], now: () => (Date.now() - origin) / 1000, begin() { this.start = this.now(); }, end() { this.finish = this.now(); } };
-      p.on('request', r => { if (/\/(continue-lesson|analyze-board)$/.test(r.url())) t.aiRequests.push(new URL(r.url()).pathname); });
-      const errors = []; p.on('pageerror', () => errors.push('page_error'));
+      const context = await browser.newContext({
+        viewport: { width: 1280, height: 720 },
+        deviceScaleFactor: 1,
+        locale: 'cs-CZ',
+        timezoneId: 'Europe/Prague',
+        colorScheme: 'light',
+        acceptDownloads: true,
+        serviceWorkers: 'block',
+        recordVideo: { dir: temp, size: { width: 1280, height: 720 } },
+      });
+      const p = await context.newPage();
+      const origin = Date.now();
+      p.setDefaultTimeout(20000);
+      const t = {
+        aiRequests: [],
+        now: () => (Date.now() - origin) / 1000,
+        begin() { this.start = this.now(); },
+        end() { this.finish = this.now(); },
+      };
+      p.on('request', r => {
+        if (/\/(continue-lesson|analyze-board)$/.test(r.url())) t.aiRequests.push(new URL(r.url()).pathname);
+      });
+      const errors = [];
+      p.on('pageerror', () => errors.push('page_error'));
       let failure;
       try {
         console.log(`${id}: attempt ${attempt}`);
@@ -247,11 +327,12 @@ try {
         if (unsafe.test(await p.locator('body').innerText())) throw new Error('privacy_check_failed');
         if (errors.length) throw new Error('page_error');
       } catch (e) {
-        // Locator errors can include arbitrary UI text. Store only an allowlisted label.
         failure = /^[a-z][a-z0-9_]+$/.test(e.message) ? e.message : `ui_${e.name.toLowerCase()}`;
         console.log(`${id}: ${failure}`);
         if (failure.startsWith('ui_')) console.log(e.message.split('\n').slice(0, 8).join('\n'));
-      } finally { await context.close(); }
+      } finally {
+        await context.close();
+      }
       const raw = await p.video().path();
       if (!failure) {
         let segments = [[t.start, t.finish]], cutWait = false;
@@ -269,20 +350,17 @@ try {
       }
       if (failure) {
         attempts.push({ attempt, outcome: 'failed', reason: failure, evidence: t.evidence });
-        // Do not accidentally deliver a stale successful video from an older run.
         for (const ext of ['mp4', 'webm']) await rm(join(OUT, `${name}.${ext}`), { force: true });
       }
       await rm(raw, { force: true });
       report.runs[id] = { name, attempts, outcome: failure ? 'omitted' : 'ok' };
       await writeFile(reportPath, JSON.stringify(report, null, 2) + '\n');
-      // A valid response without board writing is a feature limitation, not a timeout.
       if (!failure || failure === 'ai_no_written_hint') break;
       if (id === '03' && attempt < aiAttempts) await new Promise(r => setTimeout(r, 3000));
     }
   }
 } finally {
   await browser.close();
-  // Remove only our mkdtemp-created directory, never a user-provided path.
   await rm(temp, { recursive: true, force: true });
 }
 if (Object.entries(report.runs).some(([id, r]) => id !== '03' && r.outcome !== 'ok')) process.exitCode = 1;

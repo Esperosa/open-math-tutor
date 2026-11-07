@@ -6,7 +6,7 @@
 
 **Řádky postupu**
 
-1. `2x = 4` ✓
+1. `2*x=4` ✓
 
 ---
 *Verdikt z bridge; nezávislé ověření zde není doloženo.*
