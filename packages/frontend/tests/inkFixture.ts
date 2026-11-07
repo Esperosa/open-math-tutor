@@ -85,7 +85,7 @@ export function decimalElements(shape: 'dot' | 'slash' | 'hook', offset: Point =
   const points: Point[] = shape === 'dot' ? [[0, 0], [.1, .1]] : shape === 'slash' ? [[0, 0], [-3, 8]] : [[0, 0], [2, 3], [-2, 7]];
   return rowElements('2,5+1,5=4', 7, 60, offset).map(e => {
     const ys = e.points.map(p => p[1]);
-    return Math.max(...ys) - Math.min(...ys) < 10 && Math.min(...ys) > 50
+    return Math.max(...ys) - Math.min(...ys) < 60 * .32 && Math.min(...ys) > 60 * .7
       ? { ...e, points: points.map(p => [p[0], p[1] + 56] as Point) } : e;
   });
 }

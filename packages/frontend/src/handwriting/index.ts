@@ -17,7 +17,7 @@ function stableId(ids: readonly string[]): string {
   return `hw-${hash.toString(16).padStart(16, '0')}`;
 }
 
-function contextualize(symbols: RecognizedSymbol[]): void {
+function contextualize(symbols: RecognizedSymbol[], symbolStrokes: readonly (readonly Stroke[])[]): void {
   const height = median(symbols.map(s => s.bbox.height).filter(h => h > 3));
   const baseline = median(symbols.filter(s => s.bbox.height >= height * .8).map(s => bottom(s.bbox)));
   for (let i = 0; i < symbols.length; i++) {
@@ -29,9 +29,19 @@ function contextualize(symbols: RecognizedSymbol[]): void {
     if (left && next && /^\d$/.test(left.label ?? left.candidates[0].label) && /^\d$/.test(next.candidates[0].label)
       && s.bbox.height < height * .32 && s.bbox.width < height * .3
       && centerY(s.bbox) > baseline - height * .25 && centerY(s.bbox) < baseline + height * .3
+      && s.bbox.x >= right(left.bbox) && next.bbox.x >= right(s.bbox)
       && s.bbox.x - right(left.bbox) < height * .7 && next.bbox.x - right(s.bbox) < height * .7
       && Math.min(left.bbox.height, next.bbox.height) > height * .65) {
-      s.label = best === '.' ? '.' : ',';
+      // Raster normalization erases absolute size: even a pen tap can look
+      // like a midline multiplication dot. Use the original pen footprint,
+      // not the class label, to distinguish a dot from a visible comma tail.
+      const strokes = symbolStrokes[i], penWidth = median(strokes.map(stroke => stroke.width));
+      const span = Math.max(s.bbox.width, s.bbox.height);
+      const closedDot = span <= Math.min(s.bbox.width, s.bbox.height) * 2 && strokes.every(stroke => {
+        const first = stroke.points[0], last = stroke.points[stroke.points.length - 1];
+        return stroke.points.length >= 4 && Math.hypot(last[0] - first[0], last[1] - first[1]) <= span * .35;
+      });
+      s.label = span <= penWidth * .75 || closedDot ? '.' : ',';
       s.uncertain = false;
       continue;
     }
@@ -116,7 +126,7 @@ export function createHandwritingRecognizer(): {
           return { bbox: { ...symbol.bbox }, strokeIds: symbol.strokes.map(s => s.id), strokeOrder: symbol.strokes.map(s => s.order),
             candidates: candidates.map(c => ({ ...c })), uncertain: candidates[0].probability < threshold || candidates[0].probability - candidates[1].probability < margin };
         });
-        contextualize(symbols);
+        contextualize(symbols, line.symbols.map(s => s.strokes));
         const parsed = parseLine(symbols, undefined, opts.unitAliases), alternatives: Alternative[] = [];
         for (let i = 0; i < symbols.length; i++) for (let rank = 0; rank < symbols[i].candidates.length; rank++) {
           const choices = symbols.map(() => -1); choices[i] = rank;

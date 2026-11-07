@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { drawElements, drawLine, setTask, start } from './inkDriver';
 import { decimalElements, noisyElements, rowElements, standingFractionElements } from './inkFixture';
 import type { ContinueLessonRequest } from '@openmathtutor/shared';
+import { evaluateMathAst, parseMathStatement } from '@openmathtutor/shared';
 
 test.beforeEach(async ({ page }) => {
   await page.route('http://127.0.0.1:4178/**', route => route.abort('connectionrefused'));
@@ -27,7 +28,12 @@ for (const shape of ['dot', 'slash', 'hook'] as const) {
   test(`D2 decimal separator ${shape} is not a one or division slash`, async ({ page }) => {
     await start(page);
     await drawElements(page, decimalElements(shape), 'pen');
-    await expect(readings(page).locator('strong')).toHaveText('(25/10)+(15/10)=4');
+    await expect(readings(page).locator('strong')).toHaveText(shape === 'dot' ? '2.5+1.5=4' : '2,5+1,5=4');
+    const parsed = parseMathStatement((await readings(page).locator('strong').textContent())!);
+    expect(parsed.form).toBe('relation');
+    if (parsed.form !== 'relation') throw new Error('Expected a decimal equality');
+    expect(evaluateMathAst(parsed.value.lhs, {})).toBe(4);
+    expect(evaluateMathAst(parsed.value.rhs, {})).toBe(4);
     await expect(page.getByTestId('step-mark-ok')).toBeVisible();
     await expect(page.getByTestId('step-mark-wrong')).toHaveCount(0);
   });

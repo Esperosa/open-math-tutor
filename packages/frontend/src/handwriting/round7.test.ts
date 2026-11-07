@@ -4,6 +4,17 @@ import { recognizeBoardLines } from './index';
 import { rowElements } from './__fixtures__/generate';
 import type { BoardElement } from './types';
 import { parseLine } from './parse';
+import { evaluateMathAst, parseMathStatement } from '@openmathtutor/shared';
+import { decimalElements } from '../../tests/inkFixture';
+
+it.each(['dot', 'slash', 'hook'] as const)('exercises the actual browser decimal fixture: %s', shape => {
+  const elements = decimalElements(shape);
+  const marks = elements.filter(e => e.points.length === (shape === 'dot' ? 2 : shape === 'slash' ? 2 : 3)
+    && e.points[0][1] === 56);
+  expect(marks).toHaveLength(2);
+  const line = recognizeBoardLines(elements)[0];
+  expect(line.text).toBe(shape === 'dot' ? '2.5+1.5=4' : '2,5+1,5=4');
+});
 
 it.each([[[0, 0]], [[0, 0], [-3, 8]], [[0, 0], [2, 3], [-2, 7]]].map(points => ({ points })))('reads a baseline decimal separator by geometry: %j', ({ points }) => {
   const raw = rowElements('2,5+1,5=4', 7, 60);
@@ -13,7 +24,14 @@ it.each([[[0, 0]], [[0, 0], [-3, 8]], [[0, 0], [2, 3], [-2, 7]]].map(points => (
   const input = raw.map(e => commas.includes(e) ? { ...e, points: points.map(p => [p[0], p[1] + 56]) } : e);
   const lines = recognizeBoardLines(input);
   expect(lines).toHaveLength(1);
-  expect(lines[0].text).toBe('(25/10)+(15/10)=4');
+  expect(lines[0].text).toBe(points.length === 1 ? '2.5+1.5=4' : '2,5+1,5=4');
+  const parsed = parseMathStatement(lines[0].text);
+  expect(parsed.form).toBe('relation');
+  if (parsed.form !== 'relation') throw new Error('Expected a decimal equality');
+  expect(evaluateMathAst(parsed.value.lhs, {})).toBe(4);
+  expect(evaluateMathAst(parsed.value.rhs, {})).toBe(4);
+  expect(lines[0].symbols.filter(s => s.label === ',' || s.label === '.')).toHaveLength(2);
+  expect(lines[0].symbols.every(s => !s.uncertain)).toBe(true);
 });
 
 export function fractionSum(): BoardElement[] {
