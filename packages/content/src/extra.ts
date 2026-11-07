@@ -57,7 +57,7 @@ const ANSWER_NOTES: Record<string, string> = {
   "ch-balance-1": "2 H₂ + O₂ → 2 H₂O", "ch-balance-2": "4 Fe + 3 O₂ → 2 Fe₂O₃", "ch-balance-3": "C₃H₈ + 5 O₂ → 3 CO₂ + 4 H₂O",
   "ch-balance-4": "2 CO + O₂ → 2 CO₂", "ch-balance-5": "CH₄ + 2 O₂ → CO₂ + 2 H₂O", "ch-balance-6": "2 Na + 2 H₂O → 2 NaOH + H₂",
   "ch-balance-7": "4 Al + 3 O₂ → 2 Al₂O₃", "ch-balance-8": "N₂ + 3 H₂ → 2 NH₃", "ch-balance-9": "2 Mg + O₂ → 2 MgO",
-  "ch-balance-10": "CaCO₃ → CaO + CO₂",
+  "ch-balance-10": "CaCO₃ → CaO + CO₂", "ch-balance-11": "2 KClO₃ → 2 KCl + 3 O₂", "ch-balance-12": "Zn + 2 HCl → ZnCl₂ + H₂",
 };
 
 /** Ranges and derived values for tasks whose answer is a division: the numbers are built so the result comes out even. */
@@ -129,7 +129,6 @@ function topic(id: string, cs: string, en: string, specs: SkillSpec[]) {
     }));
   }
 }
-const NOAUTO = { auto: false } as const;
 
 topic("mocniny-a-vyrazy", "Mocniny a výrazy", "Powers and expressions", [
   {
@@ -7442,6 +7441,16 @@ topic("ch-latkove-mnozstvi", "Látkové množství a roztoky", "Amount of substa
         "Vyčísli rovnici: CaCO₃ → CaO + CO₂",
         null,
         "Balance the equation: CaCO3 -> CaO + CO2"
+      ],
+      [
+        "Vyčísli rovnici: KClO₃ → KCl + O₂",
+        null,
+        "Balance the equation: KClO3 -> KCl + O2"
+      ],
+      [
+        "Vyčísli rovnici: Zn + HCl → ZnCl₂ + H₂",
+        null,
+        "Balance the equation: Zn + HCl -> ZnCl2 + H2"
       ]
     ]
   },
