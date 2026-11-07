@@ -1,4 +1,3 @@
-import katex from 'katex';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BoardAction, ContinueLessonRequest, ExpectedAnswer, ProviderId } from '@openmathtutor/shared';
 import {
@@ -49,7 +48,7 @@ import { AskPanel } from './AskPanel';
 import { UploadBoard, type UploadedImage } from './UploadBoard';
 import { CustomSourcesPanel } from './CustomSourcesPanel';
 import { loadSources, saveSources, addSource, removeSource, allChunks } from './customSources';
-import { formatTaskForBoard } from './taskFormatting';
+import { formatTaskForBoard, renderMathStatement } from './taskFormatting';
 import { ColorLegendDialog } from './ColorLegend';
 
 type Mode = ContinueLessonRequest['mode'];
@@ -79,47 +78,6 @@ function providerStatusLabel(p: ProviderEntry, t: Record<MessageKey, string>): s
   return "";
 }
 
-
-function renderMathStatement(raw: string): string | null {
-  if (!raw) return null;
-  if (!/[/^=<>≤≥·]/.test(raw) && !/lim/i.test(raw)) return null;
-
-  let prefix = '';
-  let math = raw;
-
-  const colonIdx = raw.indexOf(':');
-  if (colonIdx !== -1 && /[a-zA-Z\u00C0-\u024F]/.test(raw.slice(0, colonIdx))) {
-    prefix = raw.slice(0, colonIdx + 1) + ' ';
-    math = raw.slice(colonIdx + 1).trim();
-  } else {
-    const wordPrefixMatch = /^([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽa-záčďéěíňóřšťúůýž\s]+?)\s+([0-9a-zA-Z(].*)$/.exec(raw);
-    if (wordPrefixMatch && !/[=<>+\-*/^]/.test(wordPrefixMatch[1])) {
-      prefix = wordPrefixMatch[1] + ' ';
-      math = wordPrefixMatch[2];
-    }
-  }
-
-  let suffix = '';
-  if (math.endsWith('.')) {
-    suffix = '.';
-    math = math.slice(0, -1);
-  }
-
-  let latex = math.trim();
-  latex = latex.replace(/lim\s*\(([a-z]+)\s*(?:→|->)\s*(?:∞|\\infty)\)/gi, '\\lim_{$1 \\to \\infty}');
-  latex = latex.replace(/\(([^)]+)\)\/\(([^)]+)\)/g, '\\frac{$1}{$2}');
-  latex = latex.replace(/\(([^)]+)\)\/([0-9a-zA-Z]+)/g, '\\frac{$1}{$2}');
-  latex = latex.replace(/([0-9a-zA-Z]+)\/\(([^)]+)\)/g, '\\frac{$1}{$2}');
-  latex = latex.replace(/(\b[0-9a-zA-Z]+)\/(\b[0-9a-zA-Z]+)/g, '\\frac{$1}{$2}');
-  latex = latex.replace(/\*/g, ' \\cdot ');
-
-  try {
-    const rendered = katex.renderToString(latex, { throwOnError: false, displayMode: false, strict: 'ignore' });
-    return (prefix ? `${prefix}` : '') + rendered + suffix;
-  } catch {
-    return null;
-  }
-}
 
 export function App() {
   const [saved, setSaved] = useState<Saved>(load);
@@ -987,4 +945,5 @@ export function App() {
     <ColorLegendDialog open={colorLegendOpen} onClose={() => setColorLegendOpen(false)} locale={settings.locale} t={t} />
   </div>;
 }
+
 
