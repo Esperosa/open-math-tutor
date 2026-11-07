@@ -1272,3 +1272,38 @@ body:has(.excalidraw .dropdown-menu) .hud-top-left { opacity: 0; pointer-events:
   flex-direction: column;
   gap: var(--space-2);
 }
+
+/* Keep mobile editing controls in their own lane above the application rail.
+   Excalidraw renders App-bottom-bar on phones, not footer-left. */
+@media (max-width: 700px) {
+  .rail-btn { width: 44px; height: 44px; min-height: 44px; }
+  .excalidraw .App-bottom-bar { bottom: 64px; }
+  .excalidraw .App-toolbar--mobile { width: calc(100vw - 28px); max-width: calc(100vw - 28px); }
+  .excalidraw .App-toolbar--mobile > .Stack_horizontal { display: flex; flex-wrap: wrap; justify-content: center; }
+  .hud-top-left, .hud-top-right { top: 116px; }
+  .excalidraw .mobile-misc-tools-container { top: 160px; }
+}
+/* Excalidraw's compact icons otherwise provide targets only 25–32px wide. */
+@media (max-width: 1100px) {
+  .excalidraw .App-toolbar-container .ToolIcon__icon,
+  .excalidraw .mobile-misc-tools-container .ToolIcon__icon {
+    width: 44px; height: 44px;
+  }
+  .excalidraw .App-toolbar-container button,
+  .excalidraw .App-bottom-bar button,
+  .excalidraw [data-testid="button-undo"],
+  .excalidraw [data-testid="button-redo"] { min-width: 44px; min-height: 44px; }
+}
+
+
+@media (min-width: 701px) and (max-width: 1100px) {
+  .hud-top-right { top: 72px; }
+}
+@media (min-width: 701px) and (max-width: 1100px) and (max-height: 500px) {
+  /* Short landscape uses Excalidraw's mobile UI; keep its side tools above
+     the settings row and the teacher bubble rather than between them. */
+  .excalidraw .mobile-misc-tools-container { top: 0; flex-direction: row; }
+}
+@media (max-width: 700px) {
+  .hud-top-left { max-height: 200px; overflow-y: auto; }
+}

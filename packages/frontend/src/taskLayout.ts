@@ -91,7 +91,8 @@ export function computeTaskLayout({
   const clearance = 24;
   const topBarBottom = obstacles.topBarBottom ?? (isMobile ? 52 : 56);
   const leftCardRight = obstacles.leftCardRight ?? (isMobile ? 0 : 380);
-  const leftCardBottom = obstacles.leftCardBottom ?? (isMobile ? 96 : 220);
+  // Phones reserve two 44px tool rows, then the compact HUD card below them.
+  const leftCardBottom = obstacles.leftCardBottom ?? (isMobile ? 340 : 220);
   const rightIconsLeft = obstacles.rightIconsLeft ?? (viewportWidth - 100);
   const railWidth = obstacles.railWidth ?? (isMobile ? 0 : 72);
 
