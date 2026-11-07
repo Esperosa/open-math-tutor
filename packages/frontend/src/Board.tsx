@@ -321,6 +321,7 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
     onBusy(true);
   }
   function pointerUpHandler() {
+    cancelHold();
     // Excalidraw finishes its stroke after this callback; commit the finalized scene next frame.
     releaseFrame.current = requestAnimationFrame(() => {
       pointerDown.current = false;
@@ -331,7 +332,7 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
   }
 
   return <div ref={surface} className="board-surface" data-testid="board" data-zoom={view.zoom} data-scroll-x={view.x} data-scroll-y={view.y} data-tool={api?.getAppState().activeTool.type}
-    data-pattern={settings.boardPattern} tabIndex={0} onKeyDown={panByKey} onPointerDown={startHold} onPointerMove={moveHold}
+    data-pattern={settings.boardPattern} tabIndex={0} onKeyDown={e => { if (e.key === 'Escape') setMenu(null); panByKey(e); }} onPointerDown={startHold} onPointerMove={moveHold} onPointerUp={cancelHold} onPointerCancel={cancelHold} onPointerUpCapture={cancelHold} onPointerCancelCapture={cancelHold}
     style={{
       '--cell': `${Math.round(48 * view.zoom)}px`,
       '--ox': `${Math.round(view.x * view.zoom)}px`,

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { clearTutorRoute, tutorDestination, type TutorRect } from './tutorPosition';
 
-const CONTROLS = '.hud-top-left, .hud-top-right, .rail, .drawer.open, .settings-pop.open, .calculator, .ctx-menu, .tip, .layer-badge, .excalidraw .Island, .excalidraw footer, .step-mark';
+const CONTROLS = '.hud-top-left, .hud-top-right, .rail, .drawer.open, .settings-pop.open, .calculator, .ctx-menu, .tip, .excalidraw .Island, .excalidraw footer, .step-mark';
 const HOME = { x: 0, y: 0, visiting: false, returning: false, snap: true };
 
 function controlRects(): TutorRect[] {
