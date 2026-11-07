@@ -3,7 +3,7 @@
  * Recurring fractions also permit truncation (e.g. 2/3 written as 0.66).
  */
 export function numberMatches(expected: number, given: number, written: string, fractionRounding = false): boolean {
-  const close = (a: number, b: number) => Math.abs(a - b) <= 16 * Number.EPSILON * Math.max(Math.abs(a), Math.abs(b), Number.MIN_VALUE);
+  const close = (a: number, b: number) => Math.abs(a - b) <= 64 * Number.EPSILON * Math.max(Math.abs(a), Math.abs(b), Number.MIN_VALUE);
   if (close(expected, given)) return true;
   const literal = /^[-−]?(\d+)[.,](\d+)(?:\s*(?:[eE]\s*([+\-−]?\d+)|[·×xX*]\s*10\s*\^?\s*([+\-−]?\d+)))?$/.exec(written.trim());
   if (!literal) return false; // integers, fractions and expressions are exact

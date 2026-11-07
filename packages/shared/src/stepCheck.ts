@@ -29,6 +29,9 @@ function symbolsOf(node: MathAstNode, into: Set<string>): Set<string> {
 
 /** "3 3/5" is the number three and three fifths, not 3·3/5. */
 const normalizeMixed = (text: string) => text.replace(/(^|[^\d./])(\d+)\s+(\d+\s*\/\s*\d+)(?![\d/])/g, "$1($2+$3)");
+
+/** "2*58.5=118 g" is a numeric equation with a trailing unit, not a symbolic relation. */
+const stripTrailingUnit = (text: string) => text.replace(/^(.+?=\s*[\d.,\s+\-−*/()·×÷^]+?)\s*[\p{L}µΩ°%][\p{L}\d/²³⁻·^.\-\s]*$/u, "$1");
 const arithmeticValue = (text: string) => calcEvaluate(normalizeMixed(text).replace(/·/g, '*'));
 
 function tryParse(text: string): MathStatement | null {
@@ -88,7 +91,18 @@ function checkChain(text: string): StepVerdict | null {
 /** Does this single line hold on its own (numeric equation) or contradict the task value? */
 export function checkStep(stepText: string, previousText: string | null): StepVerdict {
   if (stepText.length > MAX_INPUT_LENGTH) return { status: "unknown" };
-  const step = tryParse(stepText);
+  let checkText = stepText;
+  let step = tryParse(stepText);
+  if (step?.form === "relation" && step.value.op === "eq"
+      && symbolsOf(step.value.rhs, symbolsOf(step.value.lhs, new Set())).size > 0) {
+    const unitless = stripTrailingUnit(stepText);
+    const reparsed = unitless !== stepText ? tryParse(unitless) : null;
+    if (reparsed?.form === "relation" && reparsed.value.op === "eq"
+        && symbolsOf(reparsed.value.rhs, symbolsOf(reparsed.value.lhs, new Set())).size === 0) {
+      step = reparsed;
+      checkText = unitless;
+    }
+  }
   if (!step) {
     const chain = checkChain(stepText);
     if (chain?.status === "ok" && previousText && previousText.length <= MAX_INPUT_LENGTH
@@ -104,7 +118,10 @@ export function checkStep(stepText: string, previousText: string | null): StepVe
       && symbolsOf(step.value.rhs, symbolsOf(step.value.lhs, new Set())).size === 0) {
     const l = numeric(step.value.lhs), r = numeric(step.value.rhs);
     if (l === null || r === null) return { status: "unknown" };
-    if (!numberMatches(l, r, stepText.slice(stepText.lastIndexOf('=') + 1))) return { status: "wrong", reason: "arithmetic" };
+    const equalsAt = checkText.lastIndexOf('=');
+    const written = checkText.slice(equalsAt + 1);
+    const fractionRounding = /^\s*[-−]?\d+\s*\/\s*\d+\s*$/.test(checkText.slice(0, equalsAt).trim());
+    if (!numberMatches(l, r, written, fractionRounding)) return { status: "wrong", reason: "arithmetic" };
     const prev = previousText ? tryParse(previousText) : null;
     if (prev?.form === "expression") {
       const pv = numeric(prev.value);
@@ -119,9 +136,16 @@ export function checkStep(stepText: string, previousText: string | null): StepVe
   if (now && before && now.symbol === before.symbol) {
     const degenerate = (f: { a: number; b: number }) => close(f.a, 0) && close(f.b, 0);
     if (degenerate(now) || degenerate(before)) return { status: "unknown" };
-    // Two linear equations a1·x+b1=0 and a2·x+b2=0 have the same solution set iff (a,b) are parallel.
-    const cross = before.a * now.b - now.a * before.b;
-    return close(cross, 0) ? { status: "ok" } : { status: "wrong", reason: "not_equivalent" };
+    // Compare the solutions, not the raw coefficients: a rounded decimal root
+    // ("x = 1,11111" for 10/9) is accepted at the written precision, while a
+    // genuinely different root is still wrong.
+    if (close(before.a, 0) || close(now.a, 0)) {
+      const cross = before.a * now.b - now.a * before.b;
+      return close(cross, 0) ? { status: "ok" } : { status: "wrong", reason: "not_equivalent" };
+    }
+    const written = stepText.slice(stepText.lastIndexOf("=") + 1);
+    return numberMatches(-before.b / before.a, -now.b / now.a, written)
+      ? { status: "ok" } : { status: "wrong", reason: "not_equivalent" };
   }
   return { status: "unknown" };
 }

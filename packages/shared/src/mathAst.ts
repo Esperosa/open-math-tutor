@@ -15,7 +15,7 @@
  *   factor     := unary ('^' unary)?
  *   unary      := '-' unary | primary
  *   primary    := number | symbol | '(' expr ')'
- *   number     := integer | integer '/' integer   (fraction literal)
+ *   number     := integer (('.' | ',') integer)? | integer '/' integer   (decimal or fraction literal)
  *   symbol     := /[a-zA-Z]/   (single letter; no multi-char identifiers)
  */
 
@@ -158,7 +158,11 @@ function tokenize(input: string): Token[] {
     if (c >= "0" && c <= "9") {
       let j = i;
       while (j < input.length && input.charAt(j) >= "0" && input.charAt(j) <= "9") j++;
-      tokens.push({ type: "num", value: Number(input.slice(i, j)), pos: i });
+      if ((input.charAt(j) === "." || input.charAt(j) === ",") && input.charAt(j + 1) >= "0" && input.charAt(j + 1) <= "9") {
+        j++;
+        while (j < input.length && input.charAt(j) >= "0" && input.charAt(j) <= "9") j++;
+      }
+      tokens.push({ type: "num", value: Number(input.slice(i, j).replace(",", ".")), pos: i });
       i = j;
       continue;
     }

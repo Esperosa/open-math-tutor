@@ -32,7 +32,7 @@ def main():
             strokes.append(stroke)
         glyphs[key] = strokes
     out = []
-    letters = 'xyabcnmsgJNVA'
+    letters = 'xyabcnmsgJNVAkhloWPK'
     for family, digits, upper, lower in [('simplex', 700, 501, 601), ('plain', 200, 1, 1)]:
         mapping = {str(i): digits + i for i in range(10)}
         mapping.update({c: (upper if c.isupper() else lower) + ord(c.upper()) - 65 for c in letters})
