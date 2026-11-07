@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { wrapTaskText, computeTaskFontSize, computeTaskLayout, isTaskVisibleInViewport } from './taskLayout';
+import { wrapTaskText, computeTaskLayout, isTaskVisibleInViewport } from './taskLayout';
 
 describe('whiteboard task layout and visible placement (D1)', () => {
   const longPhysics = 'Auto zrychluje z klidu se zrychlením 2 m/s² po dobu 10 s. Jakou dráhu přitom urazí a jaké dosáhne rychlosti?';
