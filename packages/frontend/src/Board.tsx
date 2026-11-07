@@ -247,7 +247,7 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
     contentViewportRects() {
       if (!api || !surface.current) return [];
       const state = api.getAppState(), rect = surface.current.getBoundingClientRect();
-      const student = api.getSceneElementsIncludingDeleted().filter(e => !e.isDeleted && isStudent(e));
+      const student = api.getSceneElementsIncludingDeleted().filter(e => !e.isDeleted && isStudent(e) && !e.id.includes('task-statement'));
       const elementRects: TutorRect[] = student.map(e => {
         const w = Math.abs(e.width), h = Math.abs(e.height), c = Math.abs(Math.cos(e.angle)), s = Math.abs(Math.sin(e.angle));
         const width = (w * c + h * s) * state.zoom.value;

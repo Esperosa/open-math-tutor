@@ -103,11 +103,12 @@ export function TutorHud(p: Props) {
     if (!visible || reduced) return;
     setReveal({ key, count: 1 });
     const start = Date.now() + 650;
+    const charDelay = Math.min(24, Math.max(10, Math.floor(2500 / Math.max(1, brief.length))));
     const timer = setInterval(() => {
-      const count = Math.min(brief.length, Math.max(1, Math.floor((Date.now() - start) / 24)));
+      const count = Math.min(brief.length, Math.max(1, Math.floor((Date.now() - start) / charDelay)));
       setReveal({ key, count });
       if (count === brief.length) clearInterval(timer);
-    }, 24);
+    }, charDelay);
     return () => clearInterval(timer);
   }, [key, brief.length, visible, reduced]);
   return <div ref={visit.ref} className={`tutor-hud${visit.away ? ' tutor-visiting' : ''}`} data-testid="tutor-hud" data-visiting={visit.visiting} data-returning={visit.returning}
