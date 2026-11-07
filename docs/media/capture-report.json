@@ -11,15 +11,15 @@
         {
           "attempt": 1,
           "outcome": "ok",
-          "durationSeconds": 15.24,
+          "durationSeconds": 11.04,
           "shortenedAIWait": false,
           "evidence": {
             "localOnly": true
           },
           "sourceSegmentsSeconds": [
             [
-              0.369,
-              15.608
+              0.393,
+              11.418
             ]
           ]
         }
@@ -27,20 +27,20 @@
       "outcome": "ok"
     },
     "02": {
-      "name": "02-local-coach",
+      "name": "02-handwriting-check",
       "attempts": [
         {
           "attempt": 1,
           "outcome": "ok",
-          "durationSeconds": 16.2,
+          "durationSeconds": 11.08,
           "shortenedAIWait": false,
           "evidence": {
             "localOnly": true
           },
           "sourceSegmentsSeconds": [
             [
-              3.915,
-              20.102
+              3.825,
+              14.915
             ]
           ]
         }
@@ -48,45 +48,63 @@
       "outcome": "ok"
     },
     "03": {
-      "name": "03-real-ai-hint",
+      "name": "03-ai-teacher-writes",
       "attempts": [
         {
           "attempt": 1,
-          "outcome": "failed",
-          "reason": "ui_error",
+          "outcome": "ok",
+          "durationSeconds": 13.96,
+          "shortenedAIWait": false,
           "evidence": {
             "provider": "claude",
             "model": "sonnet",
             "status": 200,
             "boardActionTypes": [
-              "circle"
+              "circle",
+              "write_text"
             ],
-            "responseSeconds": 7.75
-          }
-        },
-        {
-          "attempt": 2,
-          "outcome": "failed",
-          "reason": "ui_error",
-          "evidence": {
-            "provider": "claude",
-            "model": "sonnet",
-            "status": 200,
-            "boardActionTypes": [],
-            "responseSeconds": 6.5
-          }
+            "responseSeconds": 6.38
+          },
+          "sourceSegmentsSeconds": [
+            [
+              4.956,
+              18.882
+            ]
+          ]
         }
       ],
-      "outcome": "omitted",
-      "omissionReason": "Current bridge RESPONSE_SCHEMA permits only underline/circle/highlight, not written hints. Both completed real responses lacked write_math/show_hint."
+      "outcome": "ok"
     },
     "04": {
-      "name": "04-plan-progress",
+      "name": "04-chat",
       "attempts": [
         {
           "attempt": 1,
           "outcome": "ok",
-          "durationSeconds": 19.8,
+          "durationSeconds": 14.64,
+          "shortenedAIWait": false,
+          "evidence": {
+            "provider": "claude",
+            "model": "sonnet",
+            "chatResponseSeconds": 5.7
+          },
+          "sourceSegmentsSeconds": [
+            [
+              2.221,
+              16.843
+            ]
+          ]
+        }
+      ],
+      "outcome": "ok"
+    },
+    "05": {
+      "name": "05-plan-progress",
+      "attempts": [
+        {
+          "attempt": 1,
+          "outcome": "ok",
+          "durationSeconds": 18.64,
           "shortenedAIWait": false,
           "evidence": {
             "percentages": [
@@ -103,29 +121,8 @@
           },
           "sourceSegmentsSeconds": [
             [
-              4.765,
-              24.569
-            ]
-          ]
-        }
-      ],
-      "outcome": "ok"
-    },
-    "05": {
-      "name": "05-physics-units",
-      "attempts": [
-        {
-          "attempt": 1,
-          "outcome": "ok",
-          "durationSeconds": 16.52,
-          "shortenedAIWait": false,
-          "evidence": {
-            "localOnly": true
-          },
-          "sourceSegmentsSeconds": [
-            [
-              5.278,
-              21.769
+              5.042,
+              23.748
             ]
           ]
         }
@@ -133,12 +130,33 @@
       "outcome": "ok"
     },
     "06": {
-      "name": "06-test-and-export",
+      "name": "06-physics-units",
       "attempts": [
         {
           "attempt": 1,
           "outcome": "ok",
-          "durationSeconds": 11.56,
+          "durationSeconds": 12.8,
+          "shortenedAIWait": false,
+          "evidence": {
+            "localOnly": true
+          },
+          "sourceSegmentsSeconds": [
+            [
+              4.765,
+              17.584
+            ]
+          ]
+        }
+      ],
+      "outcome": "ok"
+    },
+    "07": {
+      "name": "07-test-and-export",
+      "attempts": [
+        {
+          "attempt": 1,
+          "outcome": "ok",
+          "durationSeconds": 12.32,
           "shortenedAIWait": false,
           "evidence": {
             "downloads": [
@@ -150,18 +168,36 @@
           },
           "sourceSegmentsSeconds": [
             [
-              8.038,
-              19.595
+              6.538,
+              18.852
+            ]
+          ]
+        }
+      ],
+      "outcome": "ok"
+    },
+    "08": {
+      "name": "08-settings-paper-voices",
+      "attempts": [
+        {
+          "attempt": 1,
+          "outcome": "ok",
+          "durationSeconds": 10.68,
+          "shortenedAIWait": false,
+          "evidence": {
+            "patterns": 5,
+            "darkTheme": true,
+            "phoneResponsive": true
+          },
+          "sourceSegmentsSeconds": [
+            [
+              5.912,
+              16.59
             ]
           ]
         }
       ],
       "outcome": "ok"
     }
-  },
-  "preliminaryCapture": {
-    "interruptedAIRequests": 1,
-    "reason": "capture_script_error_after_request",
-    "note": "Fixed before two completed Claude requests. No additional AI requests were sent."
   }
 }
