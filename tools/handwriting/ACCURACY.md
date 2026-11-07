@@ -31,12 +31,15 @@ ground-truth training labels `0ox×()l`. Other digit classes remain free to adap
 | All synthetic symbols, 58 labels | 4596 / 4640 | 98.92 % | **99.05 %** | — | measured |
 | Raw synthetic `0` | 77 / 80 | 96.25 % | **96.25 %** | preserve | pass |
 | Raw synthetic `k`, `o` (each) | 80 / 80 | 100.00 % | **100.00 %** | preserve | pass |
-| Catalog templates, 23 skills | 69 / 69 | 100.00 % | **100.00 %** | ≥ 90 % | pass |
+| Catalog text checks, 23 skills (not UI uncertainty gating) | 69 / 69 | 100.00 % | **100.00 %** | ≥ 90 % | pass |
 
 The four additional MNIST mistakes versus the merged baseline are **not** hidden: accuracy decreases
 by 0.04 percentage points, while remaining above the requested floor. Neither individual-class nor
 individual-sample non-regression is claimed. Raw Hershey `x` is 24/50 versus 26/50 before; its similar
 times-cross shape is spatially resolved on a row. The six Czech digit variants remain 50/50 each.
+The catalog probe checks recognized text with `checkAnswerLine` and `computeLineVerdicts`, but does
+not pass recognition uncertainty into the latter. It is not a substitute for the browser course walk;
+that separate run can withhold marks even when the numeric-text checks pass.
 
 Model size: **908 178 bytes** (<1 MB), about 170 000 float32 parameters. Line inference (15 symbols,
 40 cold-cache runs): median **19.03 ms**, p95 **24.20 ms**, target median <50 ms. These timings were

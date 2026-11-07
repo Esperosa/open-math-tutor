@@ -1,5 +1,66 @@
 # Průchod kurzem psaním rukou
 
+## Integrační ověření — `integrate-course-walk`, 2026-11-07
+
+Opravy jsou v commitech `2fc98dc` a `17c0f13`. Nové 58třídové váhy z průchodu kurzy zůstaly
+výchozím bodem; navazující přetrénování přidalo vzorky a váhu čárky a selektivní retenci
+zranitelných tříd. Přesné počty, limity, SHA-256, recept i odmítnuté experimenty jsou v
+[`tools/handwriting/ACCURACY.md`](../tools/handwriting/ACCURACY.md).
+
+### Finální kontroly
+
+| Kontrola | Výsledek |
+|---|---|
+| `npm run lint` | prošlo, bez varování linteru |
+| `npm run typecheck` | prošlo |
+| shared Vitest | 131/131 |
+| content Vitest | 37/37 |
+| frontend Vitest | 266/266, včetně 60 testů rukopisu |
+| bridge Vitest | 190 prošlo, 7 podmíněně přeskočeno |
+| Playwright, port 5370, `COURSE_WALK=1` | **81/81 testů prošlo**, nic přeskočeno |
+| Samotný průchod dovednostmi uvnitř testu | **21/23 (91,30 %)**, původní limit ≥90 % zachován |
+
+Bridge používá prohlížečové mocky. Sedm přeskočených unit testů vyžaduje explicitní zapnutí
+reálných CLI/provider smoke/integration testů nebo přihlašovací údaje; nebyly zapnuty.
+Žádný cizí proces nebyl ukončen, hlavní porty 5173/4178/4179 zůstaly beze změn. Samostatná
+PWA konfigurace není součástí požadovaného příkazu `npx playwright test`.
+
+Příkazy z kořene tohoto worktree (PowerShell):
+
+```powershell
+npm install
+npm run build -w packages/shared
+npm run lint
+npm run typecheck
+npm run test:unit
+$env:PLAYWRIGHT_PORT='5370'
+$env:COURSE_WALK='1'
+cd packages/frontend
+npx playwright test
+```
+
+Čárka/tečka se na řádku rozhoduje geometrií, nikoli samotnou klasifikací. D2 skutečně kreslí
+tři odlišné tvary; přesná očekávání desetinného zápisu a kontrola hodnoty obou stran rovnice
+zůstávají povinné. Nové testy pokrývají i automatické uzavření háčku v Excalidraw a chybné,
+velmi jisté predikce. Dva široké vodorovné tahy čtené jako číslice zůstávají nejisté, nikoli
+automaticky přepsané na rovnítko. Prahy jistoty se nezměnily.
+
+### Co není hotové / není prokázáno
+
+Nejde o 23/23 bezchybných dovedností: ve finálním běhu nezískaly do 15 sekund značku
+`fy-ohm` (`2 A`) a `ch-concentration` (`9 mol`), ani po druhém pokusu. Předchozí samostatný
+regresní běh rovněž dal 21/23, na stejných dovednostech (`1 A`, `32 %`). Test chybějící značky
+v těchto případech neuložil průběžné čtení, takže příčinu nelze z reportu vydávat za prokázanou
+chybu klasifikace. Zbývá ji došetřit; kvůli zelenému výsledku se nesnižoval limit ani nepřidávaly
+predikce z očekávaných odpovědí.
+
+Samostatný katalogový probe dává 69/69 **textových** kontrol, ale nepřenáší nejistotu rozpoznání
+do kontroly výsledku. Proto není toto číslo zaměnitelné s výsledkem skutečného UI průchodu.
+Zůstávají také chyby v 16/200 held-out řádcích (viz ACCURACY), potřeba ručního review a ověření
+skutečným písmem. Kontextová predikce a kalibrace prahu (REQUIREMENTS 0.17/0.20) nebyly provedeny.
+
+## Původní průchod před integrací
+
 Datum: 2026-11-07  
 Worktree: `C:\Users\Creator\.t3\worktrees\Math-tutor\t3-562f63b7`  
 Výchozí commit: `83a55b5`  
