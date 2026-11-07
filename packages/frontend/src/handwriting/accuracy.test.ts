@@ -109,7 +109,7 @@ it('recognizes a typical board line in under 50 ms (median of 40 cold-cache runs
 it('scores whole stroke rows across scales, shear, offsets, zoom and pan', () => {
   // [what the student draws, what the recognizer must return (shared-parser syntax)]
   const cases: [string, string][] = [['12+7=19', '12+7=19'], ['3*4=12', '3*4=12'], ['x=5', 'x=5'], ['(2+3)*4=20', '(2+3)*4=20'],
-    ['1/2+1/3', '1/2+1/3'], ['(1)/(2)', '(1)/(2)'], ['2^3', '2^3'], ['7:2=3,5', '7/2=(35/10)'], ['2x=6', '2*x=6']];
+    ['1/2+1/3', '1/2+1/3'], ['(1)/(2)', '(1)/(2)'], ['2^3', '2^3'], ['7:2=3,5', '7/2=3,5'], ['2x=6', '2*x=6']];
   const results: Record<string, { correct: number; total: number; errors: string[] }> = {};
   let correct = 0, total = 0, symbolCorrect = 0, symbolTotal = 0;
   for (const [index, [text, expected]] of cases.entries()) {
@@ -137,7 +137,7 @@ it('scores whole stroke rows across scales, shear, offsets, zoom and pan', () =>
 }, 60000);
 
 it('scores whole rows whose digits come from Hershey families never used for training', () => {
-  const cases: [string, string][] = [['12+7=19', '12+7=19'], ['3*4=12', '3*4=12'], ['(2+3)*4=20', '(2+3)*4=20'], ['7:2=3,5', '7/2=(35/10)'], ['x=5', 'x=5']];
+  const cases: [string, string][] = [['12+7=19', '12+7=19'], ['3*4=12', '3*4=12'], ['(2+3)*4=20', '(2+3)*4=20'], ['7:2=3,5', '7/2=3,5'], ['x=5', 'x=5']];
   const results: Record<string, { correct: number; total: number; errors: string[] }> = {};
   let correct = 0, total = 0;
   for (const [index, [text, expected]] of cases.entries()) {

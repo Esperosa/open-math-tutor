@@ -83,6 +83,7 @@ def main():
     p.add_argument('--pendigits-variants', type=int, default=6)
     p.add_argument('--threads', type=int, default=12)
     p.add_argument('--seed', type=int, default=20261106)
+    p.add_argument('--init', help='optional earlier weights.json; matching tensors are copied, new labels start random')
     args = p.parse_args()
     start = time.perf_counter()
     torch.set_num_threads(args.threads)
@@ -140,6 +141,18 @@ def main():
     x = torch.tensor(np.concatenate([x[:55000], sx, px])[:, None], dtype=torch.float32)
     y = torch.tensor(np.concatenate([y[:55000], sy, py]).astype('int64'))
     net = Net()
+    if args.init:
+        old = json.loads(Path(args.init).read_text(encoding='utf-8'))
+        tensors = {name: torch.tensor(np.frombuffer(base64.b64decode(t['data']), dtype='<f4').copy().reshape(t['shape']))
+                   for name, t in old['tensors'].items()}
+        state = net.state_dict()
+        for name, tensor in tensors.items():
+            if name in ('d2.weight', 'd2.bias'):
+                rows = [LABELS.index(label) for label in old['labels'] if label in LABELS]
+                state[name].data[rows] = tensor[[old['labels'].index(label) for label in old['labels'] if label in LABELS]]
+            elif name in state and state[name].shape == tensor.shape:
+                state[name].data.copy_(tensor)
+        net.load_state_dict(state)
     opt = torch.optim.AdamW(net.parameters(), lr=.0018, weight_decay=.0001)
     best = 0
     for epoch in range(args.epochs):

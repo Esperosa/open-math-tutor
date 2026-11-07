@@ -6,15 +6,19 @@ export interface ParsedLine { text: string; confidence: number; symbols: Recogni
 interface Token { text: string; bbox: BBox }
 const canonical = (label: string): string => ({ '×': '*', '·': '*', '÷': '/', ':': '/', '[': '(', ']': ')', '{': '(', '}': ')', '≤': '<=', '≥': '>=' } as Record<string, string>)[label] ?? label;
 
-/** Shared's safe AST accepts integers, so decimal comma/dot is emitted as an exact rational. */
+/** Shared's safe AST accepts decimal comma/dot directly, so keep the written number readable. */
 export function normalizeExpression(text: string): string {
-  return text.replace(/\d+[.,]\d+/g, n => {
-    const [whole, fraction] = n.split(/[.,]/);
-    return `(${whole}${fraction}/${'1' + '0'.repeat(fraction.length)})`;
-  }).replace(/([0-9)xyabcnmsgJNVA])x(?=[0-9(])/g, '$1*')
-    .replace(/(\d)([a-zA-Z(])/g, '$1*$2').replace(/\)([\da-zA-Z(])/g, ')*$1')
-    .replace(/([a-zA-Z])(?=[a-zA-Z(])/g, '$1*')
-    .replace(/(\d+|\([^()]*\))%/g, '($1/100)');
+  // Only the curriculum's variables get implicit multiplication. Unit words
+  // (Kc, ohm, mol, km, kWh, ...) must stay intact so the answer checker can
+  // read them; turning them into K*c or m*o*l would make a correct answer
+  // unreadable.
+  // The recogniser confuses a handwritten zero with the lowercase letter o.
+  // Repair it only beside digits or a decimal separator so unit words (mol, ohm) survive.
+  return text.replace(/(^|[^a-zA-Z])[oO](?=\d|[,.]\d|[^a-zA-Z]|$)/g, '$10')
+    .replace(/(\d)x(?=\d)/g, '$1*')
+    .replace(/(\d)([xyab(])/g, '$1*$2').replace(/\)([\dxyab(])/g, ')*$1')
+    .replace(/([xyab])(?=[xyab(])/g, '$1*')
+    .replace(/(\d+|\([^()]*\))%(?!\s*$)/g, '($1/100)');
 }
 
 function layout(input: Token[], depth = 0): string {

@@ -7,9 +7,15 @@ const symbol = (label: string, x: number, y = 0, width = 20, height = 40): Recog
   bbox: { x, y, width, height }, strokeIds: [label + x], strokeOrder: [0], uncertain: false, candidates: [{ label, probability: .9 }],
 });
 it('normalizes decimal comma, multiplication/division, unary minus, letters and percent to the actual shared grammar', () => {
-  for (const [input, expected] of [['1,25+2', '(125/100)+2'], ['3x4=12', '3*4=12'], ['x=7', 'x=7'], ['2a', '2*a'], ['25%', '(25/100)'], ['-2+3', '-2+3']]) {
+  for (const [input, expected] of [['1,25+2', '1,25+2'], ['3x4=12', '3*4=12'], ['x=7', 'x=7'], ['2a', '2*a'], ['25%+1', '(25/100)+1'], ['-2+3', '-2+3']]) {
     expect(normalizeExpression(input)).toBe(expected); expect(() => parseMathStatement(expected)).not.toThrow();
   }
+  expect(normalizeExpression('16%')).toBe('16%');
+  expect(normalizeExpression('58cm')).toBe('58cm');
+  expect(normalizeExpression('20mol')).toBe('20mol');
+  expect(normalizeExpression('2ohm')).toBe('2ohm');
+  expect(normalizeExpression('4o')).toBe('40');
+  expect(normalizeExpression('19o,905')).toBe('190,905');
   expect(parseLine([symbol('3', 0), symbol('×', 30), symbol('4', 60)]).text).toBe('3*4');
   expect(parseLine([symbol('3', 0), symbol('÷', 30), symbol('4', 60)]).text).toBe('3/4');
   expect(parseLine([symbol('x', 0), symbol('=', 30, 14, 25, 12), symbol('5', 65)]).text).toBe('x=5');

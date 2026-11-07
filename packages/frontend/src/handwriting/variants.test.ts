@@ -33,7 +33,7 @@ it('measures every Czech notation variant separately, including inherently ambig
 }, 60000);
 
 it('normalizes division, multiplication, brackets, decimals and implied multiplication without silently changing unsupported symbols', () => {
-  for (const [text, expected] of [['6:2=3', '6/2=3'], ['3·4=12', '3*4=12'], ['3*4=12', '3*4=12'], ['3x4=12', '3*4=12'], ['[2+3]4', '(2+3)*4'], ['{2+3}4', '(2+3)*4'], ['2x=6', '2*x=6'], ['1,5+2', '(15/10)+2'], ['1.5+2', '(15/10)+2']]) {
+  for (const [text, expected] of [['6:2=3', '6/2=3'], ['3·4=12', '3*4=12'], ['3*4=12', '3*4=12'], ['3x4=12', '3*4=12'], ['[2+3]4', '(2+3)*4'], ['{2+3}4', '(2+3)*4'], ['2x=6', '2*x=6'], ['1,5+2', '1,5+2'], ['1.5+2', '1.5+2']]) {
     // rowElements uses '*' for a times cross. Explicit '*' syntax is tested below.
     expect(recognizeBoardLines(rowElements(text, 8931)).map(l => l.text).join('\n'), text).toBe(expected);
   }

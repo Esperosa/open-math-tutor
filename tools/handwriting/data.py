@@ -5,7 +5,7 @@ import numpy as np
 from scipy.ndimage import shift
 
 ROOT = Path(__file__).resolve().parent
-LABELS = list('0123456789+-×÷/=().,xyabcn%msgJNVA:·*[]{}±<>≤≥≠√π°∅')
+LABELS = list('0123456789+-×÷/=().,xyabcn%msgJNVA:·*[]{}±<>≤≥≠√π°∅khloWPK')
 TEMPLATES = json.loads((ROOT / 'templates.json').read_text(encoding='utf-8'))
 
 
