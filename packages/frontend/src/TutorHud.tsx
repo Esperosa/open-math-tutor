@@ -64,6 +64,7 @@ interface Props {
   onMic(): void;
   onAction(action: TutorAction): void;
   onChoice(choice: TutorChoice): void;
+  onOpenColorLegend?(): void;
 }
 
 const MODES: { mode: CoachMode; label: MessageKey }[] = [
@@ -155,6 +156,7 @@ export function TutorHud(p: Props) {
         {p.selfAssess && <button role="menuitem" className="primary" onClick={() => p.onAction('self_done')}>{t.selfDone}</button>}
         {p.selfAssess && <button role="menuitem" onClick={() => p.onAction('self_fail')}>{t.selfFail}</button>}
         <button role="menuitem" onClick={() => p.onAction('free')}>{t.freeProblem}</button>
+        <button role="menuitem" className="color-legend-menu-btn" data-testid="color-legend-menu-btn" onClick={() => { p.onToggleMenu(); p.onOpenColorLegend?.(); }}>{t.colorLegendBtn}</button>
         {p.hasNotes && <button role="menuitem" onClick={p.onToggleNotes}>{p.notesVisible ? t.hideTeacherNotes : t.showTeacherNotes}</button>}
         {p.hasNotes && <button role="menuitem" onClick={p.onClearNotes}>{t.clearTeacherNotes}</button>}
         {p.running && <button role="menuitem" className="stop" onClick={() => p.onAction('stop')}>{t.stop}</button>}
@@ -192,6 +194,3 @@ function BubbleText({ id, text, count, away, more, less }: { id: string; text: s
     {text.length > LIMIT && <button className="link-btn" disabled={away} onClick={() => setOpen(open === id ? null : id)}>{open === id ? less : more}</button>}
   </>;
 }
-
-
-

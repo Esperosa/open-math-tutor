@@ -49,6 +49,8 @@ import { AskPanel } from './AskPanel';
 import { UploadBoard, type UploadedImage } from './UploadBoard';
 import { CustomSourcesPanel } from './CustomSourcesPanel';
 import { loadSources, saveSources, addSource, removeSource, allChunks } from './customSources';
+import { formatTaskForBoard } from './taskFormatting';
+import { ColorLegendDialog } from './ColorLegend';
 
 type Mode = ContinueLessonRequest['mode'];
 type ContinueLessonExtra = Pick<ContinueLessonRequest, 'studentMessage' | 'curriculumContext' | 'retrievedContext' | 'learnerContext' | 'conversation'>;
@@ -151,6 +153,7 @@ export function App() {
   const [calcOpen, setCalcOpen] = useState(false);
   const [message, setMessage] = useState<TutorMessage | null>(() => ({ id: 'welcome', kind: 'info', text: t.taskEmpty }));
   const [tutorMenu, setTutorMenu] = useState(false);
+  const [colorLegendOpen, setColorLegendOpen] = useState(false);
 
   const [bridgeChecked, setBridgeChecked] = useState(false);
   const [testNotice, setTestNotice] = useState('');
@@ -315,18 +318,27 @@ export function App() {
         setStatus('waiting'); return;
       }
       const applied = applyResponse(current, response, id, settings.locale, mode === 'ask' ? 'ask' : 'check');
-      if (applied.state !== current) updateBoard(applied.state);
+      const hasTeacherNote = applied.response.boardActions.length > 0;
+      const shouldSpeakLegend = hasTeacherNote && !current.colorLegendSpoken;
+      const finalState = shouldSpeakLegend ? { ...applied.state, colorLegendSpoken: true } : applied.state;
+      if (finalState !== current) updateBoard(finalState);
       setStatus(applied.stale ? 'waiting' : 'ready'); setRejected(applied.rejected);
       if (!applied.stale && mode === 'check' && current.skillId && !current.outcome && (applied.response.verifierStatus === 'correct' || applied.response.verifierStatus === 'incorrect')) {
         const wasCorrect = applied.response.verifierStatus === 'correct';
         recordMastery(current.skillId, wasCorrect);
-        updateBoard({ ...applied.state, outcome: wasCorrect ? 'solved' : 'failed' });
+        updateBoard({ ...finalState, outcome: wasCorrect ? 'solved' : 'failed' });
       }
       if (!applied.stale || request.keep) {
         setAiAnswerId(id);
-        setMessage({ id: id, kind: applied.response.verifierStatus === 'correct' ? 'solved' : 'info', text: applied.response.pedagogicalResponse,
+        const pedagogicalText = shouldSpeakLegend
+          ? `${applied.response.pedagogicalResponse} ${t.colorLegendSpoken}`
+          : applied.response.pedagogicalResponse;
+        const tts = shouldSpeakLegend
+          ? `${applied.response.ttsText} ${t.colorLegendSpoken}`
+          : applied.response.ttsText;
+        setMessage({ id: id, kind: applied.response.verifierStatus === 'correct' ? 'solved' : 'info', text: pedagogicalText,
           ...(!applied.stale ? { stepId: applied.response.firstErrorStepId ?? (mode === 'ask' ? undefined : snapshot.activeStepId ?? undefined) } : {}) });
-        voice.speak(applied.response.ttsText);
+        voice.speak(tts);
       }
     } catch (error) {
       if (pending.current !== request) return;
@@ -392,6 +404,32 @@ export function App() {
     clearTimeout(hoverTimer.current);
     if (!pinned) leaveTimer.current = setTimeout(() => setPanel(null), 450);
   }
+    const rewriteTaskOnBoard = useCallback(() => {
+    const current = live.current.boards.find(b => b.id === live.current.activeId);
+    if (!current || !current.statement?.trim()) return;
+    const cleanAnnotations = current.annotations.filter(a => !a.id.startsWith('task-statement'));
+    const taskText = formatTaskForBoard(current.statement);
+    const view = editor.current?.getView();
+    const zoom = view?.zoom && view.zoom > 0 ? view.zoom : 1;
+    const scrollX = view?.scrollX ?? 0;
+    const scrollY = view?.scrollY ?? 0;
+    const anchorX = Math.round((340 / zoom) - scrollX);
+    const anchorY = Math.round((80 / zoom) - scrollY);
+    const action: BoardAction = {
+      id: `task-statement-${Date.now()}`,
+      type: 'write_text',
+      text: taskText,
+      boardRevision: current.revision,
+      anchor: { x: anchorX, y: anchorY },
+    };
+    updateBoard({
+      ...current,
+      taskAnimated: false,
+      annotations: [...cleanAnnotations, action],
+    });
+    editor.current?.ensureVisible({ x: anchorX, y: anchorY, width: 300, height: 60 });
+  }, [updateBoard]);
+
   function createExercise() {
     stop(false); setLessonSkillId(null); setMessage(null); const next = newBoard();
     const value = { ...live.current, boards: [...live.current.boards, next], activeId: next.id };
@@ -402,7 +440,24 @@ export function App() {
     // the active board here left the previous problem's handwriting and
     // explanation history visible underneath the new statement.
     stop(false); setPanel(null); setPinned(false);
-    const next: BoardState = { ...newBoard(), topic: lesson.topic, statement: lesson.statementText, skillId: lesson.skillId, ...(lesson.expected ? { expected: lesson.expected } : {}) };
+    const taskText = formatTaskForBoard(lesson.statementText);
+    const next: BoardState = {
+      ...newBoard(),
+      topic: lesson.topic,
+      statement: lesson.statementText,
+      skillId: lesson.skillId,
+      ...(lesson.expected ? { expected: lesson.expected } : {}),
+      taskAnimated: false,
+      annotations: [
+        {
+          id: `task-statement-${Date.now()}`,
+          type: 'write_text',
+          text: taskText,
+          boardRevision: 0,
+          anchor: { x: 340, y: 70 },
+        },
+      ],
+    };
     setMessage(null);
     const value = { ...live.current, boards: [...live.current.boards, next], activeId: next.id };
     live.current = value; setSaved(value);
@@ -582,6 +637,7 @@ export function App() {
     const expected: ExpectedAnswer | undefined = current.expected ?? expectedAnswerFor(task);
     const handled = new Set(current.handled ?? []);
     const event = nextCoachEvent({ mode, statement: task, steps: ls, expected, handled });
+    console.log("DEBUG_COACH:", JSON.stringify({ mode, task, ls: ls.map(l => l.latexGuess), expected, event }));
     if (event.kind === 'idle') return;
     applyCoachEvent(current, ls, event);
   }
@@ -610,10 +666,24 @@ export function App() {
         const wrongLine = ls[event.n - 1];
         const attempts = (stepErrors.current.get(wrongLine?.stepId ?? '') ?? 0) + 1;
         if (wrongLine?.stepId) stepErrors.current.set(wrongLine.stepId, attempts);
-        let next = event.kind === 'wrong_step' ? { ...marked, annotations: [...marked.annotations,
+        const shouldSpeakLegend = !marked.colorLegendSpoken && event.kind === 'wrong_step';
+        let next = event.kind === 'wrong_step' ? { ...marked,
+          colorLegendSpoken: marked.colorLegendSpoken || shouldSpeakLegend,
+          annotations: [...marked.annotations,
           ...localTeacherActions(wrongLine, marked.revision, locale, { attemptCount: attempts })].slice(-64) } : marked;
         if (event.kind === 'wrong_final' && !next.outcome) { if (next.skillId) recordMastery(next.skillId, false); next = { ...next, outcome: 'failed' }; }
-        updateBoard(next); say('wrong'); break;
+        updateBoard(next);
+        if (shouldSpeakLegend) {
+          let text = coachLine(event, locale, hashKey(event.key));
+          if (text) {
+            text += ` ${messages[locale].colorLegendSpoken}`;
+            setMessage({ id: event.key, kind: 'wrong', text, stepId: wrongLine?.stepId, reason: event.reason });
+            voice.speak(text);
+          }
+        } else {
+          say('wrong');
+        }
+        break;
       }
       case 'solved': {
         if (!marked.outcome && marked.skillId) recordMastery(marked.skillId, true);
@@ -673,8 +743,14 @@ export function App() {
       const action: BoardAction = { id: `hint-${stepId}`, type: 'show_hint', boardRevision: current.revision, text: hint,
         placement: { relativeToStepId: stepId, side: 'below', offsetEm: 0.4 } };
       const teacherSol = localTeacherActions(lines.find(l => l.stepId === stepId), current.revision, cur.settings.locale, { revealSolution: true });
-      updateBoard({ ...current, annotations: [...current.annotations.filter(n => n.id !== action.id && !teacherSol.some(ts => ts.id === n.id)), action, ...teacherSol].slice(-64) });
-      setMessage({ ...message, text: hint });
+      const shouldSpeakLegend = !current.colorLegendSpoken;
+      updateBoard({
+        ...current,
+        colorLegendSpoken: current.colorLegendSpoken || shouldSpeakLegend,
+        annotations: [...current.annotations.filter(n => n.id !== action.id && !teacherSol.some(ts => ts.id === n.id)), action, ...teacherSol].slice(-64)
+      });
+      const hintText = shouldSpeakLegend ? `${hint} ${messages[cur.settings.locale].colorLegendSpoken}` : hint;
+      setMessage({ ...message, text: hintText });
       return;
     }
     if (choice === 'next') { nextProblem(); return; }
@@ -750,7 +826,7 @@ export function App() {
   const chips = running ? [] : quickReplies({ kind: message?.kind ?? null, canRequest, lessonActive: !!lessonSkillId || !!board.skillId, answeredByAi, hasLines: lines.length > 0 });
   const shownMessage: TutorMessage | null = running ? { id: 'thinking', kind: 'thinking', text: t.tutorThinking } : message;
   return <div className="app-shell">
-    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} onInkCorrection={inkCorrection} verdicts={shownVerdicts} onRemoveAnnotation={id => { stop(false); const current = live.current.boards.find(b => b.id === live.current.activeId)!; updateBoard(removeAnnotation(current, id)); }} onAskHere={() => { setPanel('ask'); setPinned(true); }} /></div>
+    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} onInkCorrection={inkCorrection} verdicts={shownVerdicts} onRemoveAnnotation={id => { stop(false); const current = live.current.boards.find(b => b.id === live.current.activeId)!; updateBoard(removeAnnotation(current, id)); }} onAskHere={() => { setPanel('ask'); setPinned(true); }} onOpenColorLegend={() => setColorLegendOpen(true)} onSendToAi={(stepId) => { updateBoard({ ...board, activeStepId: stepId }); void request('check'); }} canRequest={canRequest} modelSupportsImages={!!model?.supportsImageInput} /></div>
     <div className={`hud${openPanel ? ' drawer-open' : ''}${settingsOpen ? ' settings-open' : ''}`} data-testid="hud">
       <div className="hud-top-left">
         <span className="sr"><output data-testid="revision">{board.revision}</output></span>
@@ -758,18 +834,18 @@ export function App() {
           <span className="track-breadcrumb-path"><strong>{t.freeProblem}</strong></span>
           <button className="track-breadcrumb-change" onClick={nextProblem}>{t.backToCourse}</button></div>}
         {settings.activeTrackId && !!board.skillId && <TrackBreadcrumb catalog={catalog} trackId={settings.activeTrackId} currentSkillId={board.skillId ?? null} mastery={mastery} t={t} locale={settings.locale} onChangeTrack={changeTrack} />}
-        <div className="task-card">
+        <div className="task-card" onClick={() => { if (!editingTask && board.statement) rewriteTaskOnBoard(); }}>
           {editingTask
             ? <><label>{t.task}<textarea rows={2} maxLength={4000} value={board.statement} placeholder={t.taskPlaceholder} autoFocus
                 onChange={e => { stop(false); updateBoard(editTask(board, 'statement', e.target.value)); }} /></label>
-                <button onClick={() => setEditingTask(false)}>{t.taskDone}</button></>
-            : <><p className="task-text" {...(formattedTaskHtml ? {} : { 'data-testid': 'task-text' })}>
+                <button onClick={(e) => { e.stopPropagation(); setEditingTask(false); }}>{t.taskDone}</button></>
+            : <><p className="task-text" {...(formattedTaskHtml ? {} : { 'data-testid': 'task-text' })} title={t.taskAnnotationLabel} style={{ cursor: 'pointer' }}>
                 {formattedTaskHtml
                   ? <><span className="sr" data-testid="task-text">{statement}</span><span aria-hidden="true" dangerouslySetInnerHTML={{ __html: formattedTaskHtml }} /></>
                   : (statement || t.taskEmpty)}
               </p>
                 {displayTopic && <small>{displayTopic}</small>}
-                <button className="task-edit" aria-label={t.taskEdit} title={t.taskEdit} onClick={() => setEditingTask(true)}>✎</button></>}
+                <button className="task-edit" aria-label={t.taskEdit} title={t.taskEdit} onClick={(e) => { e.stopPropagation(); setEditingTask(true); }}>✎</button></>}
         </div>
       </div>
       <div className="hud-top-right">
@@ -891,6 +967,7 @@ export function App() {
           onClear: () => { if (window.confirm(cm.chatClearConfirm)) chat.clear(board.id); } }}
         lessonActive={!!lessonSkillId || !!board.skillId} selfAssess={!!board.skillId && !board.expected && !board.outcome} mode={settings.coachMode} voiceOn={settings.tutorVoice} micAvailable={mic.available} listening={mic.listening}
         onToggleMenu={() => openOnly('tutor')}
+        onOpenColorLegend={() => setColorLegendOpen(true)}
         notesVisible={settings.showAI} hasNotes={!!board.annotations.length}
         onToggleNotes={() => configure({ showAI: !settings.showAI })}
         onClearNotes={() => { stop(false); updateBoard({ ...board, annotations: [] }); }}
@@ -899,6 +976,7 @@ export function App() {
         onAction={action => { setTutorMenu(false); if (action === 'stop') stop(); else if (action === 'next_problem') nextProblem(); else if (action === 'free') createExercise(); else if (action === 'self_done' || action === 'self_fail') selfAssess(action === 'self_done'); else void request(action, { learnerContext: learnerContext() }); }}
         onChoice={choice => void tutorChoice(choice)} />
     </div>
+    <ColorLegendDialog open={colorLegendOpen} onClose={() => setColorLegendOpen(false)} locale={settings.locale} t={t} />
   </div>;
 }
 
