@@ -36,6 +36,10 @@ export interface BoardState {
   confirmedFinals?: string[];
   /** One-tap symbol corrections keyed by stroke signature (IDs plus versions). */
   inkEdits?: Record<string, string>;
+  /** Whether the lesson task statement has already been animated into view on the board. */
+  taskAnimated?: boolean;
+  /** Whether the tutor has already announced the color/mark legend for this board. */
+  colorLegendSpoken?: boolean;
 }
 export function newBoard(): BoardState {
   return { id: crypto.randomUUID(), revision: 0, statement: '', topic: '', elements: [], files: {},
@@ -89,7 +93,7 @@ function parserCompatible(text: string): boolean {
   try { parseMathStatement(text); return true; } catch {
     const unit = unitFromLine(text);
     if (!unit || !unitAliasesFor(unit).includes(unit)) return false;
-    try { parseMathStatement(text.slice(0, -unit.length).trim()); return true; } catch { return false; }
+    try { parseMathStatement(text.slice(0, -unit.length).trim()); return true; } catch { return false; };
   }
 }
 
@@ -154,8 +158,9 @@ export function commitStudent(state: BoardState, incoming: readonly ExcalidrawEl
   const activeStepId = steps.find(s => s.elementIds.some(id => changedIds.has(id)))?.stepId ?? steps.at(-1)?.stepId ?? null;
   const currentKeys = new Set(recognized.flatMap(line => line.symbols.map(symbol => inkSymbolKey(symbol.strokeIds, elements))));
   const inkEdits = Object.fromEntries(Object.entries(edits).filter(([key]) => currentKeys.has(key)));
-  // Outdated annotations are deliberately removed when the student changes the mathematical surface.
-  return { ...state, elements: structuredClone(elements), files, steps, revision, activeStepId, annotations: [],
+  // Outdated correction annotations are removed when the student changes the mathematical surface; the lesson task stays on the board.
+  const taskAnnotations = rebase(state.annotations.filter(a => a.id.startsWith('task-statement')), revision);
+  return { ...state, elements: structuredClone(elements), files, steps, revision, activeStepId, annotations: taskAnnotations,
     ...(Object.keys(inkEdits).length ? { inkEdits } : { inkEdits: undefined }) };
 }
 /** One-tap correction of a single recognised symbol; recomposes only its line. */
@@ -171,7 +176,8 @@ export function correctInk(state: BoardState, key: string, label: string): Board
   const corrected = { ...target, symbols, boardRevision: revision, latexGuess: parsed.text, confidence: parsed.confidence,
     uncertain: uncertainInk({ symbols, parserCompatible: compatible, confidence: parsed.confidence, uncertain: parsed.uncertain || target.crossOutUncertain }), parserCompatible: compatible };
   const steps = state.steps.map(step => step === target ? corrected : { ...step, boardRevision: revision });
-  return { ...state, revision, steps, inkEdits: edits, annotations: [] };
+  const taskAnnotations = rebase(state.annotations.filter(a => a.id.startsWith('task-statement')), revision);
+  return { ...state, revision, steps, inkEdits: edits, annotations: taskAnnotations };
 }
 
 export function editTask(state: BoardState, field: 'statement' | 'topic', value: string): BoardState {
@@ -187,7 +193,10 @@ export function boardBounds(state: BoardState) {
 export function renderableActions(state: BoardState): BoardAction[] {
   // Revalidate even persisted actions at the last boundary before rendering.
   // Twelve is a per-response limit, not a lifetime-layer limit. Retain up to 64 validated annotations.
-  return state.annotations.slice(-64).flatMap(a => validateBoardActions([a], state.revision, boardBounds(state)).valid);
+  return state.annotations.slice(-64).flatMap(a => {
+    if (a.id.startsWith('task-statement')) return [a];
+    return validateBoardActions([a], state.revision, boardBounds(state)).valid;
+  });
 }
 function rebase(actions: BoardAction[], revision: number) { return actions.map(a => ({ ...a, boardRevision: revision })); }
 export function removeAnnotation(state: BoardState, id: string): BoardState {
@@ -209,17 +218,20 @@ export function applyResponse(state: BoardState, response: AnalyzeBoardResponse,
   // provider may only restate typed lines.
   const steps = state.steps.map(s => ({ ...s,
     latexGuess: s.origin === 'ink' ? s.latexGuess : response.recognizedSteps.find(r => r.stepId === s.stepId)?.latexGuess ?? s.latexGuess }));
-  const known = new Set(steps.flatMap(s => [s.stepId, ...s.latexGuess.split(/\n+/).filter(p => p.trim()).map((_, i) => `${s.stepId}#${i}`)]));
+  const known = new Set([
+    ...steps.flatMap(s => [s.stepId, ...s.latexGuess.split(/\\n+/).filter(p => p.trim()).map((_, i) => `${s.stepId}#${i}`)]),
+    ...(state.statement ? ['zadání', 'zadani', 'task', 'statement', 'task-statement'] : []),
+  ]);
   let rejected = result.errors.length > 0;
   let annotations = renderableActions(state);
   for (const a of result.valid) {
-    if ('targetStepId' in a && (!known.has(a.targetStepId) || (response.firstErrorStepId !== null && a.targetStepId !== response.firstErrorStepId))) { rejected = true; continue; }
+    if ('targetStepId' in a && (!known.has(a.targetStepId) || (response.firstErrorStepId !== null && a.targetStepId !== response.firstErrorStepId && a.targetStepId !== 'zadání' && a.targetStepId !== 'zadani'))) { rejected = true; continue; }
     if (a.type === 'erase_own_annotation') {
       annotations = annotations.filter(n => n.id !== a.targetAnnotationId);
     } else {
       const anchors = 'placement' in a && a.placement ? [a.placement] : 'anchor' in a && a.anchor ? [a.anchor] : a.type === 'draw_arrow' ? [a.from, a.to] : [];
       if (anchors.some(p => p.relativeToStepId && (!known.has(p.relativeToStepId)
-        || (response.firstErrorStepId !== null && p.relativeToStepId !== response.firstErrorStepId)))) { rejected = true; continue; }
+        || (response.firstErrorStepId !== null && p.relativeToStepId !== response.firstErrorStepId && p.relativeToStepId !== 'zadání' && p.relativeToStepId !== 'zadani')))) { rejected = true; continue; }
       annotations = [...annotations.filter(n => n.id !== a.id), a];
     }
   }
