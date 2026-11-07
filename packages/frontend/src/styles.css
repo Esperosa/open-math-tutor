@@ -926,9 +926,12 @@ body:has(.excalidraw .dropdown-menu) .hud-top-left { opacity: 0; pointer-events:
   line-height: 1.4;
   color: var(--muted);
 }
+.ink-popover-desc .ink-popover-strong,
 .ink-popover-desc strong {
+  font-weight: 700;
   color: #d97706;
 }
+[data-theme="dark"] .ink-popover-desc .ink-popover-strong,
 [data-theme="dark"] .ink-popover-desc strong {
   color: #fbbf24;
 }
@@ -994,6 +997,9 @@ body:has(.excalidraw .dropdown-menu) .hud-top-left { opacity: 0; pointer-events:
   line-height: 1;
   pointer-events: none;
 }
+.ink-chip-order::before {
+  content: attr(data-order);
+}
 .ink-chip-symbol {
   font-size: 16px;
   font-weight: 700;
@@ -1023,6 +1029,8 @@ body:has(.excalidraw .dropdown-menu) .hud-top-left { opacity: 0; pointer-events:
   cursor: pointer;
   min-height: 32px;
   width: max-content;
+  user-select: none;
+  text-decoration: none;
 }
 .ink-guide-toggle-btn:hover {
   background: color-mix(in srgb, var(--accent) 10%, var(--paper));

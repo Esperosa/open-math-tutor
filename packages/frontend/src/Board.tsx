@@ -449,9 +449,15 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
             <div className="ink-uncertain-header">
               <span className="ink-read-label">
                 {t.handwritingRead} <strong>{step.latexGuess}</strong>
+                {step.rawText && step.rawText !== step.latexGuess && <span className="ink-raw-reading"> ({t.handwritingOriginally}: {step.rawText})</span>}
               </span>
+              {step.rawText && step.contextualText && <button type="button" className="ink-context-toggle"
+                data-testid={`ink-context-toggle-${step.stepId}`} onClick={e => { e.stopPropagation(); onInkContextToggle?.(step.stepId); }}
+                title={step.contextualized ? t.handwritingShowRaw : t.handwritingUseContext}>
+                {step.contextualized ? t.handwritingShowRaw : t.handwritingUseContext}
+              </button>}
               <p className="ink-popover-desc">
-                <strong>{t.handwritingUncertain}</strong> {t.handwritingUncertainFriendly}
+                <span className="ink-popover-strong">{t.handwritingUncertain}</span> {t.handwritingUncertainFriendly}
               </p>
             </div>
 
@@ -466,23 +472,20 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
                       aria-label={`${t.handwritingCorrect}: ${index + 1}. ${t.handwritingSymbol} „${symbol.label ?? symbol.candidates[0]?.label}“ → „${label}“`}
                       title={`${index + 1}. ${t.handwritingSymbol}: ${symbol.label ?? symbol.candidates[0]?.label} → ${label}`}
                       onPointerDown={event => event.stopPropagation()}
-                      onClick={event => { event.stopPropagation(); onInkCorrection?.(inkSymbolKey(symbol.strokeIds, board.elements), label); }}>
-                      <span className="ink-chip-order" aria-hidden="true">{index + 1}</span>
-                      <span className="ink-chip-symbol">{label}</span>
-                    </button>
+                      onClick={event => { event.stopPropagation(); onInkCorrection?.(inkSymbolKey(symbol.strokeIds, board.elements), label); }}><span className="ink-chip-order" aria-hidden="true" data-order={index + 1} /><span className="ink-chip-symbol">{label}</span></button>
                   ))}
                 </div>
               </div>
             )}
 
             <div className="ink-popover-actions">
-              <button type="button" className="ink-guide-toggle-btn"
+              <span role="link" tabIndex={0} className="ink-guide-toggle-btn"
                 data-testid={`ink-guide-toggle-${step.stepId}`} aria-expanded={isPopoverOpen}
                 onClick={e => { e.stopPropagation(); setPopoverStepId(isPopoverOpen ? null : step.stepId); }}
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); setPopoverStepId(isPopoverOpen ? null : step.stepId); } }}
                 title={t.handwritingGuideBtn}>
                 {t.handwritingGuideBtn}
-              </button>
+              </span>
             </div>
 
             {isPopoverOpen && (
