@@ -46,6 +46,17 @@ for (const pause of [700, 1800]) {
   });
 }
 
+test('D3(c) a line left unfinishable is called wrong only after the full pen pause', async ({ page }) => {
+  await start(page);
+  await setTask(page, '12+7');
+  await drawElements(page, rowElements('12+7=1', 13, 40, [420, 260]), 'pen');
+  await page.waitForTimeout(700);
+  await expect(page.getByTestId('step-mark-wrong')).toHaveCount(0);
+  await expect(page.locator('[data-testid="tutor-bubble"][data-kind="wrong"]')).toHaveCount(0);
+  await expect(page.getByTestId('step-mark-wrong')).toHaveCount(1, { timeout: 4000 });
+  await expect(page.locator('[data-testid="tutor-bubble"][data-kind="wrong"]')).toHaveCount(1, { timeout: 4000 });
+});
+
 test('D3(b) a digit written while the task note animates is not dropped', async ({ page }) => {
   await start(page);
   // A long statement keeps the teacher-note reveal running while the student writes.
