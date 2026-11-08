@@ -967,12 +967,12 @@ export function App() {
           <div className="hud-chip calibration-invite" data-testid="calibration-invite" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>{t.firstPenCalibrationPrompt}</span>
             <button type="button" className="primary" style={{ padding: '2px 8px', fontSize: '12px' }} onClick={() => {
-              try { localStorage.setItem('omtop-handwriting-calibration-prompted', '1'); } catch {}
+              try { localStorage.setItem('omtop-handwriting-calibration-prompted', '1'); } catch { /* ignore */ }
               setShowCalibrationPrompt(false);
               setCalibrationOpen(true);
             }}>{t.startCalibration}</button>
             <button type="button" className="close-btn" style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => {
-              try { localStorage.setItem('omtop-handwriting-calibration-prompted', '1'); } catch {}
+              try { localStorage.setItem('omtop-handwriting-calibration-prompted', '1'); } catch { /* ignore */ }
               setShowCalibrationPrompt(false);
             }}>×</button>
           </div>
