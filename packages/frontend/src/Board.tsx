@@ -36,12 +36,13 @@ interface Props {
   onRemoveAnnotation?(id: string): void;
   onOpenColorLegend?(): void;
   onSendToAi?(stepId: string): void;
+  onOpenCalibration?(): void;
   canRequest?: boolean;
   modelSupportsImages?: boolean;
 }
 export const Board = forwardRef<BoardHandle, Props>(function Board({
   board, settings, onCommit, onBusy, onInkCorrection, onInkContextToggle, onAskHere, verdicts, onRemoveAnnotation,
-  onOpenColorLegend, onSendToAi, canRequest, modelSupportsImages,
+  onOpenColorLegend, onSendToAi, onOpenCalibration, canRequest, modelSupportsImages,
 }, ref) {
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   const surface = useRef<HTMLDivElement>(null);
@@ -597,6 +598,12 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
                     onClick={e => { e.stopPropagation(); setPopoverStepId(null); removeStepLine(step.stepId); }}>
                     {t.retryWriting}
                   </button>
+                  {onOpenCalibration && (
+                    <button type="button" className="ink-action-calib" data-testid={`ink-calibrate-${step.stepId}`}
+                      onClick={e => { e.stopPropagation(); onOpenCalibration(); }}>
+                      {t.calibrateHandwriting}
+                    </button>
+                  )}
                   {canRequest && modelSupportsImages ? (
                     <button type="button" className="ink-action-ai" data-testid={`ink-send-ai-${step.stepId}`}
                       onClick={e => { e.stopPropagation(); onSendToAi?.(step.stepId); }}>

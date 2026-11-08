@@ -165,15 +165,7 @@ export function App() {
   const [colorLegendOpen, setColorLegendOpen] = useState(false);
   const [calibrationOpen, setCalibrationOpen] = useState(false);
   const [calibrationCount, setCalibrationCount] = useState(() => getPersonalSampleCount());
-  const [showCalibrationPrompt, setShowCalibrationPrompt] = useState(() => {
-    try {
-      if (typeof localStorage === 'undefined') return false;
-      return !localStorage.getItem('omtop-handwriting-calibration-prompted') && getPersonalSampleCount() === 0;
-    } catch {
-      return false;
-    }
-  });
-
+  
   const handleExportCalibration = useCallback(() => {
     const json = exportPersonalCalibrationJson();
     const blob = new Blob([json], { type: 'application/json' });
@@ -930,7 +922,7 @@ export function App() {
   const chips = running ? [] : quickReplies({ kind: message?.kind ?? null, canRequest, lessonActive: !!lessonSkillId || !!board.skillId, answeredByAi, hasLines: lines.length > 0 });
   const shownMessage: TutorMessage | null = running ? { id: 'thinking', kind: 'thinking', text: t.tutorThinking } : message;
   return <div className="app-shell">
-    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} onInkCorrection={inkCorrection} onInkContextToggle={inkContextToggle} verdicts={shownVerdicts} onRemoveAnnotation={id => { stop(false); const current = live.current.boards.find(b => b.id === live.current.activeId)!; updateBoard(removeAnnotation(current, id)); }} onAskHere={() => { setPanel('ask'); setPinned(true); }} onOpenColorLegend={() => setColorLegendOpen(true)} onSendToAi={(stepId) => { updateBoard({ ...board, activeStepId: stepId }); void request('check'); }} canRequest={canRequest} modelSupportsImages={!!model?.supportsImageInput} /></div>
+    <div className="board-stage"><Board key={board.id} ref={editor} board={board} settings={settings} onCommit={commit} onBusy={boardBusy} onInkCorrection={inkCorrection} onInkContextToggle={inkContextToggle} verdicts={shownVerdicts} onRemoveAnnotation={id => { stop(false); const current = live.current.boards.find(b => b.id === live.current.activeId)!; updateBoard(removeAnnotation(current, id)); }} onAskHere={() => { setPanel('ask'); setPinned(true); }} onOpenColorLegend={() => setColorLegendOpen(true)} onOpenCalibration={() => setCalibrationOpen(true)} onSendToAi={(stepId) => { updateBoard({ ...board, activeStepId: stepId }); void request('check'); }} canRequest={canRequest} modelSupportsImages={!!model?.supportsImageInput} /></div>
     <div className={`hud${openPanel ? ' drawer-open' : ''}${settingsOpen ? ' settings-open' : ''}`} data-testid="hud">
       <div className="hud-top-left">
         <span className="sr"><output data-testid="revision">{board.revision}</output></span>
@@ -963,21 +955,9 @@ export function App() {
           <Icon name="settings" /></button>
         </div>
         {alertChip && <div className="hud-chip" aria-live="polite">{alertChip}</div>}
-        {showCalibrationPrompt && settings.defaultTool === 'freedraw' && (
-          <div className="hud-chip calibration-invite" data-testid="calibration-invite" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>{t.firstPenCalibrationPrompt}</span>
-            <button type="button" className="primary" style={{ padding: '2px 8px', fontSize: '12px' }} onClick={() => {
-              try { localStorage.setItem('omtop-handwriting-calibration-prompted', '1'); } catch { /* ignore */ }
-              setShowCalibrationPrompt(false);
-              setCalibrationOpen(true);
-            }}>{t.startCalibration}</button>
-            <button type="button" className="close-btn" style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => {
-              try { localStorage.setItem('omtop-handwriting-calibration-prompted', '1'); } catch { /* ignore */ }
-              setShowCalibrationPrompt(false);
-            }}>×</button>
-          </div>
-        )}
       </div>
+      
+
       <aside className={`settings-pop${settingsOpen ? ' open' : ''}`} aria-label={t.settings}>
         <div className="settings-header"><h2>{t.settings}</h2><button className="close-btn" aria-label={t.close} onClick={() => setSettingsOpen(false)}>×</button></div>
         
