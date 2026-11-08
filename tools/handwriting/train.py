@@ -90,6 +90,7 @@ def main():
     p.add_argument('--comma-weight', type=float, default=3.)
     p.add_argument('--retention-weight', type=float, default=0., help='warm-start distillation on selected-class replay')
     p.add_argument('--retention-labels', default='0ox×()l', help='classes anchored by warm-start distillation')
+    p.add_argument('--real-data', action='store_true', help='Include Google MathWriting & HASYv2 real human writing')
     p.add_argument('--output', type=Path, default=MODEL / 'weights.json')
     args = p.parse_args()
     if (args.epochs < 1 or args.synthetic_per_class < 1 or args.pendigits_variants < 1
@@ -158,8 +159,27 @@ def main():
             print('generated', label, flush=True)
         sx, sy = np.array(sx), np.array(sy)
         np.savez_compressed(cache, x=sx, y=sy)
-    x = torch.tensor(np.concatenate([x[:55000], sx, px])[:, None], dtype=torch.float32)
-    y = torch.tensor(np.concatenate([y[:55000], sy, py]).astype('int64'))
+
+    # Real human data (Google MathWriting & HASYv2)
+    rx, ry = [], []
+    hasy_test_x, hasy_test_y = None, None
+    if args.real_data:
+        real_cache = CACHE / 'real_data_cache.npz'
+        if real_cache.exists():
+            rdata = np.load(real_cache)
+            rx = np.concatenate([rdata['hasy_train_x'], rdata['mw_x']])
+            ry = np.concatenate([rdata['hasy_train_y'], rdata['mw_y']])
+            hasy_test_x = torch.tensor(rdata['hasy_test_x'][:, None], dtype=torch.float32)
+            hasy_test_y = torch.tensor(rdata['hasy_test_y'], dtype=torch.int64)
+            print(f'loaded real human data: train {len(rx)}, test held-out writers {len(hasy_test_y)}', flush=True)
+
+    if len(rx) > 0:
+        x = torch.tensor(np.concatenate([x[:55000], sx, px, rx])[:, None], dtype=torch.float32)
+        y = torch.tensor(np.concatenate([y[:55000], sy, py, ry]).astype('int64'))
+    else:
+        x = torch.tensor(np.concatenate([x[:55000], sx, px])[:, None], dtype=torch.float32)
+        y = torch.tensor(np.concatenate([y[:55000], sy, py]).astype('int64'))
+
     net = Net()
     init_sha256 = None
     if args.init:
@@ -226,14 +246,20 @@ def main():
             pendigits_correct = (predicted[5000:] == vy[5000:]).sum().item()
             validation = mnist_correct / 5000 * .5 + pendigits_correct / len(pval) * .5
             comma_correct = sum((net(b).argmax(1) == LABELS.index(',')).sum().item() for b in cvx.split(256))
+            hasy_info = ''
+            if hasy_test_x is not None:
+                hasy_pred = torch.cat([net(b).argmax(1) for b in hasy_test_x.split(256)])
+                hasy_corr = (hasy_pred == hasy_test_y).sum().item()
+                hasy_info = f' hasy_heldout {hasy_corr}/{len(hasy_test_y)} ({hasy_corr/len(hasy_test_y)*100:.1f}%)'
+
         print(f'epoch {epoch + 1} train {correct}/{total} mnist {mnist_correct}/5000 pendigits '
-              f'{pendigits_correct}/{len(pval)} comma {comma_correct}/500 score {validation:.4f} '
+              f'{pendigits_correct}/{len(pval)} comma {comma_correct}/500 score {validation:.4f}{hasy_info} '
               f'elapsed {time.perf_counter() - start:.1f}s', flush=True)
         if comma_correct >= 490 and validation >= best:
             best = validation
             export(net, {'seed': args.seed, 'epoch': epoch + 1, 'epochsRequested': args.epochs,
                          'syntheticPerClass': args.synthetic_per_class, 'pendigitsVariants': args.pendigits_variants,
-                         'mnistTrain': 55000, 'pendigitsTrain': len(px), 'validationScore': best,
+                         'mnistTrain': 55000, 'pendigitsTrain': len(px), 'realDataTrain': len(rx), 'validationScore': best,
                          'mnistValidationCorrect': mnist_correct, 'pendigitsValidationCorrect': pendigits_correct,
                          'pendigitsValidationTotal': len(pval), 'torch': torch.__version__,
                          'learningRate': args.learning_rate, 'commaWeight': args.comma_weight,
