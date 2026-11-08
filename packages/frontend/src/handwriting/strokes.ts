@@ -181,6 +181,15 @@ export function groupSymbols(strokes: readonly Stroke[]): StrokeSymbol[] {
       const below = thin.y >= bottom(tall) - typical * .06 && thin.y - bottom(tall) < typical * .35;
       if (above || below) return true;
     }
+
+    // Top bar of 5 or 7 touching or starting near the top of a vertical stem
+    if (thin.height < thin.width * .5 && thin.height < typical * .25 && tall.height > typical * .3 && thin.width < typical * 1.2) {
+      const topsAlign = Math.abs(thin.y - tall.y) < typical * .15 || (bottom(thin) <= tall.y + typical * .08 && tall.y - bottom(thin) < typical * .25);
+      const nearStemX = Math.abs(thin.x - tall.x) < typical * .15 || Math.abs(thin.x - right(tall)) < typical * .15
+        || (ox > -typical * .06 && ox < Math.max(thin.width, tall.width));
+      if (topsAlign && nearStemX) return true;
+    }
+
     // A percent sign is a slanted stroke plus two small loops: the loops only
     // touch the slash at their corners, so size/overlap tests alone split it
     // into a digit and a zero. Merge a compact loop with a straight slant.
@@ -208,16 +217,23 @@ export function groupSymbols(strokes: readonly Stroke[]): StrokeSymbol[] {
 
     // A horizontal bar touching a tall full-height stem near the bar's outer tip
     // and in the middle of the stem is a collision between adjacent characters (+ or - touching 1).
-    const isHorizA = x.width > x.height * 3 && x.width > typical * .3;
-    const isStemB = y.height > typical * .6 && y.height > y.width * 3;
-    const isHorizB = y.width > y.height * 3 && y.width > typical * .3;
-    const isStemA = x.height > typical * .6 && x.height > x.width * 3;
+    const isHorizA = x.width > x.height * 2.5 && x.width > typical * .25;
+    const isStemB = y.height > typical * .5 && y.height > y.width * 1.6;
+    const isHorizB = y.width > y.height * 2.5 && y.width > typical * .25;
+    const isStemA = x.height > typical * .5 && x.height > x.width * 1.6;
     if ((isHorizA && isStemB) || (isHorizB && isStemA)) {
       const bar = isHorizA ? x : y, stem = isHorizA ? y : x;
       const atBarTip = Math.abs(centerX(bar) - centerX(stem)) > bar.width * .35;
       const inStemMiddle = centerY(bar) > stem.y + stem.height * .25 && centerY(bar) < bottom(stem) - stem.height * .25;
-      const shallowOverlap = ox < bar.width * .25;
+      const shallowOverlap = ox < bar.width * .3;
       if (atBarTip && inStemMiddle && shallowOverlap) return false;
+    }
+
+    // Side-by-side tall characters (e.g. parenthesis '(' next to digit, or adjacent digits)
+    // must not be merged just because a stroke is thin.
+    if (x.height > typical * .5 && y.height > typical * .5) {
+      const minW = Math.min(x.width, y.width);
+      if (ox < minW * .35) return false;
     }
 
     const tolerance = Math.min(typical * .06, Math.max(a.width, b.width));

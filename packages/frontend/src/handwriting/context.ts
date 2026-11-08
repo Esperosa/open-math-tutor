@@ -127,7 +127,7 @@ function prior(text: string, symbols: readonly RecognizedSymbol[], options: Cont
   // NIKDY "rovnice vychází" jako prior (equation truth is never evaluated).
   if (options.taskPrompt) {
     const promptClean = options.taskPrompt.replace(/\s+/g, '');
-    const match = promptClean.match(/[\d(a-zA-Z][\d(a-zA-Z+\-*/×÷=^.,)]*/);
+    const match = promptClean.match(/[-+~]?[\d(a-zA-Z][\d(a-zA-Z+\-*/×÷=^.,)]*/);
     const promptExpr = match ? match[0].replace(/[=]+$/, '') : promptClean.replace(/[=]+$/, '');
     if (promptExpr) {
       const cleanLhs = compact.replace(/=.*$/, '');

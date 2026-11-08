@@ -132,7 +132,7 @@ export type InkRecognizer = (elements: readonly ExcalidrawElement[]) => Recogniz
 
 export function commitStudent(state: BoardState, incoming: readonly ExcalidrawElement[], files = state.files,
   recognize: InkRecognizer = elements => recognizeBoardLines(elements, {
-    unitAliases: unitAliasesFor(state.expected?.unit, state.statement), expectedUnit: state.expected?.unit })): BoardState {
+    unitAliases: unitAliasesFor(state.expected?.unit, state.statement), expectedUnit: state.expected?.unit, taskPrompt: state.statement, previousLines: state.steps.map(s => s.latexGuess).filter(Boolean) })): BoardState {
   const elements = incoming.filter(isStudent);
   if (fingerprint(elements) === fingerprint(state.elements) && files === state.files) return state;
   if (fingerprint(elements) === fingerprint(state.elements)) return { ...state, files };
