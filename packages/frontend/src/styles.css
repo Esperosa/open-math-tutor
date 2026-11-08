@@ -1399,3 +1399,169 @@ body:has(.excalidraw .dropdown-menu) .hud-top-left { opacity: 0; pointer-events:
 @media (max-width: 700px) {
   .hud-top-left { max-height: 240px; overflow-y: auto; }
 }
+
+/* Personal Handwriting Calibration Modal & Activities */
+.calib-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: var(--space-3);
+  animation: modal-fade 0.15s ease-out;
+}
+.calib-modal-card {
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-3);
+  max-width: 440px;
+  width: 100%;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  outline: none;
+}
+.calib-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.calib-modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+.calib-progress-bar {
+  height: 6px;
+  background: var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.calib-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+.calib-step-indicator {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.calib-workspace {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  margin: var(--space-2) 0;
+}
+.calib-target-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  min-width: 110px;
+  min-height: 140px;
+}
+.calib-target-label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.calib-target-glyph {
+  font-size: 48px;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--accent);
+  margin: var(--space-1) 0;
+}
+.calib-target-desc {
+  font-size: 12px;
+  text-align: center;
+  color: var(--ink);
+}
+.calib-drawing-box {
+  position: relative;
+  border: 2px dashed var(--line);
+  border-radius: 12px;
+  background: #ffffff;
+  width: 220px;
+  height: 220px;
+  overflow: hidden;
+  touch-action: none;
+}
+.calib-canvas {
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+.calib-checkmark {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #16a34a;
+  animation: modal-fade 0.15s ease-out;
+}
+.calib-checkmark.big {
+  position: static;
+  font-size: 56px;
+  margin-bottom: var(--space-2);
+}
+.calib-canvas-hint {
+  position: absolute;
+  bottom: 6px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+.calib-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+  align-items: center;
+}
+.calib-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-1);
+}
+.calib-btn-skip-all {
+  background: none;
+  border: none;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+}
+.calib-done-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-3) 0;
+}
+.calibration-invite {
+  background: color-mix(in srgb, var(--accent) 12%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.ink-uncertain-not-sure {
+  color: var(--warning, #d97706);
+}
+.ink-tentative-guess {
+  font-family: monospace;
+}

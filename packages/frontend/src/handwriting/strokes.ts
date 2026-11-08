@@ -84,6 +84,7 @@ function clusters<T>(items: readonly T[], related: (a: T, b: T) => boolean): T[]
 const overlapX = (a: BBox, b: BBox): number => Math.min(right(a), right(b)) - Math.max(a.x, b.x);
 const overlapY = (a: BBox, b: BBox): number => Math.min(bottom(a), bottom(b)) - Math.max(a.y, b.y);
 export const isBar = (b: BBox): boolean => b.width > 4 && b.height < b.width * .18;
+const isBarLike = (b: BBox): boolean => b.width > 4 && b.height < b.width * .45;
 
 /** A root hook ending in an overbar; keep covered radicands out of the root's symbol. */
 export function isRadicalStroke(s: Stroke): boolean {
@@ -140,10 +141,20 @@ export function groupSymbols(strokes: readonly Stroke[]): StrokeSymbol[] {
     if (radical(a) || radical(b)) return false;
     if (dividePairs.has([a.id, b.id].sort().join('\0'))) return true;
     const ox = overlapX(x, y), oy = overlapY(x, y);
-    // Equals is the only disconnected pair of wide horizontal strokes.
-    if (isBar(x) && isBar(y)) return ox > .65 * Math.min(x.width, y.width)
-      && Math.min(x.width, y.width) > .55 * Math.max(x.width, y.width)
-      && Math.abs(centerY(x) - centerY(y)) < .75 * Math.max(x.width, y.width);
+
+    // Equals: two roughly horizontal strokes one above the other, even if slanted or non-parallel
+    if (isBar(x) && isBar(y)) {
+      if (ox > .65 * Math.min(x.width, y.width)
+        && Math.min(x.width, y.width) > .55 * Math.max(x.width, y.width)
+        && Math.abs(centerY(x) - centerY(y)) < .75 * Math.max(x.width, y.width)) return true;
+    }
+    if (isBarLike(x) && isBarLike(y)) {
+      const minW = Math.min(x.width, y.width), maxW = Math.max(x.width, y.width);
+      const dy = Math.abs(centerY(x) - centerY(y));
+      const dx = Math.abs(centerX(x) - centerX(y));
+      if (ox > .5 * minW && minW > .45 * maxW && dx < maxW * .4 && dy > Math.max(a.width, b.width) * .55 && dy < maxW * 1.15) return true;
+    }
+
     // Colon: two small, vertically aligned dots. Two isolated dots are ambiguous.
     if (Math.max(x.width, x.height, y.width, y.height) < typical * .2
       && Math.abs(centerX(x) - centerX(y)) < typical * .3
@@ -151,6 +162,16 @@ export function groupSymbols(strokes: readonly Stroke[]): StrokeSymbol[] {
     // Disconnected inequality underline (≤/≥) and other same-column components.
     if (ox > Math.min(x.width, y.width) * .65 && oy < 0 && oy > -typical * .25
       && Math.min(x.width, y.width) > Math.max(x.width, y.width) * .6) return true;
+
+    // European 7 crossbar: a short horizontal stroke intersecting the middle of a taller stroke
+    if (Math.min(x.height, y.height) < typical * .3 && Math.max(x.height, y.height) > typical * .5) {
+      const cross = x.height < y.height ? x : y, stem = cross === x ? y : x;
+      if (cross.width > cross.height * 1.5 && cross.width < stem.width * 1.1
+        && Math.abs(centerY(cross) - centerY(stem)) < stem.height * .32
+        && centerX(cross) > stem.x - typical * .15 && centerX(cross) < right(stem) + typical * .15
+        && ox >= -typical * .05 && oy >= -typical * .05) return true;
+    }
+
     // A flat stroke directly above or below a taller one is a detached part of
     // that glyph (top bar of 5/7, serif, underline), not a new character.
     const thin = x.height <= y.height ? x : y, tall = thin === x ? y : x;
@@ -160,6 +181,15 @@ export function groupSymbols(strokes: readonly Stroke[]): StrokeSymbol[] {
       const below = thin.y >= bottom(tall) - typical * .06 && thin.y - bottom(tall) < typical * .35;
       if (above || below) return true;
     }
+
+    // Top bar of 5 or 7 touching or starting near the top of a vertical stem
+    if (thin.height < thin.width * .5 && thin.height < typical * .25 && tall.height > typical * .3 && thin.width < typical * 1.2) {
+      const topsAlign = Math.abs(thin.y - tall.y) < typical * .15 || (bottom(thin) <= tall.y + typical * .08 && tall.y - bottom(thin) < typical * .25);
+      const nearStemX = Math.abs(thin.x - tall.x) < typical * .15 || Math.abs(thin.x - right(tall)) < typical * .15
+        || (ox > -typical * .06 && ox < Math.max(thin.width, tall.width));
+      if (topsAlign && nearStemX) return true;
+    }
+
     // A percent sign is a slanted stroke plus two small loops: the loops only
     // touch the slash at their corners, so size/overlap tests alone split it
     // into a digit and a zero. Merge a compact loop with a straight slant.
@@ -184,6 +214,28 @@ export function groupSymbols(strokes: readonly Stroke[]): StrokeSymbol[] {
     if (Math.min(x.height, y.height) > typical * .5 && oy > Math.min(x.height, y.height) * .6
       && ox >= -typical * .03 && unionWidth > typical * .5 && unionWidth < typical * 1.8
       && nearEnd < typical * .15) return true;
+
+    // A horizontal bar touching a tall full-height stem near the bar's outer tip
+    // and in the middle of the stem is a collision between adjacent characters (+ or - touching 1).
+    const isHorizA = x.width > x.height * 2.5 && x.width > typical * .25;
+    const isStemB = y.height > typical * .5 && y.height > y.width * 1.6;
+    const isHorizB = y.width > y.height * 2.5 && y.width > typical * .25;
+    const isStemA = x.height > typical * .5 && x.height > x.width * 1.6;
+    if ((isHorizA && isStemB) || (isHorizB && isStemA)) {
+      const bar = isHorizA ? x : y, stem = isHorizA ? y : x;
+      const atBarTip = Math.abs(centerX(bar) - centerX(stem)) > bar.width * .35;
+      const inStemMiddle = centerY(bar) > stem.y + stem.height * .25 && centerY(bar) < bottom(stem) - stem.height * .25;
+      const shallowOverlap = ox < bar.width * .3;
+      if (atBarTip && inStemMiddle && shallowOverlap) return false;
+    }
+
+    // Side-by-side tall characters (e.g. parenthesis '(' next to digit, or adjacent digits)
+    // must not be merged just because a stroke is thin.
+    if (x.height > typical * .5 && y.height > typical * .5) {
+      const minW = Math.min(x.width, y.width);
+      if (ox < minW * .35) return false;
+    }
+
     const tolerance = Math.min(typical * .06, Math.max(a.width, b.width));
     return ox >= -tolerance && oy >= -tolerance
       && (ox > Math.min(x.width, y.width) * .2 || Math.min(x.width, y.width) < tolerance);

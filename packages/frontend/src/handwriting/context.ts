@@ -9,6 +9,8 @@ export interface ContextReadOptions {
   beamWidth?: number;
   /** Do not replace the neural top-1 reading for a smaller gain. */
   minGain?: number;
+  taskPrompt?: string;
+  previousLines?: readonly string[];
 }
 
 export interface ContextRead {
@@ -46,31 +48,109 @@ function prior(text: string, symbols: readonly RecognizedSymbol[], options: Cont
   const compact = text.replace(/\s+/g, '');
   if (!compact) return -6;
   let score = 0;
+
+  // 1. Units
   const unit = unitFromLine(text);
   if (unit) {
     if (options.expectedUnit && normalizeUnit(unit) === normalizeUnit(options.expectedUnit)) score += 5;
     else if (options.unitAliases?.includes(unit)) score += 1.5;
     else score -= .5;
   }
+
+  // Syntax validity (handles complete statements or working lines ending with '=')
   let compatible = true;
-  try { parseMathStatement(text); } catch {
-    if (!unit) compatible = false;
-    else try { parseMathStatement(text.slice(0, -unit.length).trim()); } catch { compatible = false; }
+  try {
+    parseMathStatement(text);
+  } catch {
+    if (compact.endsWith('=')) {
+      try { parseMathStatement(compact.slice(0, -1)); } catch { compatible = false; }
+    } else if (unit) {
+      try { parseMathStatement(text.slice(0, -unit.length).trim()); } catch { compatible = false; }
+    } else {
+      compatible = false;
+    }
   }
   score += compatible ? .8 : -1.6;
+
+  // 2. Expression grammar penalties
+  // Exponent grammar: ^+, ^-, ^=, ^^, ^/, ^* are heavily penalized
+  if (/\^[+\-*/×÷=^]/.test(compact) || /\^\([+\-*/×÷=^]/.test(compact)) score -= 8.0;
+
+  // Double operators (excluding valid multi-char tokens like <=, >=, !=)
+  const strippedOps = compact.replace(/<=|>=|!=/g, '');
+  if (/[+\-*/×÷=<>]{2}/.test(strippedOps)) score -= 6.0;
+
+  // Brackets: unbalanced, empty, inverted, or operator adjacent to bracket edge
   const bracketBalance = [...compact].reduce((n, ch) => n + (ch === '(' ? 1 : ch === ')' ? -1 : 0), 0);
-  if (bracketBalance !== 0) score -= 1.5;
-  if ((compact.match(/=/g) ?? []).length > 1) score -= 2;
-  if (/[+\-*/×÷=<>]$/.test(compact)) score -= 1.2;
-  if (/^[*/×÷=<>]/.test(compact)) score -= 1.2;
-  if (/[+\-*/×÷=<>]{2}/.test(compact)) score -= 1.4;
-  if (/[.,](?![0-9])|(?<![0-9])[.,]/.test(compact)) score -= 1;
-  if (compact.includes('%') && !/[0-9]%$/.test(compact)) score -= 1;
-  // A unit must be the suffix, not a word in the middle of arithmetic.
-  if (unit && !compact.endsWith(unit)) score -= 1;
+  if (bracketBalance !== 0) score -= 6.0;
+  if (/\(\)/.test(compact)) score -= 6.0;
+  if (/\)\(/.test(compact)) score -= 8.0;
+  if (/\([*/×÷^=]/.test(compact)) score -= 5.0;
+  if (/[+\-*/×÷^=]\)/.test(compact)) score -= 5.0;
+
+  // Multiple equals in a single statement
+  const equalsCount = (compact.match(/=/g) ?? []).length;
+  if (equalsCount > 1) score -= 6.0;
+
+  // Trailing or leading operators (except leading minus or trailing equal sign in incomplete working)
+  if (/[+\-*/×÷<>]$/.test(compact)) score -= 2.5;
+  else if (compact.endsWith('=')) {
+    score -= 0.2;
+  }
+  if (/^[*/×÷=<>]/.test(compact)) score -= 2.5;
+
+  if (/[.,](?![0-9])|(?<![0-9])[.,]/.test(compact)) score -= 2.0;
+  if (compact.includes('%') && !/[0-9]%$/.test(compact)) score -= 2.0;
+  if (unit && !compact.endsWith(unit)) score -= 2.0;
+
+  // 3. Digit count plausibility (e.g. 5+1=1005: 4-digit RHS for 1-digit operands)
+  if (equalsCount === 1) {
+    const [lhs, rhs] = compact.split('=');
+    if (lhs && rhs) {
+      const lhsNumbers = (lhs.match(/\d+(?:[.,]\d+)?/g) ?? []).map(s => s.replace(/[.,]/, ''));
+      const rhsNumbers = (rhs.match(/\d+(?:[.,]\d+)?/g) ?? []).map(s => s.replace(/[.,]/, ''));
+      if (lhsNumbers.length > 0 && rhsNumbers.length === 1) {
+        const maxLhsDigits = Math.max(...lhsNumbers.map(n => n.length));
+        const rhsDigits = rhsNumbers[0]!.length;
+        const isMultiplication = /[*×·]/.test(lhs);
+        const maxPlausibleDigits = isMultiplication
+          ? lhsNumbers.reduce((sum, n) => sum + n.length, 0)
+          : maxLhsDigits + 1;
+        if (rhsDigits > maxPlausibleDigits + 1) {
+          score -= 3.5 * (rhsDigits - maxPlausibleDigits);
+        }
+      }
+    }
+  }
+
+  // 4. Weak-to-medium prior from task prompt and previous lines
+  // NIKDY "rovnice vychází" jako prior (equation truth is never evaluated).
+  if (options.taskPrompt) {
+    const promptClean = options.taskPrompt.replace(/\s+/g, '');
+    const match = promptClean.match(/[-+~]?[\d(a-zA-Z][\d(a-zA-Z+\-*/×÷=^.,)]*/);
+    const promptExpr = match ? match[0].replace(/[=]+$/, '') : promptClean.replace(/[=]+$/, '');
+    if (promptExpr) {
+      const cleanLhs = compact.replace(/=.*$/, '');
+      if (cleanLhs === promptExpr || compact.startsWith(promptExpr)) {
+        score += 1.5;
+      } else if (cleanLhs.startsWith(promptExpr)) {
+        score += 1.0;
+      }
+    }
+  }
+  if (options.previousLines && options.previousLines.length > 0) {
+    for (const prev of options.previousLines) {
+      const prevVars = prev.match(/[a-zA-Z]/g);
+      if (prevVars && prevVars.some(v => compact.includes(v))) {
+        score += 0.4;
+        break;
+      }
+    }
+  }
+
   const first = compact[0]!, last = compact[compact.length - 1]!;
   if (symbols.length > 1 && isOperator(first) && first !== '-') score -= .4;
-  if (isOperator(last) || last === '.' || last === ',') score -= .4;
+  if (isOperator(last) && last !== '=') score -= .4;
   return score;
 }
 

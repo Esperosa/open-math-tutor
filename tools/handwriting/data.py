@@ -7,6 +7,7 @@ from scipy.ndimage import shift
 ROOT = Path(__file__).resolve().parent
 LABELS = list('0123456789+-×÷/=().,xyabcn%msgJNVA:·*[]{}±<>≤≥≠√π°∅khloWPK')
 TEMPLATES = json.loads((ROOT / 'templates.json').read_text(encoding='utf-8'))
+_YY, _XX = np.mgrid[0:28, 0:28]
 
 
 def augment(strokes, rng, strength=1.0):
@@ -79,7 +80,8 @@ def raster(strokes, width):
     scale = 20 / max(*(size + width), 1e-6)
     radius = max(.65, width * scale / 2)
     offset = (28 - size * scale) / 2
-    yy, xx = np.mgrid[0:28, 0:28]
+    xx = _XX
+    yy = _YY
     image = np.zeros((28, 28), dtype=np.float32)
     for stroke in strokes:
         p = (np.array(stroke) - low) * scale + offset

@@ -13,6 +13,8 @@ on the following third-party components, each under its own license:
 | pdf.js (`pdfjs-dist`) | Apache-2.0 | Local text extraction from uploaded PDF sources (NotebookLM-style custom courses) |
 | MNIST handwritten digits (LeCun, Cortes, Burges) | No formal licence; commonly listed as CC BY-SA 3.0 | Training data (train split) and held-out accuracy test (test split copy in `packages/frontend/src/handwriting/__fixtures__/`) for the local handwriting model |
 | UCI Pen-Based Recognition of Handwritten Digits (`pendigits`, F. Alimoglu, E. Alpaydin, Bogazici University) | CC BY 4.0 | Online pen trajectories from 44 writers: 30 for training, 14 unseen writers for the ≥95% accuracy test (`tools/handwriting/pendigits.py`) |
+| Google MathWriting (Google Research; arXiv:2404.10690) | CC BY-NC-SA 4.0 | Online handwritten mathematical expressions (stroke trajectories and LaTeX labels) for training and evaluation (`tools/handwriting/data-cache/`) |
+| HASYv2 (M. Thoma, Zenodo 259444) | CC BY 4.0 | Human-written math symbols with user IDs (`user_id`) for held-out writer recognition accuracy testing |
 | Hershey vector fonts (Dr. A. V. Hershey, U.S. National Bureau of Standards; `hersh.oc`) | Public domain | Stroke templates for synthetic handwriting training data and accuracy tests (`tools/handwriting/`) |
 | `codex` CLI (OpenAI) | OpenAI's own terms | Installed separately by the end user; not bundled, not modified |
 | `claude` CLI (Anthropic) | Anthropic's own terms | Installed separately by the end user; not bundled, not modified |
@@ -20,6 +22,24 @@ on the following third-party components, each under its own license:
 | `onnxruntime-web` | MIT | ONNX runtime used by the synthesiser |
 | `@diffusionstudio/piper-wasm` | MIT | Grapheme-to-phoneme WASM used at synthesis time (loaded from jsDelivr) |
 | Piper voice models | Per voice, see below | Offline speech; downloaded by the user on request, never committed to this repository |
+
+### Handwriting training datasets and Share-Alike license considerations (CC BY-NC-SA 4.0 vs. PolyForm Noncommercial)
+
+The handwriting recogniser incorporates training data and validation corpora from several sources:
+- **UCI pendigits** (CC BY 4.0)
+- **HASYv2** (CC BY 4.0)
+- **Google MathWriting** (CC BY-NC-SA 4.0, Google Research, [arXiv:2404.10690](https://arxiv.org/abs/2404.10690))
+
+**Share-Alike analysis:**
+Google MathWriting is licensed under **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)**.
+Under section 3(b) of CC BY-NC-SA 4.0, if an "Adapted Material" (derivative work) is produced and distributed, it must be licensed under the same license (CC BY-NC-SA 4.0) or a compatible license listed by Creative Commons.
+If the exported neural network weights (`packages/frontend/src/handwriting/model/weights.json`) are legally construed as an adaptation of the underlying training data trajectories, distributing those weights under a different license would trigger a license incompatibility with the repository's overall **PolyForm Noncommercial License 1.0.0**.
+
+**Proposed compromise / dual-licensing boundary:**
+1. The **application source code**, UI, tests, and non-model assets remain strictly under **PolyForm Noncommercial License 1.0.0**.
+2. The **neural network weights and checkpoint artifacts** (`weights.json`, `calibration.json`) derived from MathWriting are dual-licensed / explicitly distributed under **CC BY-NC-SA 4.0**.
+3. Training scripts and data loaders in `tools/handwriting/` remain under PolyForm Noncommercial 1.0.0 (or permissive CC0 for data extraction logic).
+Both PolyForm Noncommercial 1.0.0 and CC BY-NC-SA 4.0 share the common intent and legal restriction: they permit educational, non-commercial, personal, and research use without royalty, while strictly prohibiting commercial exploitation without explicit separate licensing. Separating the weights artifact boundary ensures strict legal compliance with the Share-Alike provision of MathWriting without forcing relicensing of the application code.
 
 ### Voice models (downloaded on demand)
 

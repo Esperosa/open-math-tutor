@@ -4,6 +4,7 @@ import { recognizeSymbol } from './model';
 import { CALIBRATION, uncertaintyThreshold } from './calibration';
 import { parseLine } from './parse';
 import { readLine } from './context';
+import { loadPersonalCalibration } from './personalCalibration';
 import { bottom, centerY, elementsToStrokes, groupLines, groupSymbols, median, right } from './strokes';
 import type { Alternative, BoardElement, Candidate, RecognitionOptions, RecognizedLine, RecognizedSymbol, Stroke } from './types';
 
@@ -12,6 +13,7 @@ export { classifyRaster, MODEL_LABELS, recognizeSymbol } from './model';
 export { rasterizeSymbol } from './raster';
 export { parseLine } from './parse';
 export { elementsToStrokes, groupLines, groupSymbols } from './strokes';
+export * from './personalCalibration';
 
 function stableId(ids: readonly string[]): string {
   let hash = 0xcbf29ce484222325n;
@@ -152,12 +154,14 @@ export function createHandwritingRecognizer(): {
         && Math.max(s.bbox.x, o.bbox.x) - Math.min(right(s.bbox), right(o.bbox)) < Math.max(o.bbox.height, o.bbox.width) * 1.2));
       const active = corrected.active.filter(s => !taps.includes(s)), ignored = [...corrected.ignored, ...taps];
       const usedKeys = new Set<string>();
+      const calibrationProfile = opts.calibrationProfile !== undefined ? opts.calibrationProfile : (typeof localStorage !== 'undefined' ? loadPersonalCalibration() : null);
+      const calibSuffix = calibrationProfile?.updatedAt ? `:${calibrationProfile.updatedAt}` : '';
       const recognized = groupLines(groupSymbols(active)).map(line => {
         const symbols: RecognizedSymbol[] = line.symbols.map(symbol => {
-          const key = JSON.stringify(symbol.strokes.map(s => [s.id, elementCache.get(s.id)!.fingerprint]));
+          const key = JSON.stringify(symbol.strokes.map(s => [s.id, elementCache.get(s.id)!.fingerprint])) + calibSuffix;
           usedKeys.add(key);
           let candidates = symbolCache.get(key);
-          if (!candidates) { candidates = recognizeSymbol(symbol.strokes); symbolCache.set(key, candidates); stats.inferredSymbols++; }
+          if (!candidates) { candidates = recognizeSymbol(symbol.strokes, calibrationProfile); symbolCache.set(key, candidates); stats.inferredSymbols++; }
           else stats.cachedSymbols++;
           return { bbox: { ...symbol.bbox }, strokeIds: symbol.strokes.map(s => s.id), strokeOrder: symbol.strokes.map(s => s.order),
             candidates: candidates.map(c => ({ ...c })),
@@ -165,7 +169,7 @@ export function createHandwritingRecognizer(): {
               || candidates[0].probability - candidates[1].probability < margin };
         });
         contextualize(symbols, line.symbols.map(s => s.strokes), opts);
-        const parsed = readLine(symbols, { unitAliases: opts.unitAliases, expectedUnit: opts.expectedUnit }), alternatives: Alternative[] = [];
+        const parsed = readLine(symbols, { unitAliases: opts.unitAliases, expectedUnit: opts.expectedUnit, taskPrompt: opts.taskPrompt, previousLines: opts.previousLines }), alternatives: Alternative[] = [];
         if (parsed.contextualized && parsed.rawText && !alternatives.some(a => a.text === parsed.rawText)) {
           alternatives.push({ text: parsed.rawText, confidence: parsed.rawConfidence });
         }

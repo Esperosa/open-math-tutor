@@ -1,3 +1,5 @@
+import type { PersonalCalibrationProfile } from './personalCalibration';
+
 /** A deliberately structural input: no Excalidraw runtime import is needed. */
 export interface BoardElement {
   readonly id: string;
@@ -23,8 +25,8 @@ export interface Stroke {
   points: Point[];
   width: number;
   order: number;
-  createdAt?: number;
   bbox: BBox;
+  createdAt?: number;
 }
 export interface StrokeSymbol { strokes: Stroke[]; bbox: BBox }
 export interface StrokeLine { symbols: StrokeSymbol[]; bbox: BBox }
@@ -68,4 +70,10 @@ export interface RecognitionOptions {
   viewport?: { zoom: number; scrollX: number; scrollY: number; offsetLeft?: number; offsetTop?: number };
   confidenceThreshold?: number;
   marginThreshold?: number;
+  /** Task assignment prompt to supply a weak-to-medium transcription prior. */
+  taskPrompt?: string;
+  /** Preceding lines on the board to supply continuity priors. */
+  previousLines?: readonly string[];
+  /** Optional personal handwriting calibration profile. */
+  calibrationProfile?: PersonalCalibrationProfile | null;
 }

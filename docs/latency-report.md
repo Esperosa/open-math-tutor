@@ -10,15 +10,15 @@ to the DOM change, taken inside the page with `performance.now()`. Targets: hand
 <!-- measured:start -->
 | Measurement | Runs | Median ms | Best ms | Worst ms |
 |---|---|---|---|---|
-| typed line: Escape → ✗ mark | 4 | 17 | 12 | 17 |
-| typed line: Escape → tutor bubble | 4 | 233 | 225 | 233 |
-| AI request: click → "thinking" bubble | 3 | 4 | 3 | 5 |
-| AI request: click → mascot thinks | 3 | 4 | 3 | 5 |
-| AI request: click → answer in bubble (mock answers after 1500 ms) | 3 | 1517 | 1510 | 1519 |
-| pen-up → ✓ mark | 1 | 472 | 472 | 472 |
-| pen-up → ✗ mark | 1 | 2429 | 2429 | 2429 |
-| pen-up → negative comment | 1 | 2429 | 2429 | 2429 |
-| pen-up → mascot looks at the line (checking) | 3 | 3 | 3 | 3 |
+| typed line: Escape → ✗ mark | 4 | 33 | 16 | 39 |
+| typed line: Escape → tutor bubble | 4 | 231 | 227 | 248 |
+| AI request: click → "thinking" bubble | 3 | 4 | 3 | 8 |
+| AI request: click → mascot thinks | 3 | 4 | 3 | 8 |
+| AI request: click → answer in bubble (mock answers after 1500 ms) | 3 | 1526 | 1525 | 1530 |
+| pen-up → ✓ mark | 1 | 468 | 468 | 468 |
+| pen-up → ✗ mark | 1 | 2444 | 2444 | 2444 |
+| pen-up → negative comment | 1 | 2444 | 2444 | 2444 |
+| pen-up → mascot looks at the line (checking) | 3 | 3 | 3 | 4 |
 <!-- measured:end -->
 
 The "answer in bubble" row includes the 1500 ms the mock bridge waits on purpose; the overhead of the app on top of it is the difference.
