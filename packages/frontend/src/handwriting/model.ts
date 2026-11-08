@@ -2,6 +2,8 @@ import weights from './model/weights.json';
 import type { Candidate, Stroke } from './types';
 import { rasterizeSymbol } from './raster';
 import { CALIBRATION } from './calibration';
+import type { PersonalCalibrationProfile } from './personalCalibration';
+import { applyCalibrationBlending } from './personalCalibration';
 
 // Decode without atob/Buffer so the exact same implementation runs in browsers and Node.
 function decode(encoded: string): Float32Array {
@@ -69,11 +71,15 @@ export function classifyRaster(input: Float32Array): Candidate[] {
   return softmax(classifyLogits(input), 1);
 }
 
-/** Temperature-scaled top three used by the live recognizer. */
-export function classifyRasterCalibrated(input: Float32Array): Candidate[] {
-  return softmax(classifyLogits(input), CALIBRATION.temperature);
+/** Temperature-scaled top three used by the live recognizer, with optional personal calibration blending. */
+export function classifyRasterCalibrated(input: Float32Array, calibration?: PersonalCalibrationProfile | null): Candidate[] {
+  const logits = classifyLogits(input);
+  if (calibration && calibration.samples) {
+    applyCalibrationBlending(logits, input, calibration);
+  }
+  return softmax(logits, CALIBRATION.temperature);
 }
 
-export function recognizeSymbol(strokes: readonly Stroke[]): Candidate[] {
-  return classifyRasterCalibrated(rasterizeSymbol(strokes));
+export function recognizeSymbol(strokes: readonly Stroke[], calibration?: PersonalCalibrationProfile | null): Candidate[] {
+  return classifyRasterCalibrated(rasterizeSymbol(strokes), calibration);
 }

@@ -13,6 +13,8 @@ import { Board, type BoardHandle } from './Board';
 import { unitAliasesFor } from './handwriting/units';
 import { applyResponse, commitStudent, correctInk, editTask, fingerprint, newBoard, removeAnnotation, toggleInkContext, stableMathCandidate, type BoardState } from './boardState';
 import { createHandwritingRecognizer } from './handwriting';
+import { PersonalCalibrationModal } from './handwriting/PersonalCalibrationModal';
+import { clearPersonalCalibration, exportPersonalCalibrationJson, getPersonalSampleCount } from './handwriting/personalCalibration';
 import { bridge, BridgeError, type ProviderEntry } from './api';
 import { messages, errorKeys, type MessageKey } from './i18n';
 import { BOARD_PATTERNS, DEFAULT_TOOLS, load, save, type Saved, type Settings } from './storage';
@@ -161,6 +163,33 @@ export function App() {
   const [message, setMessage] = useState<TutorMessage | null>(() => ({ id: 'welcome', kind: 'info', text: t.taskEmpty }));
   const [tutorMenu, setTutorMenu] = useState(false);
   const [colorLegendOpen, setColorLegendOpen] = useState(false);
+  const [calibrationOpen, setCalibrationOpen] = useState(false);
+  const [calibrationCount, setCalibrationCount] = useState(() => getPersonalSampleCount());
+  const [showCalibrationPrompt, setShowCalibrationPrompt] = useState(() => {
+    try {
+      if (typeof localStorage === 'undefined') return false;
+      return !localStorage.getItem('omtop-handwriting-calibration-prompted') && getPersonalSampleCount() === 0;
+    } catch {
+      return false;
+    }
+  });
+
+  const handleExportCalibration = useCallback(() => {
+    const json = exportPersonalCalibrationJson();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'openmathtutor-handwriting-calibration.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleDeleteCalibration = useCallback(() => {
+    clearPersonalCalibration();
+    setCalibrationCount(0);
+    recognizers.current.forEach(r => r.clear());
+  }, []);
 
   const [bridgeChecked, setBridgeChecked] = useState(false);
   const [testNotice, setTestNotice] = useState('');
@@ -385,7 +414,11 @@ export function App() {
     const current = live.current.boards.find(b => b.id === live.current.activeId)!;
     const recognizer = recognizerFor(current.id);
     const next = commitStudent(current, elements, files, els => recognizer.recognize(els, {
-      unitAliases: unitAliasesFor(current.expected?.unit, current.statement), expectedUnit: current.expected?.unit }));
+      unitAliases: unitAliasesFor(current.expected?.unit, current.statement),
+      expectedUnit: current.expected?.unit,
+      taskPrompt: current.statement,
+      previousLines: current.steps.map(s => s.latexGuess).filter(Boolean),
+    }));
     if (next.revision === current.revision) { if (next !== current) updateBoard(next); return; }
     boardEdited(); setStatus('waiting'); updateBoard(next); schedule(next);
   }
@@ -930,6 +963,20 @@ export function App() {
           <Icon name="settings" /></button>
         </div>
         {alertChip && <div className="hud-chip" aria-live="polite">{alertChip}</div>}
+        {showCalibrationPrompt && settings.defaultTool === 'freedraw' && (
+          <div className="hud-chip calibration-invite" data-testid="calibration-invite" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>{t.firstPenCalibrationPrompt}</span>
+            <button type="button" className="primary" style={{ padding: '2px 8px', fontSize: '12px' }} onClick={() => {
+              try { localStorage.setItem('omtop-handwriting-calibration-prompted', '1'); } catch {}
+              setShowCalibrationPrompt(false);
+              setCalibrationOpen(true);
+            }}>{t.startCalibration}</button>
+            <button type="button" className="close-btn" style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => {
+              try { localStorage.setItem('omtop-handwriting-calibration-prompted', '1'); } catch {}
+              setShowCalibrationPrompt(false);
+            }}>×</button>
+          </div>
+        )}
       </div>
       <aside className={`settings-pop${settingsOpen ? ' open' : ''}`} aria-label={t.settings}>
         <div className="settings-header"><h2>{t.settings}</h2><button className="close-btn" aria-label={t.close} onClick={() => setSettingsOpen(false)}>×</button></div>
@@ -1006,6 +1053,29 @@ export function App() {
           {voice.warning && <p className="warning" role="alert">{t[voice.warning]}</p>}
         </section>
 
+        <section className="settings-section" aria-label={t.calibrateHandwriting}>
+          <h3>{t.calibrateHandwriting}</h3>
+          <p className="muted" style={{ margin: '0 0 var(--space-2)', fontSize: '13px' }}>
+            {settings.locale === 'cs'
+              ? 'Krátká kalibrace (~16 znaků) přímo na tabuli pro spolehlivější čtení rukopisu. Vzorky se ukládají pouze v tomto prohlížeči.'
+              : 'Short calibration (~16 characters) directly on the board for reliable handwriting reading. Samples stay in this browser.'}
+          </p>
+          <button type="button" className="primary" data-testid="calibrate-handwriting-btn" onClick={() => { setCalibrationOpen(true); setSettingsOpen(false); }}>
+            {t.calibrateHandwriting}
+          </button>
+          <div className="handwriting-calibration-info" style={{ marginTop: 'var(--space-2)', fontSize: '13px', color: 'var(--muted)' }}>
+            {t.calibrationStoredCount} <strong>{calibrationCount}</strong>
+          </div>
+          <div className="row" style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+            <button type="button" data-testid="export-calibration-btn" onClick={handleExportCalibration} disabled={calibrationCount === 0}>
+              {t.exportCalibration}
+            </button>
+            <button type="button" className="stop" data-testid="delete-calibration-btn" onClick={handleDeleteCalibration} disabled={calibrationCount === 0}>
+              {t.deleteCalibration}
+            </button>
+          </div>
+        </section>
+
         <section className="settings-section" aria-label={t.settingsSectionData || 'Data a kurz'}>
           <h3>{t.settingsSectionData || 'Data a kurz'}</h3>
           <button onClick={() => { configure({ activeTrackId: '', onboardingDismissed: false }); setSettingsOpen(false); }}>{t.pickCourseAgain}</button>
@@ -1078,6 +1148,15 @@ export function App() {
         onChoice={choice => void tutorChoice(choice)} />
     </div>
     <ColorLegendDialog open={colorLegendOpen} onClose={() => setColorLegendOpen(false)} locale={settings.locale} t={t} />
+    <PersonalCalibrationModal
+      isOpen={calibrationOpen}
+      locale={settings.locale}
+      onClose={() => {
+        setCalibrationOpen(false);
+        setCalibrationCount(getPersonalSampleCount());
+        recognizers.current.forEach(r => r.clear());
+      }}
+    />
   </div>;
 }
 
