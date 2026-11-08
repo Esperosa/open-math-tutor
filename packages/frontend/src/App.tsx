@@ -56,6 +56,52 @@ import { ColorLegendDialog } from './ColorLegend';
 type Mode = ContinueLessonRequest['mode'];
 type ContinueLessonExtra = Pick<ContinueLessonRequest, 'studentMessage' | 'curriculumContext' | 'retrievedContext' | 'learnerContext' | 'conversation'>;
 const hashKey = (key: string) => [...key].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7);
+
+function translateTutorMessage(
+  msg: TutorMessage,
+  nextLoc: Settings['locale'],
+  curBoard: BoardState | undefined,
+  canReq: boolean,
+  autoMode: boolean,
+): TutorMessage {
+  if (msg.id === 'welcome') return { ...msg, text: messages[nextLoc].taskEmpty };
+  if (msg.id.startsWith('lesson-')) {
+    const skill = catalog.skills.find(sk => sk.id === curBoard?.skillId);
+    const intro = curBoard?.expected ? messages[nextLoc].lessonStart : skill?.drawing ? messages[nextLoc].lessonDrawing : (canReq && autoMode ? messages[nextLoc].lessonAiChecked : messages[nextLoc].lessonUnchecked);
+    const greeting = intro.replace('{skill}', skill?.title[nextLoc] ?? curBoard?.topic ?? '');
+    return { ...msg, text: greeting };
+  }
+  if (msg.id.startsWith('status-')) {
+    const status = msg.id.slice('status-'.length);
+    const key = status === 'cancelled' ? 'cancelledChat' : status === 'bridgeUnavailable' ? 'offline' : status as MessageKey;
+    return { ...msg, text: messages[nextLoc][key] || messages[nextLoc].offline };
+  }
+  if (msg.id.startsWith('test-')) return { ...msg, text: messages[nextLoc].testReady };
+  if (msg.id.startsWith('self-')) return { ...msg, text: messages[nextLoc].selfNoted };
+  if (msg.id.startsWith('board-') || msg.id.startsWith('notes-')) return { ...msg, text: messages[nextLoc].notesSaved };
+  if (msg.id.startsWith('thinking-')) return { ...msg, text: messages[nextLoc].thinking };
+  if (msg.id.startsWith('noai-')) return { ...msg, text: messages[nextLoc].aiNotConnected };
+  if (msg.kind === 'check_in') return { ...msg, text: messages[nextLoc].checkInPrompt };
+  if (msg.kind === 'wrong') {
+    const reason = msg.reason;
+    const coachText = coachLine(
+      reason ? { kind: 'wrong_step', reason, key: msg.id, n: 1 } : { kind: 'wrong_final', key: msg.id, n: 1 },
+      nextLoc,
+      hashKey(msg.id),
+    );
+    return { ...msg, text: coachText || msg.text };
+  }
+  if (msg.kind === 'solved') {
+    const coachText = coachLine({ kind: 'solved', key: msg.id, n: 1 }, nextLoc, hashKey(msg.id));
+    return { ...msg, text: coachText || msg.text };
+  }
+  if (msg.kind === 'unclear') {
+    const coachText = coachLine({ kind: 'unclear', key: msg.id, n: 1 }, nextLoc, hashKey(msg.id));
+    return { ...msg, text: coachText || msg.text };
+  }
+  return msg;
+}
+
 /** Bounded, untrusted local recognizer hints; the image crop stays the primary source. */
 function inkHints(steps: readonly BoardState['steps'][number][]) {
   return steps.filter(step => step.origin === 'ink' && step.latexGuess.trim() && step.symbols?.length)
@@ -893,7 +939,7 @@ export function App() {
           <label>{t.language}<select value={settings.locale} onChange={e => {
             const nextLoc = e.target.value as Settings['locale'];
             configure({ locale: nextLoc, voiceURI: '' });
-            if (message?.id === 'welcome') setMessage({ id: 'welcome', kind: 'info', text: messages[nextLoc].taskEmpty });
+            if (message) setMessage(translateTutorMessage(message, nextLoc, board, canRequest, settings.auto));
           }}>
             <option value="cs">Čeština</option><option value="en">English</option></select></label>
           <button onClick={() => configure({ theme: settings.theme === 'light' ? 'dark' : 'light' })}>{settings.theme === 'light' ? t.dark : t.light}</button>

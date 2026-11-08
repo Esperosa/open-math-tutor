@@ -103,6 +103,8 @@ const OVERRIDES: Record<string, { ranges: Ranges; derived: Record<string, string
   "quadratic-eq-8": { ranges: { r1: [2, 6], r2: [1, 5], b: [-5, 5], c: [2, 30] }, derived: { b: "{r2}-{r1}", c: "{r1}*{r2}" } },
   "quadratic-eq-9": { ranges: { r: [2, 6], b: [-12, -4], c: [4, 36] }, derived: { b: "0-2*{r}", c: "{r}*{r}" } },
   "quadratic-eq-10": { ranges: { k: [1, 5], c: [2, 50] }, derived: { c: "2*{k}*{k}" } },
+  "pythagoras-7": { ranges: { a: [2, 7], b: [2, 7] }, derived: { u: "2*{a}", v: "2*{b}" } },
+  "ch-stoichiometry-7": { ranges: { a: [1, 5] }, derived: { b: "2*{a}" } },
 };
 
 export const extraTopics: Topic[] = [];
@@ -993,7 +995,7 @@ topic("geometrie", "Geometrie", "Geometry", [
         "A square has side {a} cm. Find the square of its diagonal."
       ],
       [
-        "Kosočtverec má úhlopříčky délek 2*{a} cm a 2*{b} cm. Urči druhou mocninu délky jeho strany.",
+        "Kosočtverec má úhlopříčky délek {u} cm a {v} cm. Urči druhou mocninu délky jeho strany.",
         {
           "a": [
             2,
@@ -1004,7 +1006,7 @@ topic("geometrie", "Geometrie", "Geometry", [
             7
           ]
         },
-        "A rhombus has diagonals of lengths 2*{a} cm and 2*{b} cm. Find the square of its side length."
+        "A rhombus has diagonals of lengths {u} cm and {v} cm. Find the square of its side length."
       ],
       [
         "Žebřík délky {c} m dosahuje do výšky {a} m. Urči druhou mocninu vzdálenosti paty žebříku od zdi.",
@@ -7315,14 +7317,14 @@ topic("ch-latkove-mnozstvi", "Látkové množství a roztoky", "Amount of substa
         "CaCO3 -> CaO + CO2. How many moles of CaO from decomposition of {a} mol of CaCO3?"
       ],
       [
-        "2 H₂ + O₂ → 2 H₂O. Kolik molů kyslíku O₂ je potřeba na reakci s 2*{a} moly vodíku?",
+        "2 H₂ + O₂ → 2 H₂O. Kolik molů kyslíku O₂ je potřeba na reakci s {b} moly vodíku?",
         {
           "a": [
             1,
             5
           ]
         },
-        "2 H2 + O2 -> 2 H2O. How many moles of O2 needed to react with 2*{a} moles of H2?"
+        "2 H2 + O2 -> 2 H2O. How many moles of O2 needed to react with {b} moles of H2?"
       ],
       [
         "C + O₂ → CO₂. Kolik molů oxidu uhličitého vznikne z {a} molů uhlíku?",
