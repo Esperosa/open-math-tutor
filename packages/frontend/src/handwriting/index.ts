@@ -165,7 +165,7 @@ export function createHandwritingRecognizer(): {
               || candidates[0].probability - candidates[1].probability < margin };
         });
         contextualize(symbols, line.symbols.map(s => s.strokes), opts);
-        const parsed = readLine(symbols, { unitAliases: opts.unitAliases, expectedUnit: opts.expectedUnit }), alternatives: Alternative[] = [];
+        const parsed = readLine(symbols, { unitAliases: opts.unitAliases, expectedUnit: opts.expectedUnit, taskPrompt: opts.taskPrompt, previousLines: opts.previousLines }), alternatives: Alternative[] = [];
         if (parsed.contextualized && parsed.rawText && !alternatives.some(a => a.text === parsed.rawText)) {
           alternatives.push({ text: parsed.rawText, confidence: parsed.rawConfidence });
         }

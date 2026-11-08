@@ -68,4 +68,8 @@ export interface RecognitionOptions {
   viewport?: { zoom: number; scrollX: number; scrollY: number; offsetLeft?: number; offsetTop?: number };
   confidenceThreshold?: number;
   marginThreshold?: number;
+  /** Task assignment prompt to supply a weak-to-medium transcription prior. */
+  taskPrompt?: string;
+  /** Preceding lines on the board to supply continuity priors. */
+  previousLines?: readonly string[];
 }
