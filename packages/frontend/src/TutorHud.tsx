@@ -115,7 +115,7 @@ export function TutorHud(p: Props) {
     style={{ transform: `translate(${visit.x}px, ${visit.y}px)`, ...(visit.snap ? { transition: 'none' } : travel ? { transitionDuration: `${Math.round(Math.min(700, Math.max(520, 420 + travel * 0.5)))}ms` } : {}) }}
     onTransitionEnd={e => { if (e.target === e.currentTarget && e.propertyName === 'transform') visit.finishReturn(); }}>
     {message && visible && <div className={`tutor-bubble tutor-bubble-${message.kind}`} role="group" data-testid="tutor-bubble" data-kind={message.kind} data-message-id={message.id}>
-      <button type="button" className="tutor-bubble-close" aria-label={t.close} onClick={() => p.onChoice('dismiss')} disabled={visit.away}>×</button>
+      <button type="button" className="tutor-bubble-close" aria-label={t.closeBubble} onClick={() => p.onChoice('dismiss')} disabled={visit.away}>×</button>
       {message.kind === 'thinking'
         ? <p className="tutor-handwriting tutor-thinking-line" role="status">{(p.slow ? cm.stillThinking : message.text).replace(/…$/, '')}<span className="think-dots" aria-hidden="true"><i /><i /><i /></span></p>
         : <BubbleText id={message.id} text={message.text} count={count} away={visit.away} more={t.moreText} less={t.lessText} />}
