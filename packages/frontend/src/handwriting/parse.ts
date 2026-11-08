@@ -12,9 +12,12 @@ export function normalizeExpression(text: string): string {
   // (Kc, ohm, mol, km, kWh, ...) must stay intact so the answer checker can
   // read them; turning them into K*c or m*o*l would make a correct answer
   // unreadable.
-  // The recogniser confuses a handwritten zero with the lowercase letter o.
-  // Repair it only beside digits or a decimal separator so unit words (mol, ohm) survive.
+  // The recogniser confuses a handwritten zero with the lowercase letter o,
+  // and handwritten one with the lowercase letter l.
+  // Repair it only beside digits or operators/separators so unit words survive.
   return text.replace(/(^|[^a-zA-Z])[oO](?=\d|[,.]\d|[^a-zA-Z]|$)/g, '$10')
+    .replace(/(^|[+\-*/×÷=<>.,])[lL](?=\d|[+\-*/×÷=<>.,]|$)/g, '$11')
+    .replace(/(\d)[lL](?=\d|[+\-*/×÷=<>.,]|$)/g, '$11')
     .replace(/(\d)x(?=\d)/g, '$1*')
     .replace(/(\d)([xyab(])/g, '$1*$2').replace(/\)([\dxyab(])/g, ')*$1')
     .replace(/([xyab])(?=[xyab(])/g, '$1*')
@@ -61,6 +64,8 @@ function layout(input: Token[], depth = 0): string {
     while (i + 1 < tokens.length) {
       const next = tokens[i + 1];
       if (!/[0-9a-zA-Z)]$/.test(previous.text) && !superscript.length) break;
+      // An exponent must start with a digit, letter, or open parenthesis, never an operator
+      if (!superscript.length && !/^[0-9a-zA-Z(]/.test(next.text)) break;
       if (!/^[0-9a-zA-Z()+-]+$/.test(next.text) || centerY(next.bbox) >= baseline - h * .55
         || next.bbox.height > h * .8 || bottom(next.bbox) >= baseline - h * .32
         || next.bbox.x - right(previous.bbox) > h * .9 || next.bbox.x < centerX(token.bbox)) break;
