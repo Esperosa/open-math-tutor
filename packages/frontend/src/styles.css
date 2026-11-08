@@ -110,7 +110,7 @@ details > label { margin: var(--space-3) 0; }
 .track-breadcrumb-path { flex: 1; overflow-wrap: anywhere; }
 .track-breadcrumb-path span { color: var(--muted); }
 .track-breadcrumb-progress { color: var(--muted); font-variant-numeric: tabular-nums; }
-.track-breadcrumb-change { font-size: 12px; padding: 6px 10px; min-height: 0; }
+.track-breadcrumb-change { font-size: 12px; padding: 8px 12px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 
 /* ---- HUD layout: the board fills the viewport, everything else floats on top ---- */
 html, body, #root { height: 100%; }
@@ -136,7 +136,7 @@ body { overflow: hidden; }
 .hud-top-right > * { pointer-events: auto; }
 .icon-btn { display: inline-flex; align-items: center; gap: var(--space-2); padding: 8px 10px; }
 .hud-chip { padding: var(--space-2) var(--space-3); font-size: 12px; max-width: 320px; }
-.hud-chip button { min-height: 32px; padding: 4px 8px; margin-left: var(--space-2); }
+.hud-chip button { min-height: 44px; padding: 6px 14px; margin-left: var(--space-2); }
 .settings-pop, .drawer {
   position: absolute; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); overflow: auto;
   visibility: hidden; opacity: 0; transition: transform var(--duration-base) var(--ease-standard), opacity var(--duration-base) var(--ease-standard), visibility 0s linear var(--duration-base);
@@ -144,7 +144,7 @@ body { overflow: hidden; }
 .settings-pop { top: 64px; right: 12px; width: 320px; max-height: calc(100vh - 160px); transform: translateY(-8px); z-index: 25; }
 .settings-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2); }
 .settings-header h2 { margin: 0; font-size: 18px; }
-.settings-header .close-btn { min-height: 28px; width: 28px; padding: 0; display: grid; place-items: center; border-color: transparent; background: transparent; font-size: 18px; cursor: pointer; }
+.settings-header .close-btn { min-height: 44px; min-width: 44px; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border-color: transparent; background: transparent; font-size: 20px; cursor: pointer; }
 .drawer { top: 12px; bottom: 12px; left: 68px; width: 340px; transform: translateX(-16px); }
 .settings-pop.open, .drawer.open { visibility: visible; opacity: 1; transform: none; transition-delay: 0s; }
 .drawer section[hidden] { display: none; }
@@ -249,7 +249,31 @@ body { overflow: hidden; }
 .tutor-hud > * { pointer-events: auto; }
 .tutor-button { width: 72px; height: 72px; min-height: 0; padding: 0; border-radius: 50%; display: grid; place-items: center; background: var(--glass-surface);
   border: 1px solid var(--glass-border); box-shadow: var(--shadow-1); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
-.tutor-bubble { width: 100%; max-height: 40vh; overflow: auto; padding: var(--space-3) var(--space-4); border-left: 4px solid var(--accent); animation: ctx-in var(--duration-base) var(--ease-standard); }
+.tutor-bubble { position: relative; width: 100%; max-height: 40vh; overflow: auto; padding: var(--space-3) 40px var(--space-3) var(--space-4); border-left: 4px solid var(--accent); animation: ctx-in var(--duration-base) var(--ease-standard); }
+.tutor-bubble-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  z-index: 2;
+}
+.tutor-bubble-close:hover {
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.06);
+}
 .tutor-bubble p { margin: 0 0 var(--space-2); font-weight: 500; white-space: pre-line; }
 .tutor-bubble .row { margin-top: 0; }
 .tutor-bubble-wrong { border-left-color: #c47777; }
@@ -267,7 +291,7 @@ body { overflow: hidden; }
 /* ---- task card: read-only, the work happens on the board ---- */
 .task-card { position: relative; padding: var(--space-3) 40px var(--space-3) var(--space-3); }
 .task-text { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.4; white-space: pre-line; }
-.task-edit { position: absolute; top: 6px; right: 6px; min-height: 28px; width: 28px; padding: 0; border-color: transparent; background: transparent; }
+.task-edit { position: absolute; top: 0; right: 0; min-height: 44px; min-width: 44px; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border-color: transparent; background: transparent; cursor: pointer; }
 .task-card label { padding-right: 0; }
 
 /* Excalidraw's own library button would sit under our top-right buttons. */
@@ -297,7 +321,7 @@ body { overflow: hidden; }
 .link-btn { background: none; border: none; min-height: 0; padding: 0 0 0 6px; color: var(--accent); text-decoration: underline; font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 @media (max-width: 900px) {
-  .hud-top-left { top: 64px; width: calc(100vw - 150px); min-width: 0; }
+  .hud-top-left { top: 64px; width: min(340px, calc(100vw - 300px)); min-width: 0; }
   .settings-pop { width: min(320px, calc(100vw - 24px)); }
   .calculator { right: 12px; top: 64px; }
 }
@@ -309,7 +333,7 @@ body { overflow: hidden; }
 .hud-top-left { width: min(340px, calc(100vw - 300px)); }
 .track-breadcrumb { flex-wrap: wrap; }
 .track-breadcrumb-path { flex: 1 1 100%; overflow-wrap: normal; word-break: normal; }
-@media (max-width: 900px) { .hud-top-left { width: calc(100vw - 150px); min-width: 0; } }
+@media (max-width: 700px) and (min-height: 501px) { .hud-top-left { width: calc(100vw - 150px); min-width: 0; } }
 @media (max-width: 700px) { .hud-chip { display: none; } }
 
 /* ---- geometry rules that keep every floating thing out of every other one ---- */
@@ -613,6 +637,7 @@ body:has(.excalidraw .dropdown-menu) .hud-top-left { opacity: 0; pointer-events:
    deletion handles. They never intercept the student's text or pen strokes. */
 .teacher-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
 .teacher-note-delete { position: absolute; pointer-events: auto; width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(8, 127, 140, 0.35); background: var(--surface, #fff); color: #087f8c; opacity: 0.85; border-radius: 50%; line-height: 1; box-shadow: 0 1px 3px rgba(0,0,0,0.15); cursor: pointer; transition: opacity 0.15s, transform 0.15s, border-color 0.15s; }
+.teacher-note-delete::before { content: ""; position: absolute; inset: -6px; min-width: 44px; min-height: 44px; }
 .teacher-note-delete:hover, .teacher-note-delete:focus-visible { opacity: 1; border-color: #087f8c; background: var(--surface, #fff); transform: scale(1.1); }
 [data-theme="dark"] .teacher-note-delete { background: #1f2a2a; color: #79d5df; border-color: rgba(121, 213, 223, 0.4); }
 
@@ -701,23 +726,32 @@ body:has(.excalidraw .dropdown-menu) .hud-top-left { opacity: 0; pointer-events:
 .layer-badge-legend-btn {
   pointer-events: auto;
   background: none;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  width: 16px;
-  height: 16px;
-  min-height: 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   display: inline-grid;
   place-items: center;
-  font-size: 10px;
-  font-weight: 700;
   cursor: pointer;
   color: inherit;
-  margin-left: 6px;
+  margin-left: 2px;
   vertical-align: middle;
+}
+.layer-badge-legend-btn > span {
+  width: 16px;
+  height: 16px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
   line-height: 1;
 }
-.layer-badge-legend-btn:hover {
+.layer-badge-legend-btn:hover > span {
   background: rgba(0, 0, 0, 0.08);
 }
 .color-legend-menu-btn {
@@ -1314,6 +1348,54 @@ body:has(.excalidraw .dropdown-menu) .hud-top-left { opacity: 0; pointer-events:
      the settings row and the teacher bubble rather than between them. */
   .excalidraw .mobile-misc-tools-container { top: 0; flex-direction: row; }
 }
+@media (max-height: 500px) {
+  .hud-top-left {
+    top: 64px;
+    width: min(300px, calc(100vw - 520px));
+    max-width: min(300px, calc(100vw - 520px));
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+  }
+  .tutor-hud {
+    bottom: 8px;
+    right: 16px;
+    width: auto;
+    max-width: calc(100vw - 80px);
+    pointer-events: none;
+  }
+  .tutor-dock {
+    position: absolute;
+    bottom: 76px;
+    right: 0;
+  }
+  .tutor-button {
+    width: 60px;
+    height: 60px;
+    min-height: 60px;
+    flex-shrink: 0;
+  }
+  .tutor-bubble {
+    position: absolute;
+    bottom: 0;
+    right: 124px;
+    width: min(280px, calc(100vw - 540px));
+    max-width: 280px;
+    max-height: 115px;
+    padding: var(--space-2) 36px var(--space-2) var(--space-3);
+  }
+  .tutor-menu {
+    position: absolute;
+    bottom: 140px;
+    right: 0;
+    width: min(320px, calc(100vw - 80px));
+    max-height: calc(100vh - 150px);
+    overflow-y: auto;
+  }
+  .settings-pop {
+    top: 60px;
+    max-height: calc(100vh - 70px);
+  }
+}
 @media (max-width: 700px) {
-  .hud-top-left { max-height: 200px; overflow-y: auto; }
+  .hud-top-left { max-height: 240px; overflow-y: auto; }
 }

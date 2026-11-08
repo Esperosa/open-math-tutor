@@ -607,7 +607,7 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
       {t.aiBadge} · {t.annotations}
       <button type="button" className="layer-badge-legend-btn" data-testid="layer-badge-legend-btn"
         onClick={onOpenColorLegend} title={t.colorLegendBtn} aria-label={t.colorLegendBtn}>
-        ?
+        <span>?</span>
       </button>
     </span>}
   </div>;
