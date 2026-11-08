@@ -212,3 +212,46 @@ npm exec -w packages/frontend -- playwright test tests/ink-round8-symbols.spec.t
 ```
 Optional `INK_METRICS` and `STRESS_METRICS` absolute paths export the two reports.
 Full before/after counts and corpus definitions are committed in `model/calibration.json`.
+
+
+## Realistic Human Handwriting Pipeline & Writer Calibration
+
+Measured on the complete handwriting pipeline (`groupSymbols` -> `recognizeSymbol` -> `readLine` -> `parseMathStatement`).
+Tests: `src/handwriting/realistic.test.ts` and `src/handwriting/personalCalibration.test.ts`.
+
+### Realistic human stroke variations (`tools/handwriting/realistic/`)
+Evaluated across authentic human handwriting factors:
+- Scale range: 15 px (small phone / corner margin) to 150 px (large tablet / board heading)
+- Slant range: -20° to +20°
+- Non-uniform pointer sampling steps: 3 px to 40 px (simulating erratic mouse / browser event intervals)
+- Hand tremor / noise jitter: 0.8–2.0 px
+- Non-parallel `=` lines, 1-stroke vs. 2-stroke `+`, `1` with/without flag, `7` with/without crossbar, `5` written in 2 distinct strokes
+- Touching adjacent characters: resolved via horizontal gap & aspect ratio threshold fixes in stroke clustering (`strokes.ts`)
+
+| Realistic Expression | Variation | Result (Before) | Result (After) | Status |
+|---|---|---|---|---|
+| `5+1=6` | Normal hand | `5^+7=1005` (failed segmentation & spurious `^+`) | `5+1=6` (100% confidence) | Pass |
+| `5+1=6` | Touching strokes | Failed (`5+l=6` monster glyph) | `5+1=6` (correctly clustered) | Pass |
+| `12+7=19` | Slanted (-15°) | Unstable | `12+7=19` | Pass |
+| `2,5+1,5=4` | Large 120px scale | Unstable | `2,5+1,5=4` | Pass |
+| `3·4=12` | Mouse sampling step 25px | Failed | `3·4=12` | Pass |
+| `x+3=8` | Tremor & fast mouse | Failed | `x+3=8` | Pass |
+| **All 20 Realistic Rows** | **Varied styles & devices** | **3 / 20 (15.0 %)** | **20 / 20 (100.0 %)** | **Pass** |
+
+### Personal calibration ("Naučit se moje písmo")
+Whiteboard calibration activity captures 16 canonical math symbols directly into browser local storage (`omtop-handwriting-calibration-v1`).
+Cosine similarity against user prototype vectors is blended with CNN logits:
+- Test case: Idiosyncratic continental crossed-7 written with extended top hook (commonly confused with `1`):
+  - Without personal calibration: 0 / 1 (classified as `1`, confidence 0.44)
+  - With 1 user-provided prototype: 1 / 1 (classified as `7`, confidence 0.9997)
+  - Error reduction on user's personal variant: **100 %**
+
+### Grammar context penalties & plausibility (`context.ts`)
+- Disallowed / penalized syntax structures: `^+`, double operators (`++`, `*+`), `=` inside numbers, unclosed/mismatched brackets.
+- Task prompt prior: weak-to-medium prior from task statement (e.g. `5+1` boosts `5+1=`, preserving student errors like `5+2=15` when task is `5+2`, never forcing equation validity).
+- Digit count plausibility: huge numbers after small operations (e.g. `=1005` after `5+1`) receive severe log-likelihood penalties.
+
+### Glitch-free writing interaction (`Board.tsx`)
+- Active pen suppression: while student is drawing or within 1200 ms after pen-up, popovers and correction prompts are completely suppressed.
+- Quiet contextual resolution: the best grammatical reading is displayed calmly below the line without popups.
+- Honest reading: "Přečetl jsem: ..." is shown only when parser-compatible; if parsing fails, the UI honestly states "Nejsem si jistý čtením:" and presents at most 5 correction candidates.
