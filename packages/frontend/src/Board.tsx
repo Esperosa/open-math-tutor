@@ -59,6 +59,14 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
   const [symbolPage, setSymbolPage] = useState<Record<string, number>>({});
   const [highlightedSymbol, setHighlightedSymbol] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [dismissedPopovers, setDismissedPopovers] = useState<Set<string>>(new Set());
+  const [penActive, setPenActive] = useState(false);
+  const penActiveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (penActiveTimer.current) clearTimeout(penActiveTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     const handleOutsidePointer = (e: PointerEvent) => {
@@ -350,11 +358,20 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
   }
   function pointerDownHandler() {
     cancelAnimationFrame(releaseFrame.current);
+    if (penActiveTimer.current) {
+      clearTimeout(penActiveTimer.current);
+      penActiveTimer.current = null;
+    }
+    setPenActive(true);
     pointerDown.current = true;
     onBusy(true);
   }
   function pointerUpHandler() {
     cancelHold();
+    if (penActiveTimer.current) clearTimeout(penActiveTimer.current);
+    penActiveTimer.current = setTimeout(() => {
+      setPenActive(false);
+    }, 1200);
     // Excalidraw finishes its stroke after this callback; commit the finalized scene next frame.
     releaseFrame.current = requestAnimationFrame(() => {
       pointerDown.current = false;
@@ -412,12 +429,17 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
       {board.steps.filter(step => step.origin === 'ink' && step.latexGuess.trim()).map(step => {
         if (dismissedPopovers.has(step.stepId)) return null;
         const isPopoverOpen = popoverStepId === step.stepId;
-        if (!step.uncertain) {
+        const isWriting = pointerDown.current || penActive;
+        if (!step.uncertain || isWriting) {
           return <div key={step.stepId} className="ink-reading"
             data-testid={`ink-reading-${step.stepId}`} data-confidence={step.confidence ?? 0}
             style={{ left: (step.box.x + view.x) * view.zoom, top: (step.box.y + step.box.height + 4 + view.y) * view.zoom }}>
             <span className="ink-read-label">
-              {t.handwritingRead} <strong>{step.latexGuess}</strong>
+              {step.parserCompatible !== false ? <>
+                {t.handwritingRead} <strong>{step.latexGuess}</strong>
+              </> : <>
+                {t.handwritingUncertainNotSure} <strong>{step.latexGuess}</strong>
+              </>}
               {step.rawText && step.rawText !== step.latexGuess && <span className="ink-raw-reading"> ({t.handwritingOriginally}: {step.rawText})</span>}
             </span>
             {step.rawText && step.contextualText && <button type="button" className="ink-context-toggle"
@@ -437,7 +459,7 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
         const guides = pickSymbolGuidesForSymbols(step.symbols);
         const candidates = pagedSymbols.flatMap(({ symbol, index }) =>
           correctionLabels(symbol).map(label => ({ symbol, index, label }))
-        );
+        ).slice(0, 5);
 
         // Kolizní umístění vedle/pod řádek (nepřekrývá rukopis ani HUD)
         const zoom = view.zoom;
@@ -485,7 +507,11 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
             style={{ left: Math.round(left), top: Math.round(top) }}>
             <div className="ink-uncertain-header">
               <span className="ink-read-label">
-                {t.handwritingRead} <strong>{step.latexGuess}</strong>
+                {step.parserCompatible !== false ? <>
+                  {t.handwritingRead} <strong>{step.latexGuess}</strong>
+                </> : <>
+                  {t.handwritingUncertainNotSure} <strong>{step.latexGuess}</strong>
+                </>}
                 {step.rawText && step.rawText !== step.latexGuess && <span className="ink-raw-reading"> ({t.handwritingOriginally}: {step.rawText})</span>}
               </span>
               {step.rawText && step.contextualText && <button type="button" className="ink-context-toggle"
@@ -494,7 +520,11 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
                 {step.contextualized ? t.handwritingShowRaw : t.handwritingUseContext}
               </button>}
               <p className="ink-popover-desc">
-                <span className="ink-popover-strong">{t.handwritingUncertain}</span> {t.handwritingUncertainFriendly}
+                {step.parserCompatible !== false ? (
+                  <><span className="ink-popover-strong">{t.handwritingUncertain}</span> {t.handwritingUncertainFriendly}</>
+                ) : (
+                  <span className="ink-popover-strong">{t.handwritingOfferCorrection}</span>
+                )}
               </p>
             </div>
 
