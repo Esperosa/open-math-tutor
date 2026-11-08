@@ -20,18 +20,64 @@ export default defineConfig({
   // The Piper synthesiser worker imports a chunked dependency; ES output is the only format that allows it.
   worker: { format: 'es' },
   server: { port: 5173, strictPort: true },
+  optimizeDeps: {
+    esbuildOptions: {
+      plugins: [
+        {
+          name: 'excalidraw-local-fonts',
+          setup(build) {
+            build.onLoad({ filter: /@excalidraw[\\/]excalidraw.*\.js$/ }, async (args) => {
+              const fs = await import('node:fs/promises');
+              let contents = await fs.readFile(args.path, 'utf8');
+              const bt = String.fromCharCode(96);
+              while (contents.includes('https://esm.sh')) {
+                const start = contents.indexOf('https://esm.sh');
+                const end = contents.indexOf(bt + ');', start);
+                if (end === -1) break;
+                if (contents[start - 1] === bt) {
+                  contents = contents.slice(0, start - 1) + '"/excalidraw-assets/"' + contents.slice(end + 1);
+                } else break;
+              }
+              contents = contents.replaceAll(/https:\/\/esm\.sh\/[^"'\s)]*\/dist\/prod\//g, '/excalidraw-assets/');
+              return { contents, loader: 'js' };
+            });
+          },
+        },
+      ],
+    },
+  },
   plugins: [
+    {
+      name: 'excalidraw-local-fonts',
+      enforce: 'pre',
+      transform(code, id) {
+        if (id.includes('@excalidraw') && code.includes('https://esm.sh')) {
+          const bt = String.fromCharCode(96);
+          let contents = code;
+          while (contents.includes('https://esm.sh')) {
+            const start = contents.indexOf('https://esm.sh');
+            const end = contents.indexOf(bt + ');', start);
+            if (end === -1) break;
+            if (contents[start - 1] === bt) {
+              contents = contents.slice(0, start - 1) + '"/excalidraw-assets/"' + contents.slice(end + 1);
+            } else break;
+          }
+          return contents.replaceAll(/https:\/\/esm\.sh\/[^"'\s)]*\/dist\/prod\//g, '/excalidraw-assets/');
+        }
+      },
+    },
     {
       name: 'serve-excalidraw-fonts',
       configureServer(server) {
         server.middlewares.use(async (req, res, next) => {
-          if (req.url && req.url.startsWith('/excalidraw-assets/fonts/')) {
+          if (req.url && req.url.startsWith('/excalidraw-assets/')) {
             const { createRequire } = await import('node:module');
             const { dirname, resolve } = await import('node:path');
             const { createReadStream, existsSync } = await import('node:fs');
             const reqModule = createRequire(import.meta.url);
             const fontRoot = resolve(dirname(reqModule.resolve('@excalidraw/excalidraw')), 'fonts');
-            const rel = req.url.slice('/excalidraw-assets/fonts/'.length).split('?')[0];
+            let rel = req.url.slice('/excalidraw-assets/'.length).split('?')[0];
+            if (rel.startsWith('fonts/')) rel = rel.slice('fonts/'.length);
             const file = resolve(fontRoot, rel);
             if (existsSync(file)) {
               res.setHeader('Content-Type', file.endsWith('.woff2') ? 'font/woff2' : 'font/woff');
