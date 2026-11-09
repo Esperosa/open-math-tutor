@@ -4,6 +4,8 @@ import { recognizeSymbol } from './model';
 import { CALIBRATION, uncertaintyThreshold } from './calibration';
 import { parseLine } from './parse';
 import { readLine } from './context';
+import { recognizeStrokeLine } from './lineRecognizer';
+import { inferLine } from './lineModel';
 import { loadPersonalCalibration } from './personalCalibration';
 import { bottom, centerY, elementsToStrokes, groupLines, groupSymbols, median, right } from './strokes';
 import type { Alternative, BoardElement, Candidate, RecognitionOptions, RecognizedLine, RecognizedSymbol, Stroke } from './types';
@@ -19,6 +21,24 @@ function stableId(ids: readonly string[]): string {
   let hash = 0xcbf29ce484222325n;
   for (const id of [...ids].sort()) for (const c of `${id.length}:${id}`) hash = BigInt.asUintN(64, (hash ^ BigInt(c.codePointAt(0)!)) * 0x100000001b3n);
   return `hw-${hash.toString(16).padStart(16, '0')}`;
+}
+
+function compatibleReading(text: string, opts: RecognitionOptions): boolean {
+  try { parseMathStatement(text); return true; } catch {
+    const unit = unitFromLine(text);
+    try { if (!unit || !opts.unitAliases?.includes(unit)) return false; parseMathStatement(text.slice(0, -unit.length).trim()); return true; } catch { return false; }
+  }
+}
+
+/** Cache identity only, not an authentication/hash primitive. Bound imported
+ * profiles and avoid copying their raster JSON into every per-row cache key. */
+function calibrationKey(profile: RecognitionOptions['calibrationProfile']): string {
+  if (!profile) return '';
+  const text = JSON.stringify(profile);
+  if (text.length > 8 * 1024 * 1024) throw new RangeError('Personal calibration profile is too large');
+  let a = 0x811c9dc5, b = 0x9e3779b9;
+  for (let i = 0; i < text.length; i++) { a = Math.imul(a ^ text.charCodeAt(i), 16777619); b = Math.imul(b ^ text.charCodeAt(i), 2246822519); }
+  return `:${text.length}:${a >>> 0}:${b >>> 0}`;
 }
 
 function contextualize(symbols: RecognizedSymbol[], symbolStrokes: readonly (readonly Stroke[])[], opts: RecognitionOptions): void {
@@ -111,15 +131,20 @@ export function createHandwritingRecognizer(): {
   recognize: (elements: readonly BoardElement[], opts?: RecognitionOptions) => RecognizedLine[];
   clear: () => void;
   readonly stats: RecognitionStats;
+  readonly lineStats: { inferredRows: number; cachedRows: number };
 } {
   const elementCache = new Map<string, { fingerprint: string; stroke: Stroke | null }>();
   const symbolCache = new Map<string, Candidate[]>();
+  const lineCache = new Map<string, ReturnType<typeof recognizeStrokeLine>>();
+  const inferenceCache = new Map<string, ReturnType<typeof inferLine>>();
   const stats: RecognitionStats = { convertedStrokes: 0, inferredSymbols: 0, cachedSymbols: 0 };
+  const lineStats = { inferredRows: 0, cachedRows: 0 };
   return {
-    stats,
-    clear: () => { elementCache.clear(); symbolCache.clear(); },
+    stats, lineStats,
+    clear: () => { elementCache.clear(); symbolCache.clear(); lineCache.clear(); inferenceCache.clear(); },
     recognize(elements, opts = {}) {
       stats.convertedStrokes = 0; stats.inferredSymbols = 0; stats.cachedSymbols = 0;
+      lineStats.inferredRows = 0; lineStats.cachedRows = 0;
       const threshold = opts.confidenceThreshold, margin = opts.marginThreshold ?? CALIBRATION.marginThreshold;
       if (![threshold ?? .8, margin].every(n => Number.isFinite(n) && n >= 0 && n <= 1)) throw new RangeError('Confidence thresholds must be in [0,1]');
       if (elements.length > 10000) throw new RangeError('At most 10000 board elements per recognition');
@@ -155,8 +180,8 @@ export function createHandwritingRecognizer(): {
       const active = corrected.active.filter(s => !taps.includes(s)), ignored = [...corrected.ignored, ...taps];
       const usedKeys = new Set<string>();
       const calibrationProfile = opts.calibrationProfile !== undefined ? opts.calibrationProfile : (typeof localStorage !== 'undefined' ? loadPersonalCalibration() : null);
-      const calibSuffix = calibrationProfile?.updatedAt ? `:${calibrationProfile.updatedAt}` : '';
-      const recognized = groupLines(groupSymbols(active)).map(line => {
+      const calibSuffix = calibrationKey(calibrationProfile);
+      const recognized = opts.reader === 'ctc' ? [] : groupLines(groupSymbols(active)).map(line => {
         const symbols: RecognizedSymbol[] = line.symbols.map(symbol => {
           const key = JSON.stringify(symbol.strokes.map(s => [s.id, elementCache.get(s.id)!.fingerprint])) + calibSuffix;
           usedKeys.add(key);
@@ -179,18 +204,86 @@ export function createHandwritingRecognizer(): {
           if (alternative.text !== parsed.text && !alternatives.some(a => a.text === alternative.text)) alternatives.push({ text: alternative.text, confidence: alternative.confidence });
         }
         const strokeIds = line.symbols.flatMap(s => s.strokes).sort((a, b) => a.order - b.order).map(s => s.id);
-        let parserCompatible = true;
-        try { parseMathStatement(parsed.text); } catch {
-          const unit = unitFromLine(parsed.text);
-          try { if (!unit || !opts.unitAliases?.includes(unit)) throw new Error('Unsupported unit'); parseMathStatement(parsed.text.slice(0, -unit.length).trim()); } catch { parserCompatible = false; }
-        }
+        const parserCompatible = compatibleReading(parsed.text, opts);
         return { id: stableId(strokeIds), strokeIds, text: parsed.text, confidence: parsed.confidence,
           alternatives: alternatives.sort((a, b) => b.confidence - a.confidence).slice(0, 3), bbox: { ...line.bbox }, symbols, parserCompatible,
           ...(parsed.contextualized ? { rawText: parsed.rawText, contextualized: true } : {}),
           ignoredStrokeIds: ignored.map(s => s.id), crossOutUncertain: corrected.ambiguous.some(s => strokeIds.includes(s.id)), ...(parsed.uncertain || corrected.ambiguous.some(s => strokeIds.includes(s.id)) ? { uncertain: true } : {}) };
       });
       for (const key of symbolCache.keys()) if (!usedKeys.has(key)) symbolCache.delete(key);
-      return recognized;
+      if (opts.reader === 'symbol') return recognized.map(line => ({ ...line, reader: 'symbol' }));
+      const lineKeys = new Set<string>();
+      const inkKeys = new Set<string>();
+      // Row grouping uses raw strokes, not the fragile symbol partition. The
+      // old recognizer above remains an independent fallback/comparison only.
+      const rows = groupLines(active.map(stroke => ({ strokes: [stroke], bbox: stroke.bbox })));
+      const result = rows.flatMap(row => {
+        const strokes = row.symbols.flatMap(s => s.strokes).sort((a, b) => a.order - b.order);
+        const strokeIds = strokes.map(s => s.id);
+        const fallback = recognized.filter(line => line.strokeIds.some(id => strokeIds.includes(id)));
+        // Raw bar-to-row links can join two tightly spaced completed equations.
+        // Preserve independently parsed, vertically disjoint rows, not a single
+        // CTC transcript across their pen chronology. No equation is evaluated.
+        if (opts.reader !== 'ctc' && fallback.length > 1 && fallback.every(l => l.parserCompatible && l.text.includes('='))
+          && fallback.slice(1).every((l, i) => l.bbox.y >= bottom(fallback[i].bbox))) return fallback.map(l => ({ ...l, reader: 'symbol' as const }));
+        if (strokes.length > 256) return opts.reader === 'ctc' ? [] : fallback;
+        const inkKey = JSON.stringify(strokes.map(s => [s.id, elementCache.get(s.id)!.fingerprint]));
+        inkKeys.add(inkKey);
+        if (inferenceCache.has(inkKey)) lineStats.cachedRows++;
+        const key = JSON.stringify([inkKey, calibSuffix,
+          opts.reader, opts.taskPrompt, opts.previousLines, opts.unitAliases, opts.expectedUnit, threshold, margin]);
+        lineKeys.add(key);
+        let reading = lineCache.get(key);
+        if (!reading) {
+          let input = inferenceCache.get(inkKey);
+          if (!input) { input = inferLine(strokes); inferenceCache.set(inkKey, input); lineStats.inferredRows++; }
+          const comparison = opts.reader !== 'ctc' && fallback.length === 1 && fallback[0].symbols.every(s => !s.uncertain) ? fallback[0] : undefined;
+          reading = recognizeStrokeLine(strokes, opts, calibrationProfile, comparison, input); lineCache.set(key, reading);
+        }
+        const best = reading.best;
+        // A low-evidence sequence is not permission to hallucinate a row. The
+        // explicit CTC mode bypasses this gate for honest standalone evaluation.
+        if (!best) return opts.reader === 'ctc' ? [] : fallback.map(line => ({ ...line, reader: 'symbol' as const }));
+        if (opts.reader !== 'ctc' && best.rawConfidence < .80) return fallback.map(line => ({ ...line, reader: 'symbol' as const }));
+        if (opts.reader !== 'ctc' && fallback.length === 1) {
+          const legacy = fallback[0];
+          if (legacy.text === best.text && legacy.symbols.every(s => !s.uncertain)) return [{ ...legacy, reader: 'symbol' as const }];
+          // A different length is precisely the segmenter's known failure mode.
+          // Its high isolated-glyph probabilities cannot veto a CTC split/merge.
+          // Compare raw top-class evidence, not the probability of a spelling
+          // selected by decimal geometry (which is not a neural class decision).
+          const evidence = Math.exp(legacy.symbols.reduce((sum, s) => sum + Math.log(Math.max(1e-12, s.candidates[0].probability)), 0) / Math.max(1, legacy.symbols.length));
+          const fewerUncertain = legacy.symbols.filter(s => s.uncertain).length <= best.symbols.filter(s => s.uncertain).length;
+          const legacyCertain = legacy.symbols.every(s => !s.uncertain);
+          const comparisonText = (text: string) => text.replace(/(\d)\*(?=[xyab(])/g, '$1').replace(/ /g, '');
+          const sameLength = comparisonText(legacy.text).length === comparisonText(best.text).length;
+          const lowTokenEvidence = best.symbols.some((s, i) => /^[0-9a-zA-Z]$/.test(s.label ?? '') && best.rawProbabilities[i] < .8);
+          const caseOnly = comparisonText(legacy.text).toLowerCase() === comparisonText(best.text).toLowerCase();
+          const punctuationGeometry = legacy.symbols.length === best.symbols.length && legacy.symbols.some((s, i) => {
+            const label = s.label ?? s.candidates[0].label, other = best.symbols[i].label ?? '';
+            return label !== other && ['.', ',', '·'].includes(label) && ['.', ',', '·'].includes(other)
+              && Math.max(s.bbox.width, s.bbox.height) < row.bbox.height * .25;
+          });
+          const legacyUnit = unitFromLine(legacy.text), sequenceUnit = unitFromLine(best.text);
+          const knownUnit = legacyUnit && opts.unitAliases?.includes(legacyUnit) && (!sequenceUnit || !opts.unitAliases.includes(sequenceUnit));
+          if ((sameLength && fewerUncertain && evidence > best.rawConfidence && (legacyCertain || lowTokenEvidence || caseOnly || punctuationGeometry))
+            || knownUnit
+            || legacy.symbols.some(s => s.uncertain && ['°', '∅'].includes(s.label ?? s.candidates[0].label))) {
+            return [{ ...legacy, reader: 'symbol' as const }];
+          }
+        }
+        const parserCompatible = compatibleReading(best.text, opts);
+        const crossOutUncertain = corrected.ambiguous.some(s => strokeIds.includes(s.id));
+        const contextualized = best.text !== reading.rawText;
+        return [{ id: stableId(strokeIds), strokeIds, reader: 'ctc' as const, text: best.text, bbox: { ...row.bbox }, symbols: best.symbols,
+          confidence: best.confidence, parserCompatible, crossOutUncertain, ignoredStrokeIds: ignored.map(s => s.id),
+          alternatives: reading.candidates.filter(c => c.text !== best.text).slice(0, 3).map(c => ({ text: c.text, confidence: c.confidence })),
+          ...(contextualized ? { rawText: reading.rawText, contextualized: true } : {}),
+          ...(crossOutUncertain || best.uncertain || best.symbols.some(s => s.uncertain) ? { uncertain: true } : {}) }];
+      });
+      for (const key of lineCache.keys()) if (!lineKeys.has(key)) lineCache.delete(key);
+      for (const key of inferenceCache.keys()) if (!inkKeys.has(key)) inferenceCache.delete(key);
+      return result;
     },
   };
 }

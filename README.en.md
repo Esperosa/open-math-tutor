@@ -207,9 +207,15 @@ In the courses drawer, upload your own `.txt` notes or `.pdf` textbook chapters.
 
 ## On-device handwriting recognition
 
+> **Current limitation (2026-11-10):** line-level CTC is implemented, but the
+> real-human accuracy targets are not met. On the original 319 rows, the default
+> combination has **29.98% CER** and **25.71% exact rows**. Its combined confidence
+> is not sufficiently calibrated for reliable automatic grading. The MNIST/font
+> scores below are not whole-human-row accuracy. [Measurements and known limitations](tools/handwriting/ACCURACY.md#řádkový-ctc-kandidát-2026-11-10).
+
 You can write naturally by hand. The lightweight neural model runs entirely in browser JavaScript:
 
-- **Measured accuracy benchmarks (from [ACCURACY.md](tools/handwriting/ACCURACY.md)):**
+- **Historical benchmarks of the original symbol CNN, not the current combination (from [ACCURACY.md](tools/handwriting/ACCURACY.md)):**
   - Official held-out MNIST test split (10,000 digits): **98.99%**
   - UCI `pendigits` database (14 unseen writers): **97.57%**
   - Unseen Hershey font families (triplex and complex): **92.08%**

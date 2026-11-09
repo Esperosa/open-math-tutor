@@ -87,12 +87,12 @@ function rows(elements: readonly ExcalidrawElement[], previous: Step[], revision
 }
 /** Stable key for one recognised symbol. Versions are part of the key so a
  * re-drawn stroke cannot silently inherit an old correction. */
-export function inkSymbolKey(strokeIds: readonly string[], elements: readonly ExcalidrawElement[]): string {
+export function inkSymbolKey(strokeIds: readonly string[], elements: readonly ExcalidrawElement[], ctcKey?: string | number): string {
   const byId = new Map(elements.map(e => [e.id, e]));
   return [...strokeIds].sort().map(id => {
     const e = byId.get(id);
     return `${id}@${e?.version ?? 0}:${e?.versionNonce ?? 0}`;
-  }).join('|');
+  }).join('|') + (ctcKey === undefined ? '' : `#ctc${ctcKey}`);
 }
 
 /** The same safe parser decides whether a composed line is a usable statement. */
@@ -106,9 +106,9 @@ function parserCompatible(text: string): boolean {
 
 /** Apply one-tap symbol edits, then let the same spatial parser recompose the line. */
 export function correctedInkLine(line: RecognizedLine, edits: Record<string, string>, elements: readonly ExcalidrawElement[], unitAliases: readonly string[] = []) {
-  if (!line.symbols.some(symbol => edits[inkSymbolKey(symbol.strokeIds, elements)])) return line;
+  if (!line.symbols.some(symbol => edits[inkSymbolKey(symbol.strokeIds, elements, symbol.ctcKey ?? symbol.ctcIndex)])) return line;
   const symbols = line.symbols.map(symbol => {
-    const label = edits[inkSymbolKey(symbol.strokeIds, elements)];
+    const label = edits[inkSymbolKey(symbol.strokeIds, elements, symbol.ctcKey ?? symbol.ctcIndex)];
     return label && correctionLabels(symbol).includes(label) ? { ...symbol, label, uncertain: false, confirmed: true } : symbol;
   });
   const parsed = parseLine(symbols, undefined, unitAliases);
@@ -171,7 +171,7 @@ export function commitStudent(state: BoardState, incoming: readonly ExcalidrawEl
   }));
   const steps = [...textSteps, ...inkSteps].sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
   const activeStepId = steps.find(s => s.elementIds.some(id => changedIds.has(id)))?.stepId ?? steps.at(-1)?.stepId ?? null;
-  const currentKeys = new Set(recognized.flatMap(line => line.symbols.map(symbol => inkSymbolKey(symbol.strokeIds, elements))));
+  const currentKeys = new Set(recognized.flatMap(line => line.symbols.map(symbol => inkSymbolKey(symbol.strokeIds, elements, symbol.ctcKey ?? symbol.ctcIndex))));
   const inkEdits = Object.fromEntries(Object.entries(edits).filter(([key]) => currentKeys.has(key)));
   const inkRawReadings = Object.fromEntries(Object.entries(state.inkRawReadings ?? {})
     .filter(([key]) => rawStepIds.has(key)));
@@ -184,10 +184,10 @@ export function commitStudent(state: BoardState, incoming: readonly ExcalidrawEl
 /** One-tap correction of a single recognised symbol; recomposes only its line. */
 export function correctInk(state: BoardState, key: string, label: string): BoardState {
   if (state.inkEdits?.[key] === label) return state;
-  const target = state.steps.find(step => step.symbols?.some(symbol => inkSymbolKey(symbol.strokeIds, state.elements) === key && correctionLabels(symbol).includes(label)));
+  const target = state.steps.find(step => step.symbols?.some(symbol => inkSymbolKey(symbol.strokeIds, state.elements, symbol.ctcKey ?? symbol.ctcIndex) === key && correctionLabels(symbol).includes(label)));
   if (!target?.symbols) return state;
   const revision = state.revision + 1, edits = { ...state.inkEdits, [key]: label };
-  const symbols = target.symbols.map(symbol => inkSymbolKey(symbol.strokeIds, state.elements) === key ? { ...symbol, label, uncertain: false, confirmed: true } : symbol);
+  const symbols = target.symbols.map(symbol => inkSymbolKey(symbol.strokeIds, state.elements, symbol.ctcKey ?? symbol.ctcIndex) === key ? { ...symbol, label, uncertain: false, confirmed: true } : symbol);
   const parsed = parseLine(symbols, undefined, unitAliasesFor(state.expected?.unit, state.statement)), compatible = parserCompatible(parsed.text);
   // A chip must not turn a readable row into unsupported syntax.
   if (target.parserCompatible && !compatible) return state;

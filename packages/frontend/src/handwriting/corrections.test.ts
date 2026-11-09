@@ -64,3 +64,15 @@ it('returns sorted probabilities, stroke provenance and explicit uncertainty for
   expect(groupSymbols(elementsToStrokes(rowElements('x=5', 57)))).toHaveLength(3);
   expect(() => recognizeBoardLines([], { marginThreshold: NaN })).toThrow(RangeError);
 });
+
+it('reuses CTC neural inference when only context changes, but invalidates changed ink', () => {
+  const session = createHandwritingRecognizer(), ink = rowElements('12+7=19', 4);
+  session.recognize(ink, { reader: 'ctc', taskPrompt: '12+7' });
+  expect(session.lineStats).toEqual({ inferredRows: 1, cachedRows: 0 });
+  session.recognize(ink, { reader: 'ctc', taskPrompt: 'another task', previousLines: ['x=1'] });
+  expect(session.lineStats).toEqual({ inferredRows: 0, cachedRows: 1 });
+  session.recognize(ink.map((s, i) => i ? s : { ...s, x: s.x + 1 }), { reader: 'ctc' });
+  expect(session.lineStats.inferredRows).toBe(1);
+  session.clear(); session.recognize(ink, { reader: 'ctc' });
+  expect(session.lineStats.inferredRows).toBe(1);
+});

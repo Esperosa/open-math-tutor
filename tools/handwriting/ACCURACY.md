@@ -303,3 +303,140 @@ A permanent regression test suite is added in `packages/frontend/src/handwriting
 2. Unconstrained CER on human handwriting lines remains bounded (< 65%).
 3. Recognition is deterministic across repeated calls.
 4. Median recognition latency remains under 50 ms per line on real human input.
+
+## Řádkový CTC kandidát (2026-11-10)
+
+**Cíl nesplněn. Toto není schválení k nasazení ani hotové čtení neznámého
+lidského rukopisu.** Implementace a váhy jsou připravené k dalšímu ověření;
+požadavek výrazně pod 15 % CER a alespoň 60 % celých řádků neprošel.
+Strojově čitelné souhrny, protokoly a hash vah: [`line-report.json`](line-report.json).
+
+### Stejní lidé, stejné vstupní tahy, žádné zadání ani správná odpověď
+
+Původních **319** inkoustů zůstává beze změny (170 valid, 149 test).
+První tabulka zachovává původní doslovný protokol: výstup celé aplikace proti
+`sample.label`, včetně penalizace odlišné normalizace závorek a implicitního `*`.
+„CTC“ zde znamená produkční předzpracování tahů/řádků a CTC dekódování, **bez
+záložní CNN klasifikace**. „Výchozí“ zahrnuje porovnání a návrat ke CNN.
+
+| original319, 2 625 referenčních znaků | CER | Celé řádky přesně |
+|---|---:|---:|
+| Před: původní CNN pipeline | 1 467 / 2 625 = **55,89 %** | 26 / 319 = **8,15 %** |
+| Samostatné CTC | 571 / 2 625 = **21,75 %** | 83 / 319 = **26,02 %** |
+| Po: výchozí CTC + porovnávací/záložní CNN | 787 / 2 625 = **29,98 %** | 82 / 319 = **25,71 %** |
+
+Kontrola vlivu formátování, nikoli náhrada původního protokolu: při normalizaci
+**obou** stran do syntaxe aplikace má stejná sada 2 751 znaků. CNN má CER
+50,24 % a 30/319 celých řádků, CTC 13,60 % a 144/319 (45,14 %), výchozí
+kombinace 23,16 % a 129/319 (40,44 %). Ani tato interpretace nesplní požadavek
+60 % celých řádků; nelze ji vydávat za splnění cíle.
+
+### Dalších 512 výrazů z původního test splitu
+
+`__fixtures__/line-heldout.json`: deterministický SHA-256 výběr podle ID,
+bez původních 319 ID, 1–40 výstupních znaků, včetně zlomků, mocnin a odmocnin.
+Nepodporované indexované odmocniny jsou v konečném výběru vyloučeny. Reference
+se zde převádí do syntaxe aplikace před **všemi třemi** měřeními; jde o jiný,
+výrazně dvourozměrnější korpus než původních 319.
+
+| new512, 7 507 kanonických referenčních znaků | CER | Celé řádky přesně |
+|---|---:|---:|
+| Před: CNN pipeline | 5 027 / 7 507 = **66,96 %** | 2 / 512 = **0,39 %** |
+| Samostatné CTC | 1 204 / 7 507 = **16,04 %** | 156 / 512 = **30,47 %** |
+| Po: výchozí kombinace | 2 346 / 7 507 = **31,25 %** | 126 / 512 = **24,61 %** |
+
+Žádný z těchto benchmarků nevstoupil do optimalizace vah ani výběru checkpointu.
+Výběrová logika aplikace se při regresním ladění kontrolovala i proti naměřeným
+výsledkům; není to nové slepé přejímací měření celé aplikace. MathWriting
+**nezveřejňuje ID pisatelů**. Byly zachovány jeho původní splity, ale nelze
+nezávisle doložit, že každý z 512 inkoustů napsal jiný pisatel než tréninková sada.
+Tento požadavek vyžaduje samostatný korpus se známými, oddělenými pisateli.
+
+### Jistota: tokenová kalibrace není kalibrace celého řádku
+
+1 024 valid inkoustů je odděleno od tréninku, původních 319 i od 512 ID použitých
+k výběru checkpointu. ID hash rozděluje **celé řádky**, nikoli korelované rámce:
+490 řádků / 5 445 emitovaných tokenů pro fitting, 534 / 5 804 pro vyhodnocení.
+Použito 30 přibližně stejně obsazených skupin, vyhlazená izotonická PAVA a 15
+reliability bins. Token ECE klesá **0,0209525 → 0,0098426** (2,10 → 0,98 %).
+Při prahu 0,98 je na eval části 19 chybných z 3 137 přijatých tokenů (0,61 %).
+**437 smazaných referenčních znaků** nemá emitovanou jistotu a je vykázáno zvlášť.
+
+To nejsou bezpečnostní čísla celé kombinace. Při jejím současném rozhodování:
+
+| Přijaté řádky, které by mohly projít hodnocením | CNN před | Výchozí po | Samostatné CTC |
+|---|---:|---:|---:|
+| original319: chybné / přijaté | 83 / 98 | **34 / 53** | 1 / 10 |
+| new512: chybné / přijaté | 120 / 120 | **40 / 41** | 0 / 1 |
+
+**Kombinace není bezpečně kalibrovaná na lidské řádky.** CNN si ponechává
+původní, převážně syntetickou kalibraci a může velmi jistě přehlasovat lepší CTC.
+Geometrický průměr tokenových jistot není pravděpodobnost správnosti celého řádku.
+Váhy a zelené unit testy proto neopravňují tvrdit, že automatické hodnocení
+neznámého rukopisu je spolehlivé. Osobní rastrové prototypy zůstávají lokální:
+CTC využívá jejich kosinové boosty na zarovnaných úsecích, nepřidává za ně
+neověřenou jistotu. Jejich přínos na nezávislých lidech zde nebyl změřen.
+
+### Váhy, trénink a nalezený limit přípravy dat
+
+Conv1d 6→48, kernel 5 / stride 2; dvě obousměrné GRU se 64 jednotkami ve směru;
+CTC head, blank + slovník appky. **131 112 parametrů**, 524 448 B float32 hodnot,
+**701 100 B JSON exportu** (0,669 MiB). Čistý TS, bez nového inference runtime,
+WASM, ONNX nebo sítě. Greedy + prefix beam 12, zarovnání Viterbi proti
+**predikovanému** textu. Bbox a přiřazení tahů jsou odhad z rámců, ne ověřená
+pravá segmentace; virtuální strukturální znaky a pozdní tahy zůstávají limitem.
+
+PyTorch 2.7.1+cpu, 4 vlákna, bez GPU, seed 20261109, zhruba **48 min 52 s**:
+12 epoch na náhodných 24 000 train řádcích, pak 6 epoch vyváženého replay
+(6 550 plochých + 6 550 strukturovaných řádků), AdamW 0,002 → 0,001, batch 32.
+Unikátních trénovacích ID je **28 086**. Checkpoint 17 byl zvolen pouze podle
+CER výběrové validace (v tehdejší přípravě 813/6 018 = 13,51 %), ne podle
+uvedených benchmarků. Augmentace zahrnuje affine/shear/škálu, řídké nepravidelné
+myší body 3–40 px v simulované velikosti znaku, třes, tenčení a spojování/dělení
+blízkých tahů. Archiv byl připojen lokálním hardlinkem, nebyl znovu stažen.
+
+**Zjištěná chyba první přípravy je přiznaný limit checkpointu:**
+`\sqrt[3]{x}` se převádělo nesprávně. V původně připraveném train korpusu je
+626 takových případů; do unikátních trénovacích ID tohoto checkpointu vstoupilo
+233 (0,83 %). Opravený parser je nyní odmítá, loader odmítne starou cache a
+konečná kalibrace/new512 je neobsahují. Snapshot není vydáván za model
+přetrénovaný od nuly na opravených labelech. Nové čisté přetrénování je nutné.
+Podrobnosti, hash archivu a vah, počty a obě trénovací fáze jsou v line-report.json.
+Váhy i odvozené inkousty: Google MathWriting, **CC BY-NC-SA 4.0**, viz NOTICE.md.
+
+### Latence a regresní hranice
+
+Node/V8, zahřáté moduly, stateless rozpoznávač (tedy bez ink cache), ms:
+
+| Sada / čtenář | medián | p95 | maximum |
+|---|---:|---:|---:|
+| original319 / CTC | 12,30 | 21,81 | 28,61 |
+| original319 / výchozí kombinace | 28,81 | 47,81 | 56,01 |
+| new512 / CTC | 15,43 | 25,61 | 109,40 |
+| new512 / kombinace | 31,53 | 52,14 | 156,22 |
+
+Headless Chromium na 32 pevných new512 inkoustech: CTC medián **16,40 ms**,
+p95 23,10 ms, maximum 25,20 ms, první volání 50,30 ms; 403/403 tokenů má
+konečné bbox a platné odkazy na tahy, během inference 0 fetch volání. To není
+měření správnosti bbox. Typické řádky splní ~100 ms, ne všechny dlouhé 2D outliery.
+
+`tools/handwriting/realistic` je generovaný, lidským psaním inspirovaný korpus,
+ne sada nezávislých lidských pisatelů: **20/20 před i po**. Round-8 stress zůstává
+**176/360 chybných, 187 přijatých, 7 tichých chyb, 7/187 = 3,74 %**. Jeho
+hranice, počty ani pravděpodobnostní limity se neuvolnily. Původní speed test
+50 ms je nahrazen uživatelem zadaným 100ms rozpočtem pro sekvenci + porovnání;
+není to změna prahu tiché chyby. Katalogový probe nyní posílá stejné zadání a
+allowlist jednotek jako App.commit (nikoli expected.value): 196/212 = 92,45 %.
+Bez tohoto kontextu diagnostika ukázala 190/212 = 89,62 %; tento rozdíl se neskrývá.
+
+### Co zbývá před přijetím
+
+1. Znovu připravit data opraveným parserem a přetrénovat čistý, lépe vyvážený
+   model; více cílených českých/myších dat a případně větší kapacita stále pod 3 MB.
+2. Kalibrovat rozhodnutí **celé kombinace** na skutečných řádcích včetně vynechání
+   znaků; přestat důvěřovat jistotě CNN mimo její doménu. Dnešní fallback ztrácí
+   významnou část zisku samostatného CTC.
+3. Lépe řešit 2D pořadí, strukturální tokeny, opomenuté operátory a přesnost
+   zarovnání; malé chronologické CTC samo tyto problémy neodstraňuje.
+4. Slepý test se známými novými pisateli, lidská kontrola kódu i míst zvýraznění,
+   a teprve pak rozhodnutí o nasazení. Protokol reprodukce je v README.md.

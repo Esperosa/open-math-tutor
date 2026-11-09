@@ -556,7 +556,7 @@ export const Board = forwardRef<BoardHandle, Props>(function Board({
                       onClick={event => {
                         event.stopPropagation();
                         setHighlightedSymbol(null);
-                        onInkCorrection?.(inkSymbolKey(symbol.strokeIds, board.elements), label);
+                        onInkCorrection?.(inkSymbolKey(symbol.strokeIds, board.elements, symbol.ctcKey ?? symbol.ctcIndex), label);
                       }}>
                       <span className="ink-chip-order" aria-hidden="true" data-order={index + 1}></span>
                       <span className="ink-chip-symbol">{label}</span>

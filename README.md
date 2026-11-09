@@ -207,9 +207,15 @@ V sekci kurzů můžeš nahrát vlastní textové materiály (`.txt`) nebo skrip
 
 ## Rozpoznávání rukopisu na tabuli
 
+> **Aktuální omezení (2026-11-10):** řádkové CTC je implementované, ale cíle
+> na skutečném lidském rukopisu nejsou splněné. Výchozí kombinace má na původních
+> 319 řádcích CER **29,98 %** a přesně přečte **25,71 % řádků**. Kalibrace celé
+> kombinace nestačí pro spolehlivé automatické hodnocení. Následující MNIST/font
+> čísla nejsou přesnost celých lidských řádků. [Úplné měření a známé problémy](tools/handwriting/ACCURACY.md#řádkový-ctc-kandidát-2026-11-10).
+
 Můžeš psát přirozeně rukou. Lokální model běží přímo v JavaScriptu ve tvém prohlížeči:
 
-- **Poctivě naměřená přesnost (z [ACCURACY.md](tools/handwriting/ACCURACY.md)):**
+- **Historické benchmarky původní symbolové CNN, nikoli aktuální kombinace (z [ACCURACY.md](tools/handwriting/ACCURACY.md)):**
   - Oficiální held-out testovací sada MNIST (10 000 číslic): **98,99 %**
   - Databáze UCI `pendigits` (14 neviděných pisatelů): **97,57 %**
   - Neviděné rodiny Hershey fontů (triplex a complex): **92,08 %**

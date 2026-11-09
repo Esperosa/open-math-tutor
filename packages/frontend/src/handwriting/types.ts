@@ -32,6 +32,12 @@ export interface StrokeSymbol { strokes: Stroke[]; bbox: BBox }
 export interface StrokeLine { symbols: StrokeSymbol[]; bbox: BBox }
 export interface Candidate { label: string; probability: number }
 export interface RecognizedSymbol {
+  /** CTC token ordinal disambiguates characters sharing one connected stroke. */
+  ctcIndex?: number;
+  /** Transcript-scoped token identity. Retokenization invalidates saved edits. */
+  ctcKey?: string;
+  /** Calibrated emitted-token correctness; distinct from frame class evidence. */
+  confidence?: number;
   bbox: BBox;
   candidates: Candidate[];
   strokeIds: string[];
@@ -44,6 +50,7 @@ export interface RecognizedSymbol {
 }
 export interface Alternative { text: string; confidence: number }
 export interface RecognizedLine {
+  reader?: 'ctc' | 'symbol';
   id: string;
   strokeIds: string[];
   text: string;
@@ -62,6 +69,8 @@ export interface RecognizedLine {
   uncertain?: boolean;
 }
 export interface RecognitionOptions {
+  /** Explicit comparison modes; production uses CTC with a low-evidence fallback. */
+  reader?: 'auto' | 'ctc' | 'symbol';
   unitAliases?: readonly string[];
   /** Expected answer unit, used only to rank unit spelling; never a value prior. */
   expectedUnit?: string;
