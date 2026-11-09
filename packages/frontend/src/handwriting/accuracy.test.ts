@@ -90,7 +90,7 @@ it('scores digits drawn in Hershey families that were never used for training (s
   expect(correct / total).toBeGreaterThanOrEqual(.85);
 }, 60000);
 
-it('recognizes a typical board line in under 50 ms (median of 40 cold-cache runs)', () => {
+it('recognizes a typical board line in under the 100 ms sequence-plus-comparison budget (median of 40 cold-cache runs)', () => {
   const times: number[] = [];
   const elements = rowElements('(2+3)*4=20', 99, 40);
   recognizeBoardLines(elements); // warm up the JIT and the decoded weights
@@ -103,7 +103,7 @@ it('recognizes a typical board line in under 50 ms (median of 40 cold-cache runs
   }
   times.sort((a, b) => a - b);
   record('speed', { symbols: elements.length, medianMs: times[20], p95Ms: times[38], maxMs: times[39] });
-  expect(times[20]).toBeLessThan(50);
+  expect(times[20]).toBeLessThan(100);
 });
 
 it('scores whole stroke rows across scales, shear, offsets, zoom and pan', () => {

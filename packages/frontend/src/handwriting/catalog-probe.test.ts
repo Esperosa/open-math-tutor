@@ -7,6 +7,7 @@ import {
 import { recognizeBoardLines } from './index';
 import { computeLineVerdicts } from '../lines';
 import { random, richRowElements } from '../../tests/inkFixture';
+import { unitAliasesFor } from './units';
 
 function writeable(text: string): string {
   return text.replace(/²/g, '^2').replace(/³/g, '^3').replace(/Ω/g, 'ohm').replace(/Kč/g, 'Kc');
@@ -44,7 +45,11 @@ it('probe every auto-check skill through the real recognizer', () => {
       let elements;
       try { elements = richRowElements(line, 77 + index * 31, 40, [300, 260]); }
       catch (error) { rows.push(`MISSING\t${skill.id}\t${level}\t${line}\t${(error as Error).message}`); continue; }
-      const recognized = recognizeBoardLines(elements);
+      // Match App.commit's actual recognition context: assignment and allowed
+      // unit spelling only, never expected.value or equation correctness.
+      // The separate original319/fresh512 benchmarks remain unconstrained.
+      const recognized = recognizeBoardLines(elements, { taskPrompt: problem.statement,
+        expectedUnit: expected.unit, unitAliases: unitAliasesFor(expected.unit, problem.statement) });
       const text = recognized.map(r => r.text).join(' | ');
       total++;
       const verdict = checkAnswerLine(expected, text);
