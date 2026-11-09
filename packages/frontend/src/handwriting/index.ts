@@ -247,6 +247,7 @@ export function createHandwritingRecognizer(): {
         if (opts.reader !== 'ctc' && best.rawConfidence < .80) return fallback.map(line => ({ ...line, reader: 'symbol' as const }));
         if (opts.reader !== 'ctc' && fallback.length === 1) {
           const legacy = fallback[0];
+          if (legacy.text === best.text && legacy.symbols.every(s => !s.uncertain)) return [{ ...legacy, reader: 'symbol' as const }];
           // A different length is precisely the segmenter's known failure mode.
           // Its high isolated-glyph probabilities cannot veto a CTC split/merge.
           // Compare raw top-class evidence, not the probability of a spelling

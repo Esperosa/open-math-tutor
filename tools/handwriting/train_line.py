@@ -16,7 +16,7 @@ import torch
 from torch import nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from data_mathwriting import LABELS, ROOT
+from data_mathwriting import LABELS, ROOT, linear_label
 
 STEP = .08
 MAX_POINTS = 1024
@@ -114,10 +114,13 @@ def greedy(logits):
 
 def load(split):
     samples = []
-    for line in (ROOT / f'data-cache/lines/{split}.jsonl').open(encoding='utf-8'):
-        sample = json.loads(line)
-        sample['traces'] = [np.asarray(p, dtype=np.float32) for p in sample['traces']]
-        samples.append(sample)
+    with (ROOT / f'data-cache/lines/{split}.jsonl').open(encoding='utf-8') as source:
+        for line in source:
+            sample = json.loads(line)
+            if linear_label(sample['raw_label']) != sample['label']:
+                raise ValueError('Stale/unsupported line labels; rerun data_mathwriting.py before training')
+            sample['traces'] = [np.asarray(p, dtype=np.float32) for p in sample['traces']]
+            samples.append(sample)
     return samples
 
 
@@ -155,7 +158,9 @@ def export(model, destination, metadata):
     payload = {'version': 1, 'architecture': 'conv5s2-48-bigru64x2-ctc', 'labels': LABELS, 'step': STEP,
         'maxPoints': MAX_POINTS, 'license': 'CC-BY-NC-SA-4.0', 'source': 'Google MathWriting 2024',
         'metadata': metadata, 'weights': weights}
-    destination.write_text(json.dumps(payload, separators=(',', ':')), encoding='utf-8')
+    temporary = destination.with_suffix('.json.tmp')
+    temporary.write_text(json.dumps(payload, separators=(',', ':')), encoding='utf-8')
+    temporary.replace(destination)
     # Runtime parity includes unpadded and variable-length data.
     samples = load('valid')[:3]
     parity = []
@@ -175,9 +180,21 @@ def train(args):
     rng = np.random.default_rng(args.seed)
     train_samples = load('train')
     random.Random(args.seed).shuffle(train_samples)
+    if args.flat_focus:
+        # The app is primarily a writing line, not a page-level LaTeX parser.
+        # Balance its underrepresented flat rows with equally many 2-D rows;
+        # never synthesize an answer or draw from valid/test to fill a class.
+        def flat(sample):
+            return len(sample['label']) <= 24 and not any(marker in sample['raw_label'] for marker in ('\\frac', '\\dfrac', '\\tfrac', '^', '\\sqrt'))
+        flat_rows = [s for s in train_samples if flat(s)]
+        structured = [s for s in train_samples if not flat(s)]
+        train_samples = flat_rows + structured[:len(flat_rows)]
+        random.Random(args.seed).shuffle(train_samples)
     if args.limit:
         train_samples = train_samples[:args.limit]
     old_ids = {s['id'] for s in json.loads((ROOT / '../../packages/frontend/src/handwriting/__fixtures__/mathwriting-eval.json').resolve().read_text())}
+    if old_ids.intersection(s['id'] for s in train_samples):
+        raise ValueError('Benchmark ID found in training split')
     valid = [s for s in load('valid') if s['id'] not in old_ids]
     random.Random(1122).shuffle(valid)
     valid = valid[:args.validation]
@@ -224,6 +241,7 @@ def train(args):
         if metrics['cer'] < best:
             best = metrics['cer']
             meta = {'epoch': epoch + 1, 'validation': metrics, 'trainRows': len(train_samples), 'seed': args.seed,
+                'selection': 'balanced flat and structured replay' if args.flat_focus else 'seeded random subset',
                 'trainIdSha256': hashlib.sha256('\n'.join(sorted(s['id'] for s in train_samples)).encode()).hexdigest()}
             torch.save({'state': model.state_dict(), **meta}, output)
             export(model, (ROOT / '../../packages/frontend/src/handwriting/model/line-weights.json').resolve(), meta)
@@ -240,4 +258,5 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=20261109)
     parser.add_argument('--lr', type=float, default=.002)
     parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--flat-focus', action='store_true')
     train(parser.parse_args())

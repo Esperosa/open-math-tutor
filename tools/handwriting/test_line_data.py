@@ -1,9 +1,13 @@
 """Fast tests independent of the private data cache."""
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+import json
 import numpy as np
 
 from data_mathwriting import linear_label
-from train_line import features
+from train_line import features, load
 
 
 class LineDataTest(unittest.TestCase):
@@ -14,7 +18,7 @@ class LineDataTest(unittest.TestCase):
             self.assertEqual(linear_label(source), expected)
 
     def test_never_silently_strip_unsupported_structure(self):
-        for source in [r'\sin{x}', 'x_2', r'\sum{x}', '{2', '2}', r'\frac{2}']:
+        for source in [r'\sin{x}', 'x_2', r'\sum{x}', '{2', '2}', r'\frac{2}', r'\sqrt[3]{x}']:
             self.assertIsNone(linear_label(source))
 
     def test_sampling_invariance(self):
@@ -24,6 +28,17 @@ class LineDataTest(unittest.TestCase):
         self.assertEqual(a.shape[1], 6)
         self.assertEqual(int(a[:, 4].sum()), 2)
         self.assertTrue(np.isfinite(a).all())
+
+    def test_training_refuses_stale_unsupported_cached_labels(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / 'data-cache/lines/train.jsonl'
+            target.parent.mkdir(parents=True)
+            target.write_text(json.dumps({'id': 'stale', 'raw_label': r'\sqrt[3]{x}',
+                'label': '√([)3]x', 'traces': [[[0, 0], [10, 10]]]}), encoding='utf-8')
+            with patch('train_line.ROOT', root):
+                with self.assertRaisesRegex(ValueError, 'Stale/unsupported'):
+                    load('train')
 
 
 if __name__ == '__main__':

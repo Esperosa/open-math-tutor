@@ -1,7 +1,7 @@
 """Strict line labels and deterministic train-only extraction. Never downloads data.
 
 MathWriting, Google LLC, CC BY-NC-SA 4.0. No writer IDs are published;
-the original split is the only available writer-disjointness guarantee.
+the original split is the only available evidence about writer separation.
 """
 import argparse
 import collections
@@ -50,6 +50,8 @@ def linear_label(latex):
                 numerator, denominator = argument(), argument()
                 out += '(' + numerator + ')/(' + denominator + ')'
             elif token == '\\sqrt':
+                if pos < len(tokens) and tokens[pos] == '[':
+                    raise ValueError('indexed roots are outside the supported line subset')
                 out += '√(' + argument() + ')'
             elif token in ('\\mathrm', '\\mathit', '\\mathbf', '\\mathnormal'):
                 out += argument()

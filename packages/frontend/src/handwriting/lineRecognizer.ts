@@ -45,7 +45,7 @@ export function recognizeStrokeLine(strokes: readonly Stroke[], options: Recogni
   // Agreement with an already calibrated readable CNN row needs no expensive
   // N-best materialization. Keep its measured probabilities rather than mix
   // unrelated frame evidence with legacy multiclass calibration.
-  if (comparison && comparison.confidence >= .95 && canonicalLine(greedy.text, options.unitAliases) === comparison.text) {
+  if (comparison && canonicalLine(greedy.text, options.unitAliases) === comparison.text) {
     return { best: undefined, candidates: [] as LineReading[], rawText: comparison.text, transcript: greedy.text };
   }
   const hypotheses = ctcBeam(logp, LINE_LABELS);
