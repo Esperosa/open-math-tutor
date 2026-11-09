@@ -25,6 +25,21 @@ export interface ContextRead {
 
 interface Beam { choices: number[]; labels: string[]; logp: number }
 
+export interface LineCandidate {
+  text: string;
+  logProbability: number;
+  confidence: number;
+  symbols: RecognizedSymbol[];
+}
+
+/** Rerank complete CTC hypotheses; preserves the sequence probability (including
+ * deletion/insertion alternatives), rather than imposing a fixed symbol count.
+ * Uses exactly the same syntax/task prior as the legacy symbol beam. */
+export function rankLineCandidates<T extends LineCandidate>(candidates: readonly T[], options: ContextReadOptions = {}): T[] {
+  return [...candidates].sort((a, b) =>
+    b.logProbability + prior(b.text, b.symbols, options) - a.logProbability - prior(a.text, a.symbols, options));
+}
+
 const optionLabel = (symbol: RecognizedSymbol, option: number): string =>
   option < 0 ? symbol.label ?? symbol.candidates[0]?.label ?? '?' : symbol.candidates[option]?.label ?? '?';
 

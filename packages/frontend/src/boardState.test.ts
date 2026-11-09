@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as shared from '@openmathtutor/shared';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
-import { applyResponse, commitStudent, correctInk, correctionLabels, editTask, fingerprint, inkSymbolKey, newBoard, removeAnnotation, renderableActions, stableMathCandidate, toggleInkContext } from './boardState';
+import { applyResponse, commitStudent, correctInk, correctedInkLine, correctionLabels, editTask, fingerprint, inkSymbolKey, newBoard, removeAnnotation, renderableActions, stableMathCandidate, toggleInkContext } from './boardState';
 import { recognizeBoardLines, type RecognizedLine } from './handwriting';
 import { rowElements } from './handwriting/__fixtures__/generate';
 
@@ -9,6 +9,20 @@ export function element(id = 'line', text = '2x + 3 = 8', version = 1, y = 120):
   return { id, type: 'text', text, x: 120, y, width: 180, height: 32, angle: 0, version, versionNonce: version, isDeleted: false } as ExcalidrawElement;
 }
 function fixture() { return commitStudent(newBoard(), [element()]); }
+
+it('does not replay a connected-stroke correction onto a different token after retokenization', () => {
+  const elements = [{ ...element('shared'), type: 'freedraw' } as ExcalidrawElement];
+  const reading = (text: string): RecognizedLine => ({ id: 'ctc', reader: 'ctc', text, confidence: .9,
+    bbox: { x: 0, y: 0, width: 60, height: 40 }, strokeIds: ['shared'], alternatives: [], ignoredStrokeIds: [], parserCompatible: true,
+    symbols: [...text].map((label, i) => ({ ctcIndex: i, ctcKey: `${text}:${i}`, label, confidence: .9,
+      candidates: [{ label, probability: .9 }, { label: '7', probability: .05 }], strokeIds: ['shared'], strokeOrder: [0],
+      bbox: { x: i * 20, y: 0, width: 20, height: 40 }, uncertain: false })) });
+  const first = reading('12'), second = first.symbols[1];
+  const key = inkSymbolKey(second.strokeIds, elements, second.ctcKey);
+  expect(key).not.toBe(inkSymbolKey(first.symbols[0].strokeIds, elements, first.symbols[0].ctcKey));
+  expect(correctedInkLine(first, { [key]: '7' }, elements).text).toBe('17');
+  expect(correctedInkLine(reading('312'), { [key]: '7' }, elements).text).toBe('312');
+});
 function response(state = fixture(), actions: shared.BoardAction[] = []): shared.AnalyzeBoardResponse {
   return { requestId: 'req', boardRevision: state.revision, recognizedSteps: state.steps, confidence: 0.9,
     firstErrorStepId: state.steps[0].stepId, verifierStatus: 'incorrect', pedagogicalResponse: 'Odečti 3.', ttsText: 'Odečti tři.',

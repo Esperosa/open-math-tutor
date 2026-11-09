@@ -24,6 +24,25 @@ export function normalizeExpression(text: string): string {
     .replace(/(\d+|\([^()]*\))%(?!\s*$)/g, '($1/100)');
 }
 
+/** Shared by CTC inference and one-tap recomposition; no spatial reordering. */
+export function canonicalTranscript(text: string, unitAliases: readonly string[] = []): string {
+  function roots(source: string, depth = 0): string {
+    if (depth > 12) return source; // Remains unsupported/uncertain, never guessed.
+    let out = '';
+    for (let i = 0; i < source.length; i++) {
+      if (source[i] === '√' && source[i + 1] === '(') {
+        let end = i + 2, balance = 1;
+        for (; end < source.length && balance; end++) balance += source[end] === '(' ? 1 : source[end] === ')' ? -1 : 0;
+        if (!balance) { out += `((${roots(source.slice(i + 2, end - 1), depth + 1)})^(1/2))`; i = end - 1; continue; }
+      }
+      out += source[i];
+    }
+    return out;
+  }
+  const raw = roots([...text].map(canonical).join('')), unit = readUnitSuffix(raw, unitAliases);
+  return unit ? `${normalizeExpression(unit.expression)} ${unit.unit}` : normalizeExpression(raw);
+}
+
 function layout(input: Token[], depth = 0): string {
   if (depth > 12) return ''; // Explicit recursion budget for malformed nested drawings.
   let tokens = [...input];
@@ -88,9 +107,16 @@ export function parseLine(symbols: readonly RecognizedSymbol[], choices?: readon
     const choice = choices?.[i] ?? -1;
     const label = choice < 0 ? symbol.label ?? symbol.candidates[0]?.label : symbol.candidates[choice]?.label;
     const candidate = symbol.candidates.find(c => c.label === label) ?? (choice < 0 && symbol.label ? symbol.candidates[0] : undefined);
-    logConfidence += Math.log(Math.max(1e-12, symbol.confirmed ? 1 : candidate?.probability ?? 0));
+    logConfidence += Math.log(Math.max(1e-12, symbol.confirmed ? 1 : symbol.ctcIndex !== undefined && choice < 0 ? symbol.confidence ?? candidate?.probability ?? 0 : candidate?.probability ?? 0));
     return { text: canonical(label ?? '?'), bbox: symbol.bbox };
   });
+  // Sequence tokens already include fraction grouping and power punctuation.
+  // Their alignment boxes must not trigger another geometric exponent/fraction.
+  if (symbols.every(symbol => symbol.ctcIndex !== undefined)) {
+    const raw = tokens.map(t => t.text).join(''), unit = readUnitSuffix(raw, unitAliases);
+    return { text: canonicalTranscript(raw, unitAliases), confidence: Math.exp(logConfidence / symbols.length), symbols: [...symbols],
+      ...(unit?.uncertain ? { uncertain: true } : {}) };
+  }
   // A bare long line is a drawing/dash, not enough evidence of a mathematical minus.
   if (tokens.length === 1 && tokens[0].text === '-' && isBar(tokens[0].bbox)) return { text: '', confidence: 0, symbols: [...symbols] };
   const raw = layout(tokens), unit = readUnitSuffix(raw, unitAliases);

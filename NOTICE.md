@@ -41,6 +41,22 @@ If the exported neural network weights (`packages/frontend/src/handwriting/model
 3. Training scripts and data loaders in `tools/handwriting/` remain under PolyForm Noncommercial 1.0.0 (or permissive CC0 for data extraction logic).
 Both PolyForm Noncommercial 1.0.0 and CC BY-NC-SA 4.0 share the common intent and legal restriction: they permit educational, non-commercial, personal, and research use without royalty, while strictly prohibiting commercial exploitation without explicit separate licensing. Separating the weights artifact boundary ensures strict legal compliance with the Share-Alike provision of MathWriting without forcing relicensing of the application code.
 
+### Line-level handwriting model (MathWriting CTC)
+
+`packages/frontend/src/handwriting/model/line-weights.json`,
+`model/line-calibration.json`, and the `__fixtures__/line-heldout.json` and
+`__fixtures__/line-parity.json` handwriting data are distributed under
+[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/),
+separately from the application source license. Source: **Google LLC,
+MathWriting (2024)**, [dataset and attribution](https://github.com/google-research/google-research/tree/master/mathwriting),
+[paper](https://arxiv.org/abs/2404.10690).
+Changes: supported LaTeX is converted to linear mathematical transcripts;
+trajectories are resampled/augmented; a convolutional bidirectional-GRU CTC
+network is trained and exported; confidence is fitted on validation inks.
+The test fixtures retain anonymized sample IDs, not writer identities.
+The full archive and Python checkpoints are local ignored caches, not bundled.
+Commercial use of these artifacts is not granted by the application license.
+
 ### Voice models (downloaded on demand)
 
 The four voices offered under Nastavení → Hlas → "High-quality voices
