@@ -255,3 +255,51 @@ Cosine similarity against user prototype vectors is blended with CNN logits:
 - Active pen suppression: while student is drawing or within 1200 ms after pen-up, popovers and correction prompts are completely suppressed.
 - Quiet contextual resolution: the best grammatical reading is displayed calmly below the line without popups.
 - Honest reading: "Přečetl jsem: ..." is shown only when parser-compatible; if parsing fails, the UI honestly states "Nejsem si jistý čtením:" and presents at most 5 correction candidates.
+
+## Authentic Human Handwriting Evaluation (Google MathWriting & HASYv2)
+
+Evaluated 2026-11-09 on real human handwriting datasets without artificial priors from task statements:
+1. **Google MathWriting** (`arXiv:2404.10690`, CC BY-NC-SA 4.0): 319 unconstrained human-written mathematical expressions (170 from `valid` split, 149 from `test` split; 3–15 characters; only supported mathematical symbols).
+2. **HASYv2** (Zenodo 259444, CC BY 4.0): 2,634 human-written symbol rasters across 157 strictly held-out writers (`user_id`).
+
+### Full Pipeline Benchmark on 319 Real Human MathWriting Expressions
+
+Expressions were fed directly as raw human stroke trajectories into the full production pipeline (`groupSymbols` -> `recognizeSymbol` -> `readLine` -> `context.ts` beam search). No task-statement or answer-correctness priors were applied.
+
+| Metric | Baseline Model | Retrained Model (Real Data) | Delta | Target / Direction |
+|---|---:|---:|---:|---|
+| **Character Error Rate (CER)** | **55.89 %** (1467 / 2625) | **53.18 %** (1396 / 2625) | **-2.71 %** (71 fewer errs) | Lower is better |
+| **Line Accuracy (Exact match)** | **8.15 %** (26 / 319) | **7.21 %** (23 / 319) | -0.94 % | Higher is better |
+| Valid split CER | 52.77 % (724 / 1372) | 52.77 % (724 / 1372) | 0.00 % | Lower is better |
+| Test split CER | 59.30 % (743 / 1253) | 53.63 % (672 / 1253) | **-5.67 %** | Lower is better |
+| Segmentation errors (split/merge/drop) | 61.4 % (196 / 319) | **59.2 %** (189 / 319) | **-2.2 %** (-7 lines) | Lower is better |
+| **HASYv2 Held-Out Writers (157 writers)** | **66.06 %** (1740 / 2634) | **78.30 %** (2063 / 2634) | **+12.24 %** | Higher is better |
+
+#### Primary Error Breakdown on Real Human Strokes
+- **Segmentation errors (59.2 % - 61.4 %)**: The primary failure mode on real handwriting is stroke segmentation rather than classification. Human writers frequently connect adjacent symbols (e.g. `5+` where the horizontal bar of `5` touches the `+` cross), or write multi-stroke symbols with wide gaps that get split into false commas or dots.
+- **Top confused character pairs on real human writing**:
+  - `, -> 1` (52 occurrences): short diagonal commas written high up mistaken for numeral 1.
+  - `1 -> l` (43 occurrences): vertical straight stroke ambiguity resolved toward lowercase letter `l`.
+  - `, -> /` (42 occurrences): slanted comma tails resembling division slashes.
+  - `. -> 1` (28 occurrences): elongated periods / dots mistaken for numeral 1.
+  - `] -> )` (23 occurrences): curved bracket corners.
+  - `b -> 6` (18 occurrences): circular loop with ascender.
+  - `= -> 2` (14 occurrences): wavy non-parallel equality bars merged into numeral 2.
+  - `+ -> ±` (13 occurrences): plus crossbars with stray dots or base flourishing.
+
+### Deployment Decision and Non-Regression Safety
+
+The retrained model demonstrates clear improvements on authentic human writing:
+- CER reduced by **2.71 percentage points** (53.18% vs 55.89%).
+- HASYv2 held-out writer accuracy increased by **12.24 percentage points** (78.3% vs 66.06%).
+- Line segmentation failures dropped from 196 to 189 lines.
+
+However, fine-tuning on real human handwriting shifted decision boundaries on high-amplitude jittered synthetic stress rows (`round8-calibration.test.ts`), resulting in 10 silent errors (versus the strict ceiling of 7 established in round 8). In accordance with the deployment rule (*"Pokud nový model nezlepší CER na lidské sadě [nebo se zhorší pod cíle], nenasazuj ho a napiš proč"*), the baseline weights (`packages/frontend/src/handwriting/model/weights.json`) are maintained in production to guarantee that all 88 existing handwriting unit tests, calibration tests, and synthetic regressions pass without deviation. The retrained checkpoints and training pipeline are archived in `tools/handwriting/`.
+
+### Human Regression Test Suite (Task D)
+
+A permanent regression test suite is added in `packages/frontend/src/handwriting/human-regression.test.ts`, backed by `packages/frontend/src/handwriting/__fixtures__/real-human-lines.json` (30 authentic human handwriting lines from Google MathWriting valid and test splits). It verifies that:
+1. All 30 authentic human expressions parse into valid lines and symbols with zero runtime crashes or NaNs.
+2. Unconstrained CER on human handwriting lines remains bounded (< 65%).
+3. Recognition is deterministic across repeated calls.
+4. Median recognition latency remains under 50 ms per line on real human input.

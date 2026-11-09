@@ -37,7 +37,7 @@ If the exported neural network weights (`packages/frontend/src/handwriting/model
 
 **Proposed compromise / dual-licensing boundary:**
 1. The **application source code**, UI, tests, and non-model assets remain strictly under **PolyForm Noncommercial License 1.0.0**.
-2. The **neural network weights and checkpoint artifacts** (`weights.json`, `calibration.json`) derived from MathWriting are dual-licensed / explicitly distributed under **CC BY-NC-SA 4.0**.
+2. The **neural network weights and checkpoint artifacts** (`weights.json`, `calibration.json`) and the regression test fixture `packages/frontend/src/handwriting/__fixtures__/real-human-lines.json` (30 authentic human handwriting expressions from MathWriting valid/test splits) derived from MathWriting are dual-licensed / explicitly distributed under **CC BY-NC-SA 4.0**.
 3. Training scripts and data loaders in `tools/handwriting/` remain under PolyForm Noncommercial 1.0.0 (or permissive CC0 for data extraction logic).
 Both PolyForm Noncommercial 1.0.0 and CC BY-NC-SA 4.0 share the common intent and legal restriction: they permit educational, non-commercial, personal, and research use without royalty, while strictly prohibiting commercial exploitation without explicit separate licensing. Separating the weights artifact boundary ensures strict legal compliance with the Share-Alike provision of MathWriting without forcing relicensing of the application code.
 
