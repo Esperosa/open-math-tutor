@@ -244,24 +244,29 @@ def main():
             predicted = torch.cat([net(b).argmax(1) for b in vx.split(256)])
             mnist_correct = (predicted[:5000] == vy[:5000]).sum().item()
             pendigits_correct = (predicted[5000:] == vy[5000:]).sum().item()
-            validation = mnist_correct / 5000 * .5 + pendigits_correct / len(pval) * .5
             comma_correct = sum((net(b).argmax(1) == LABELS.index(',')).sum().item() for b in cvx.split(256))
             hasy_info = ''
+            hasy_corr = 0
+            hasy_total = len(hasy_test_y) if hasy_test_y is not None else 0
             if hasy_test_x is not None:
                 hasy_pred = torch.cat([net(b).argmax(1) for b in hasy_test_x.split(256)])
                 hasy_corr = (hasy_pred == hasy_test_y).sum().item()
-                hasy_info = f' hasy_heldout {hasy_corr}/{len(hasy_test_y)} ({hasy_corr/len(hasy_test_y)*100:.1f}%)'
+                hasy_info = f' hasy_heldout {hasy_corr}/{hasy_total} ({hasy_corr/hasy_total*100:.1f}%)'
+                validation = (mnist_correct / 5000) * 0.40 + (pendigits_correct / len(pval)) * 0.35 + (hasy_corr / hasy_total) * 0.25
+            else:
+                validation = mnist_correct / 5000 * .5 + pendigits_correct / len(pval) * .5
 
         print(f'epoch {epoch + 1} train {correct}/{total} mnist {mnist_correct}/5000 pendigits '
               f'{pendigits_correct}/{len(pval)} comma {comma_correct}/500 score {validation:.4f}{hasy_info} '
               f'elapsed {time.perf_counter() - start:.1f}s', flush=True)
-        if comma_correct >= 490 and validation >= best:
+        if comma_correct >= 490 and mnist_correct >= 4950 and pendigits_correct >= 485 and validation >= best:
             best = validation
             export(net, {'seed': args.seed, 'epoch': epoch + 1, 'epochsRequested': args.epochs,
                          'syntheticPerClass': args.synthetic_per_class, 'pendigitsVariants': args.pendigits_variants,
                          'mnistTrain': 55000, 'pendigitsTrain': len(px), 'realDataTrain': len(rx), 'validationScore': best,
                          'mnistValidationCorrect': mnist_correct, 'pendigitsValidationCorrect': pendigits_correct,
                          'pendigitsValidationTotal': len(pval), 'torch': torch.__version__,
+                         'hasyHeldoutCorrect': hasy_corr, 'hasyHeldoutTotal': hasy_total,
                          'learningRate': args.learning_rate, 'commaWeight': args.comma_weight,
                          'retentionWeight': args.retention_weight,
                          'retentionLabels': args.retention_labels,
@@ -272,7 +277,7 @@ def main():
         for group in opt.param_groups:
             group['lr'] *= .92
     if best == 0:
-        raise RuntimeError('No checkpoint met comma validation >=98%; existing weights were not replaced')
+        raise RuntimeError('No checkpoint met validation requirements; existing weights were not replaced')
     print('weights bytes', args.output.stat().st_size, flush=True)
 
 
