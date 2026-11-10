@@ -266,9 +266,13 @@ export function createHandwritingRecognizer(): {
           });
           const legacyUnit = unitFromLine(legacy.text), sequenceUnit = unitFromLine(best.text);
           const knownUnit = legacyUnit && opts.unitAliases?.includes(legacyUnit) && (!sequenceUnit || !opts.unitAliases.includes(sequenceUnit));
+          const replacementRedraw = ignored.length > 0 && legacyCertain && legacy.parserCompatible;
+          const touchingFallback = !sameLength && legacyCertain && legacy.parserCompatible && evidence > 0.90 && legacy.text.includes('=') && legacy.symbols.length > best.symbols.length;
           if ((sameLength && fewerUncertain && evidence > best.rawConfidence && (legacyCertain || lowTokenEvidence || caseOnly || punctuationGeometry))
+            || touchingFallback
             || knownUnit
-            || legacy.symbols.some(s => s.uncertain && ['°', '∅'].includes(s.label ?? s.candidates[0].label))) {
+            || replacementRedraw
+            || legacy.symbols.some(s => '±≠π°∅'.includes(s.label ?? s.candidates[0].label))) {
             return [{ ...legacy, reader: 'symbol' as const }];
           }
         }

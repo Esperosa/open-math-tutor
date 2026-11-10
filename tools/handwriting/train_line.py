@@ -82,10 +82,12 @@ def features(traces, rng=None):
 
 
 class LineCTC(nn.Module):
-    def __init__(self, hidden=64):
+    def __init__(self, hidden=96, layers=2):
         super().__init__()
+        self.hidden = hidden
+        self.layers = layers
         self.conv = nn.Conv1d(6, 48, 5, stride=2, padding=2)
-        self.gru = nn.GRU(48, hidden, num_layers=2, bidirectional=True, batch_first=True, dropout=.1)
+        self.gru = nn.GRU(48, hidden, num_layers=layers, bidirectional=True, batch_first=True, dropout=.1 if layers > 1 else 0.)
         self.head = nn.Linear(hidden * 2, len(LABELS))
 
     def forward(self, x, lengths):
@@ -155,7 +157,9 @@ def export(model, destination, metadata):
     for key, value in model.state_dict().items():
         a = value.detach().cpu().numpy().astype('<f4')
         weights[key] = {'shape': list(a.shape), 'data': base64.b64encode(a.tobytes()).decode('ascii')}
-    payload = {'version': 1, 'architecture': 'conv5s2-48-bigru64x2-ctc', 'labels': LABELS, 'step': STEP,
+    payload = {'version': 1, 'architecture': f'conv5s2-48-bigru{model.hidden}x{model.layers}-ctc',
+        'hidden': model.hidden, 'layers': model.layers,
+        'labels': LABELS, 'step': STEP,
         'maxPoints': MAX_POINTS, 'license': 'CC-BY-NC-SA-4.0', 'source': 'Google MathWriting 2024',
         'metadata': metadata, 'weights': weights}
     temporary = destination.with_suffix('.json.tmp')
@@ -192,25 +196,47 @@ def train(args):
         random.Random(args.seed).shuffle(train_samples)
     if args.limit:
         train_samples = train_samples[:args.limit]
-    old_ids = {s['id'] for s in json.loads((ROOT / '../../packages/frontend/src/handwriting/__fixtures__/mathwriting-eval.json').resolve().read_text())}
-    if old_ids.intersection(s['id'] for s in train_samples):
+    eval_319_ids = {s['id'] for s in json.loads((ROOT / '../../packages/frontend/src/handwriting/__fixtures__/mathwriting-eval.json').resolve().read_text(encoding='utf-8'))}
+    heldout_512_ids = {s['id'] for s in json.loads((ROOT / '../../packages/frontend/src/handwriting/__fixtures__/line-heldout.json').resolve().read_text(encoding='utf-8'))}
+    calib_ids = {s['id'] for s in json.loads((ROOT / 'data-cache/line-calibration.json').resolve().read_text(encoding='utf-8'))} if (ROOT / 'data-cache/line-calibration.json').exists() else set()
+    forbidden = eval_319_ids | heldout_512_ids | calib_ids
+    if forbidden.intersection(s['id'] for s in train_samples):
         raise ValueError('Benchmark ID found in training split')
-    valid = [s for s in load('valid') if s['id'] not in old_ids]
-    random.Random(1122).shuffle(valid)
-    valid = valid[:args.validation]
-    model = LineCTC()
+    valid_candidates = [s for s in load('valid') if s['id'] not in forbidden]
+    random.Random(1122).shuffle(valid_candidates)
+    valid = valid_candidates[:args.validation]
+    model = LineCTC(hidden=args.hidden, layers=args.layers)
     output = ROOT / '.cache/line-ctc.pt'
+    output_latest = ROOT / '.cache/line-ctc-latest.pt'
     start_epoch = 0
     best = 10.
-    if args.resume and output.exists():
-        checkpoint = torch.load(output, weights_only=True)
+    checkpoint_file = output_latest if output_latest.exists() else output
+    if args.resume and checkpoint_file.exists():
+        checkpoint = torch.load(checkpoint_file, weights_only=False)
         model.load_state_dict(checkpoint['state'])
-        start_epoch, best = checkpoint['epoch'], checkpoint['validation']['cer']
+        start_epoch = checkpoint.get('epoch', 0)
+        best = checkpoint.get('best', checkpoint['validation']['cer'])
+        print(f'Resumed from epoch {start_epoch}, previous best CER {best:.4f}', flush=True)
+    total_epochs = args.total_epochs or (start_epoch + args.epochs)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=.0001)
-    loss_fn = nn.CTCLoss(blank=0, zero_infinity=True)
-    print('parameters', sum(p.numel() for p in model.parameters()), 'train', len(train_samples), 'validation', len(valid), flush=True)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=total_epochs, eta_min=args.lr * 0.05)
+    if args.resume and checkpoint_file.exists():
+        if 'opt' in checkpoint:
+            opt.load_state_dict(checkpoint['opt'])
+        if 'scheduler' in checkpoint:
+            scheduler.load_state_dict(checkpoint['scheduler'])
+        else:
+            for _ in range(start_epoch):
+                scheduler.step()
     history = []
-    for epoch in range(start_epoch, start_epoch + args.epochs):
+    if (ROOT / '.cache/line-history.json').exists():
+        try:
+            history = json.loads((ROOT / '.cache/line-history.json').read_text(encoding='utf-8'))
+        except Exception:
+            history = []
+    loss_fn = nn.CTCLoss(blank=0, zero_infinity=True)
+    print(f'architecture conv5s2-48-bigru{args.hidden}x{args.layers}-ctc parameters {sum(p.numel() for p in model.parameters())} train {len(train_samples)} validation {len(valid)} threads {args.threads} target {start_epoch}->{min(total_epochs, start_epoch + args.epochs)}', flush=True)
+    for epoch in range(start_epoch, min(total_epochs, start_epoch + args.epochs)):
         start = time.monotonic()
         # Random length buckets reduce backward padding; no benchmark labels.
         random.Random(args.seed + epoch).shuffle(train_samples)
@@ -232,31 +258,38 @@ def train(args):
             torch.nn.utils.clip_grad_norm_(model.parameters(), 5.)
             opt.step()
             losses.append(loss.item())
-            if (i + 1) % 100 == 0:
-                print(f'epoch {epoch + 1} batch {i + 1}/{len(groups)} loss {np.mean(losses[-100:]):.4f} seconds {time.monotonic() - start:.1f}', flush=True)
+            if (i + 1) % 100 == 0 or (i + 1) == len(groups):
+                print(f'epoch {epoch + 1} batch {i + 1}/{len(groups)} loss {np.mean(losses[-100:]):.4f} lr {scheduler.get_last_lr()[0]:.6f} seconds {time.monotonic() - start:.1f}', flush=True)
+        scheduler.step()
         metrics = evaluate(model, valid)
         record = {'epoch': epoch + 1, 'loss': float(np.mean(losses)), 'seconds': time.monotonic() - start, 'validation': metrics}
-        history.append(record)
+        # Update or append epoch history
+        history = [h for h in history if h['epoch'] != epoch + 1] + [record]
         print(json.dumps(record), flush=True)
         if metrics['cer'] < best:
             best = metrics['cer']
             meta = {'epoch': epoch + 1, 'validation': metrics, 'trainRows': len(train_samples), 'seed': args.seed,
-                'selection': 'balanced flat and structured replay' if args.flat_focus else 'seeded random subset',
-                'trainIdSha256': hashlib.sha256('\n'.join(sorted(s['id'] for s in train_samples)).encode()).hexdigest()}
+                'selection': 'balanced flat and structured replay' if args.flat_focus else 'full clean mathwriting corpus',
+                'trainIdSha256': hashlib.sha256('\\n'.join(sorted(s['id'] for s in train_samples)).encode()).hexdigest(),
+                'hidden': args.hidden, 'layers': args.layers}
             torch.save({'state': model.state_dict(), **meta}, output)
             export(model, (ROOT / '../../packages/frontend/src/handwriting/model/line-weights.json').resolve(), meta)
+        torch.save({'state': model.state_dict(), 'opt': opt.state_dict(), 'scheduler': scheduler.state_dict(), 'epoch': epoch + 1, 'best': best, 'validation': metrics, 'hidden': args.hidden, 'layers': args.layers}, output_latest)
         (ROOT / '.cache/line-history.json').write_text(json.dumps(history, indent=2), encoding='utf-8')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--epochs', type=int, default=12)
+    parser.add_argument('--epochs', type=int, default=1)
+    parser.add_argument('--total-epochs', type=int, default=10)
     parser.add_argument('--limit', type=int, default=0)
     parser.add_argument('--validation', type=int, default=512)
-    parser.add_argument('--batch', type=int, default=32)
-    parser.add_argument('--threads', type=int, default=4)
+    parser.add_argument('--batch', type=int, default=64)
+    parser.add_argument('--threads', type=int, default=8)
     parser.add_argument('--seed', type=int, default=20261109)
     parser.add_argument('--lr', type=float, default=.002)
+    parser.add_argument('--hidden', type=int, default=96)
+    parser.add_argument('--layers', type=int, default=2)
     parser.add_argument('--resume', action='store_true')
     parser.add_argument('--flat-focus', action='store_true')
     train(parser.parse_args())

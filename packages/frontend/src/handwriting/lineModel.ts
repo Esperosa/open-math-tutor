@@ -1,4 +1,4 @@
-/** Local conv + two bidirectional GRUs, matching PyTorch r,z,n gate order.
+/** Local conv + bidirectional GRUs, matching PyTorch r,z,n gate order.
  * No ONNX/WASM/network/runtime dependencies. Weights are MathWriting-derived,
  * CC BY-NC-SA 4.0; see NOTICE.md. Float32 little-endian base64 is only storage.
  */
@@ -41,8 +41,8 @@ function conv(x: Float32Array): Float32Array {
 
 const sigmoid = (x: number): number => 1 / (1 + Math.exp(-x));
 
-function recurrent(x: Float32Array, inputs: number, layer: number): Float32Array {
-  const frames = x.length / inputs, hidden = 64, gates = hidden * 3;
+function recurrent(x: Float32Array, inputs: number, layer: number, hidden: number): Float32Array {
+  const frames = x.length / inputs, gates = hidden * 3;
   const out = new Float32Array(frames * hidden * 2);
   for (const reverse of [false, true]) {
     const suffix = `_l${layer}${reverse ? '_reverse' : ''}`;
@@ -76,14 +76,22 @@ function recurrent(x: Float32Array, inputs: number, layer: number): Float32Array
 export function lineLogits(features: Float32Array): Float32Array {
   if (features.length % 6 || features.length > 1280 * 6 || features.some(v => !Number.isFinite(v))) throw new RangeError('Invalid line feature tensor');
   if (!features.length) return new Float32Array();
+  const tensor0 = (model.weights as Record<string, Tensor>)['gru.weight_ih_l0'];
+  const hidden = tensor0 ? tensor0.shape[0] / 3 : 64;
+  const numLayers = Object.keys(model.weights).filter(k => k.startsWith('gru.weight_ih_l') && !k.includes('reverse')).length || 2;
   let x = conv(features);
-  x = recurrent(x, 48, 0); x = recurrent(x, 128, 1);
+  for (let l = 0; l < numLayers; l++) {
+    const inDim = l === 0 ? 48 : hidden * 2;
+    x = recurrent(x, inDim, l, hidden);
+  }
+  const headDim = hidden * 2;
   const w = weights('head.weight'), b = weights('head.bias'), classes = LINE_LABELS.length;
-  const out = new Float32Array(x.length / 128 * classes);
-  for (let t = 0; t < x.length / 128; t++) for (let c = 0; c < classes; c++) {
+  const frames = x.length / headDim;
+  const out = new Float32Array(frames * classes);
+  for (let t = 0; t < frames; t++) for (let c = 0; c < classes; c++) {
     let sum = b[c];
-    for (let i = 0; i < 128; i += 4) sum += w[c * 128 + i] * x[t * 128 + i] + w[c * 128 + i + 1] * x[t * 128 + i + 1]
-      + w[c * 128 + i + 2] * x[t * 128 + i + 2] + w[c * 128 + i + 3] * x[t * 128 + i + 3];
+    for (let i = 0; i < headDim; i += 4) sum += w[c * headDim + i] * x[t * headDim + i] + w[c * headDim + i + 1] * x[t * headDim + i + 1]
+      + w[c * headDim + i + 2] * x[t * headDim + i + 2] + w[c * headDim + i + 3] * x[t * headDim + i + 3];
     out[t * classes + c] = sum;
   }
   return out;
