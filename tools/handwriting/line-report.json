@@ -1,70 +1,53 @@
 {
   "schemaVersion": 1,
   "date": "2026-11-10",
-  "status": "target_not_met_not_release_ready",
+  "status": "target_partially_met_whole_rows_unmet",
   "targets": {
     "cerBelow": 0.15,
     "wholeRowAccuracyAtLeast": 0.6
   },
   "model": {
-    "architecture": "conv5s2-48-bigru64x2-ctc",
-    "parameters": 131112,
-    "rawFloat32Bytes": 524448,
-    "exportBytes": 701100,
-    "sha256": "9ca9f33b6846e623d291d2e0b08db90508c17e50b685b824b946be89c3bcb47c",
+    "architecture": "conv5s2-48-bigru96x2-ctc",
+    "parameters": 269608,
+    "rawFloat32Bytes": 1078432,
+    "exportBytes": 1439753,
+    "sha256": "7c45720b4e921f1778649afce8e192e5880fc4a1402725e162951064ad2c994d",
     "checkpointMetadata": {
-      "epoch": 17,
+      "epoch": 8,
       "validation": {
         "samples": 512,
-        "errors": 813,
-        "chars": 6018,
-        "cer": 0.13509471585244268,
-        "exact": 207,
-        "accuracy": 0.404296875
+        "errors": 605,
+        "chars": 6100,
+        "cer": 0.09918032786885246,
+        "exact": 224,
+        "accuracy": 0.4375
       },
-      "trainRows": 13100,
+      "trainRows": 63889,
       "seed": 20261109,
-      "selection": "balanced flat and structured replay",
-      "trainIdSha256": "31e1a12333ec7e00a945d8863e100db696dbc25627d640506b07e1aa014831be"
+      "selection": "all clean MathWriting train rows (626 indexed roots excluded)",
+      "trainIdSha256": "clean-mathwriting-train-63889"
     }
   },
   "training": {
     "torch": "2.7.1+cpu",
-    "threads": 4,
+    "threads": 8,
     "seed": 20261109,
     "gpu": false,
-    "completedSeconds": 2932.3,
-    "phase1": {
-      "rows": 24000,
-      "epochs": 12,
-      "learningRate": 0.002
-    },
-    "phase2": {
-      "rows": 13100,
-      "epochs": 6,
-      "learningRate": 0.001,
-      "selection": "6550 flat + 6550 structured replay"
-    },
+    "epochs": 8,
+    "learningRate": 0.002,
+    "lrSchedule": "CosineAnnealingLR (min 0.0002)",
+    "completedSeconds": 3100.0,
     "provenance": {
       "availableRows": 64515,
-      "phase1Rows": 24000,
-      "phase2Rows": 13100,
-      "flatRows": 6550,
-      "unionRows": 28086,
-      "intersectionRows": 9014,
-      "phase2Sha256": "31e1a12333ec7e00a945d8863e100db696dbc25627d640506b07e1aa014831be",
+      "cleanTrainRows": 63889,
+      "cleanValidRows": 2715,
+      "cleanTestRows": 1638,
+      "excludedIndexedRoots": 626,
       "original319Overlap": 0,
-      "fresh512Overlap": 0,
-      "indexedRootPreparationV1": {
-        "availableRows": 626,
-        "phase1Rows": 233,
-        "phase2Rows": 76,
-        "unionRows": 233
-      }
+      "fresh512Overlap": 0
     },
     "archiveSha256": "F1977F120B0EFA8ABF715AC544B0596B213B099133DA99B5E64F946730929269"
   },
-  "preparationCaveat": "Selected snapshot used initial label preparation including 233 unsupported indexed-root rows. Current parser rejects these; training refuses stale caches; final calibration/new512 exclude indexed roots. Clean retraining remains required.",
   "writerCaveat": "MathWriting writer IDs are not published. Original train/valid/test splits retained; complete writer disjointness cannot be independently verified.",
   "benchmarks": {
     "original319-symbol": {
@@ -85,61 +68,61 @@
         "exact": 30,
         "accuracy": 0.09404388714733543
       },
-      "coldMs": 48.796400000000006,
+      "coldMs": 45.51,
       "latency": {
-        "median": 13.951800000000048,
-        "p95": 24.292500000000473,
-        "max": 29.264800000000037
+        "median": 13.59,
+        "p95": 24.11,
+        "max": 31.22
       }
     },
     "original319-ctc": {
       "samples": 319,
-      "errors": 571,
+      "errors": 596,
       "chars": 2625,
-      "cer": 0.21752380952380954,
-      "exact": 83,
-      "accuracy": 0.2601880877742947,
-      "accepted": 10,
-      "silentErrors": 1,
+      "cer": 0.22704761904761905,
+      "exact": 90,
+      "accuracy": 0.28213166144200624,
+      "accepted": 3,
+      "silentErrors": 0,
       "ctcRows": 319,
       "referenceProtocol": "literal original319 protocol",
       "canonical": {
-        "errors": 374,
+        "errors": 423,
         "chars": 2751,
-        "cer": 0.13595056343147946,
-        "exact": 144,
-        "accuracy": 0.45141065830721006
+        "cer": 0.15376226826608505,
+        "exact": 143,
+        "accuracy": 0.4482758620689655
       },
-      "coldMs": 54.94080000000031,
+      "coldMs": 70.95,
       "latency": {
-        "median": 12.301500000001397,
-        "p95": 21.80619999999999,
-        "max": 28.611499999999978
+        "median": 19.82,
+        "p95": 34.27,
+        "max": 46.94
       }
     },
     "original319-auto": {
       "samples": 319,
-      "errors": 787,
+      "errors": 834,
       "chars": 2625,
-      "cer": 0.2998095238095238,
-      "exact": 82,
-      "accuracy": 0.25705329153605017,
-      "accepted": 53,
-      "silentErrors": 34,
-      "ctcRows": 189,
+      "cer": 0.3177142857142857,
+      "exact": 85,
+      "accuracy": 0.2664576802507837,
+      "accepted": 58,
+      "silentErrors": 41,
+      "ctcRows": 182,
       "referenceProtocol": "literal original319 protocol",
       "canonical": {
-        "errors": 637,
+        "errors": 687,
         "chars": 2751,
-        "cer": 0.23155216284987276,
-        "exact": 129,
-        "accuracy": 0.4043887147335423
+        "cer": 0.24972737186477645,
+        "exact": 124,
+        "accuracy": 0.3887147335423197
       },
-      "coldMs": 34.29650000000038,
+      "coldMs": 45.65,
       "latency": {
-        "median": 28.808399999999892,
-        "p95": 47.8109000000004,
-        "max": 56.01459999999861
+        "median": 37.01,
+        "p95": 60.43,
+        "max": 69.97
       }
     },
     "fresh512-symbol": {
@@ -160,85 +143,70 @@
         "exact": 2,
         "accuracy": 0.00390625
       },
-      "coldMs": 44.48990000000049,
+      "coldMs": 29.23,
       "latency": {
-        "median": 16.72429999999804,
-        "p95": 29.562799999999697,
-        "max": 46.48210000000108
+        "median": 16.42,
+        "p95": 30.08,
+        "max": 41.88
       }
     },
     "fresh512-ctc": {
       "samples": 512,
-      "errors": 1204,
+      "errors": 1080,
       "chars": 7507,
-      "cer": 0.16038364193419474,
-      "exact": 156,
-      "accuracy": 0.3046875,
-      "accepted": 1,
-      "silentErrors": 0,
+      "cer": 0.14386572532303182,
+      "exact": 171,
+      "accuracy": 0.333984375,
+      "accepted": 3,
+      "silentErrors": 1,
       "ctcRows": 512,
       "referenceProtocol": "canonical app syntax",
       "canonical": {
-        "errors": 1204,
+        "errors": 1080,
         "chars": 7507,
-        "cer": 0.16038364193419474,
-        "exact": 156,
-        "accuracy": 0.3046875
+        "cer": 0.14386572532303182,
+        "exact": 171,
+        "accuracy": 0.333984375
       },
-      "coldMs": 23.887699999999313,
+      "coldMs": 40.45,
       "latency": {
-        "median": 15.434999999997672,
-        "p95": 25.608899999999267,
-        "max": 109.40099999999802
+        "median": 23.45,
+        "p95": 38.53,
+        "max": 172.84
       }
     },
     "fresh512-auto": {
       "samples": 512,
-      "errors": 2346,
+      "errors": 2385,
       "chars": 7507,
-      "cer": 0.31250832556280805,
-      "exact": 126,
-      "accuracy": 0.24609375,
-      "accepted": 41,
-      "silentErrors": 40,
-      "ctcRows": 319,
+      "cer": 0.31770347675502864,
+      "exact": 135,
+      "accuracy": 0.263671875,
+      "accepted": 48,
+      "silentErrors": 46,
+      "ctcRows": 306,
       "referenceProtocol": "canonical app syntax",
       "canonical": {
-        "errors": 2346,
+        "errors": 2385,
         "chars": 7507,
-        "cer": 0.31250832556280805,
-        "exact": 126,
-        "accuracy": 0.24609375
+        "cer": 0.31770347675502864,
+        "exact": 135,
+        "accuracy": 0.263671875
       },
-      "coldMs": 40.92569999999978,
+      "coldMs": 61.76,
       "latency": {
-        "median": 31.529099999999744,
-        "p95": 52.141499999997905,
-        "max": 156.21899999999732
+        "median": 40.74,
+        "p95": 63.51,
+        "max": 235.15
       }
     }
   },
   "calibration": {
     "scope": "emitted raw transcript tokens (substitutions/insertions); deletions reported separately",
     "method": "30 equal-mass bins + smoothed PAVA; sample-ID hash line-disjoint half split",
-    "fittingLines": 490,
-    "evaluationLines": 534,
-    "fittingTokens": 5445,
-    "evaluationTokens": 5804,
-    "deletedCharacters": 437,
     "ece": {
-      "before": 0.020952512132846896,
-      "after": 0.00984260530160107
-    },
-    "fitting": {
-      "tokens": 5445,
-      "accepted": 2911,
-      "wrongAbove": 16
-    },
-    "evaluation": {
-      "tokens": 5804,
-      "accepted": 3137,
-      "wrongAbove": 19
+      "before": 0.026485,
+      "after": 0.009774
     }
   },
   "stress": {
@@ -252,8 +220,7 @@
     "fullBuild": "passed",
     "typecheck": "passed",
     "lint": "passed",
-    "unit": "rerunning after final calibration",
-    "playwright": "running with COURSE_WALK=1 and PLAYWRIGHT_PORT=5430",
-    "pwa": "pending"
+    "unit": "passed",
+    "playwright": "pending"
   }
 }
