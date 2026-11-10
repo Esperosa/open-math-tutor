@@ -10,14 +10,14 @@ to the DOM change, taken inside the page with `performance.now()`. Targets: hand
 <!-- measured:start -->
 | Measurement | Runs | Median ms | Best ms | Worst ms |
 |---|---|---|---|---|
-| typed line: Escape → ✗ mark | 4 | 33 | 16 | 39 |
-| typed line: Escape → tutor bubble | 4 | 231 | 227 | 248 |
-| AI request: click → "thinking" bubble | 3 | 4 | 3 | 8 |
-| AI request: click → mascot thinks | 3 | 4 | 3 | 8 |
-| AI request: click → answer in bubble (mock answers after 1500 ms) | 3 | 1526 | 1525 | 1530 |
-| pen-up → ✓ mark | 1 | 468 | 468 | 468 |
-| pen-up → ✗ mark | 1 | 2444 | 2444 | 2444 |
-| pen-up → negative comment | 1 | 2444 | 2444 | 2444 |
+| typed line: Escape → ✗ mark | 4 | 22 | 17 | 24 |
+| typed line: Escape → tutor bubble | 4 | 233 | 225 | 233 |
+| AI request: click → "thinking" bubble | 3 | 5 | 4 | 6 |
+| AI request: click → mascot thinks | 3 | 5 | 4 | 6 |
+| AI request: click → answer in bubble (mock answers after 1500 ms) | 3 | 1523 | 1521 | 1532 |
+| pen-up → ✓ mark | 1 | 472 | 472 | 472 |
+| pen-up → ✗ mark | 1 | 2411 | 2411 | 2411 |
+| pen-up → negative comment | 1 | 2431 | 2431 | 2431 |
 | pen-up → mascot looks at the line (checking) | 3 | 3 | 3 | 4 |
 <!-- measured:end -->
 
